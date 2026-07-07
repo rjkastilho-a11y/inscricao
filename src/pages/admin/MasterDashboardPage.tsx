@@ -307,7 +307,7 @@ export default function MasterDashboardPage() {
                   Nenhuma igreja cadastrada ainda.
                 </div>
               ) : (
-                <div className="rounded-lg border border-border overflow-hidden">
+                <div className="rounded-lg border border-border overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-border bg-accent">

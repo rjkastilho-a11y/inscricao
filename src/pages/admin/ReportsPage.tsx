@@ -40,7 +40,7 @@ export default function ReportsPage() {
   return (
     <div>
       <PageHeader title="Relatórios" />
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Total Inscrições</CardTitle>

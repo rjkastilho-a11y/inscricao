@@ -1052,7 +1052,7 @@ export default function RegistrationsPage() {
           </Button>
           <div className="md:hidden shrink-0">
             <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-lg border border-border bg-card backdrop-blur-md hover:bg-accent text-foreground transition-colors size-9 max-md:h-11 max-md:w-11">
+              <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-lg border border-border bg-card backdrop-blur-md hover:bg-accent text-foreground transition-colors size-9 max-md:h-11 max-md:w-11 md:h-10 md:w-10">
                 <MoreHorizontal className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -1070,7 +1070,7 @@ export default function RegistrationsPage() {
           </div>
         </div>
         <Select value={churchFilter} onValueChange={(v: string) => { setChurchFilter(v); setPage(0); }}>
-          <SelectTrigger className="hidden md:flex w-full md:w-[180px] !h-10">
+          <SelectTrigger className="hidden md:flex w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
             <SelectValue placeholder="Igreja" />
           </SelectTrigger>
           <SelectContent>
@@ -1082,7 +1082,7 @@ export default function RegistrationsPage() {
         </Select>
         <div className="hidden md:flex flex-wrap gap-2">
           <Select value={statusFilter} onValueChange={(v: string) => { setStatusFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-full md:w-[150px] !h-10">
+            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
               <SelectValue>
                 {(value) => value ? (paymentStatusLabels[value] || value) : "Status"}
               </SelectValue>
@@ -1095,7 +1095,7 @@ export default function RegistrationsPage() {
             </SelectContent>
           </Select>
           <Select value={checkinFilter} onValueChange={(v: string) => { setCheckinFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-full md:w-[150px] !h-10">
+            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
               <SelectValue>
                 {(value) => {
                   if (value === 'checked') return '✓ Confirmado';
@@ -1116,7 +1116,7 @@ export default function RegistrationsPage() {
               placeholder="De..."
               value={dateFrom}
               onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
-              className="w-full md:w-[140px]"
+              className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
             />
             <span className="text-muted-foreground text-sm">até</span>
             <Input
@@ -1124,11 +1124,11 @@ export default function RegistrationsPage() {
               placeholder="Até..."
               value={dateTo}
               onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
-              className="w-full md:w-[140px]"
+              className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
             />
           </div>
           {hasFilters && (
-            <Button variant="ghost" size="icon" className="inline-flex max-md:h-11 max-md:w-11" onClick={clearFilters}>
+            <Button variant="ghost" size="icon" className="inline-flex max-md:h-11 max-md:w-11 md:h-10 md:w-10" onClick={clearFilters}>
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -1325,7 +1325,7 @@ export default function RegistrationsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive h-8 w-8 max-md:h-11 max-md:w-11"
+                        className="text-destructive h-8 w-8 max-md:h-11 max-md:w-11 md:h-10 md:w-10"
                         onClick={(e) => { e.stopPropagation(); setDeleteId(reg.id); setDialogOpen(true); }}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -1335,8 +1335,8 @@ export default function RegistrationsPage() {
                         size="sm"
                         className={
                           reg.checked_in
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 h-8 max-md:h-11 px-3 gap-1.5'
-                            : 'h-8 max-md:h-11 px-3 gap-1.5 text-muted-foreground'
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 h-8 max-md:h-11 md:h-10 px-3 gap-1.5'
+                            : 'h-8 max-md:h-11 md:h-10 px-3 gap-1.5 text-muted-foreground'
                         }
                         onClick={(e) => {
                           e.stopPropagation();

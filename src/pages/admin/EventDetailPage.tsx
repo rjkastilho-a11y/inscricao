@@ -68,7 +68,7 @@ export default function EventDetailPage() {
 
       <div className="mb-4">
         <Select value={id} onValueChange={(value) => navigate(`/app/eventos/${value}`)}>
-          <SelectTrigger className="w-full md:w-[400px] bg-card backdrop-blur-md border-border">
+          <SelectTrigger className="w-full md:max-w-md bg-card backdrop-blur-md border-border">
             <SelectValue>
               {(value) => value ? (allEvents.find(e => e.id === value)?.title || value) : "Selecione um evento..."}
             </SelectValue>

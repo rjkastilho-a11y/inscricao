@@ -261,7 +261,7 @@ export default function EventsPage() {
       </div>
 
       {/* ── Tabela: desktop ── */}
-      <div className="hidden md:block rounded-lg border border-border overflow-hidden">
+      <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-accent">

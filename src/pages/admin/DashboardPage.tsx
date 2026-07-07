@@ -636,7 +636,7 @@ export default function DashboardPage() {
       <div className="md:hidden mb-4">
         <Button
           variant="outline"
-          className="w-full max-md:h-11"
+          className="w-full max-md:h-11 md:h-10"
           onClick={() => setShowCharts(!showCharts)}
         >
           {showCharts ? 'Ocultar gráficos' : 'Ver gráficos'}
@@ -644,7 +644,7 @@ export default function DashboardPage() {
       </div>
 
       {(showCharts || !isMobile) && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {/* ─── Slot 1 – Pie ─── */}
           {metric1Data.length > 0 && (
             <Card className="bg-card backdrop-blur-md border-border shadow-lg">
@@ -755,12 +755,12 @@ export default function DashboardPage() {
               <EmptyState title="Nenhum evento com dados" description="Os dados aparecerão assim que houver inscrições registradas." />
             )}
             {hasMore && !showAllEvents && (
-              <Button className="w-full bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11" onClick={() => setShowAllEvents(true)}>
+              <Button className="w-full bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11 md:h-10" onClick={() => setShowAllEvents(true)}>
                 Ver mais
               </Button>
             )}
             {hasMore && showAllEvents && (
-              <Button className="w-full bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11" onClick={() => setShowAllEvents(false)}>
+              <Button className="w-full bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11 md:h-10" onClick={() => setShowAllEvents(false)}>
                 Ver menos
               </Button>
             )}

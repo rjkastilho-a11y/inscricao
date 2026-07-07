@@ -360,7 +360,7 @@ export default function FichaImpressaPage() {
             value={watermarkUrl}
             onChange={(e) => setWatermarkUrl(e.target.value)}
             placeholder="URL da marca d'água (opcional)"
-            className="flex h-9 min-w-[250px] rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex h-9 w-full md:min-w-[250px] rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <Button disabled={savingWatermark} onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : handleSaveWatermark}>
             {savingWatermark ? 'Salvando...' : 'Salvar'}

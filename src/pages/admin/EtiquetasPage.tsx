@@ -180,7 +180,7 @@ export default function EtiquetasPage() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Modelo:</span>
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full sm:max-w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -195,7 +195,7 @@ export default function EtiquetasPage() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Tamanho da Fonte:</span>
               <Select value={fontSize} onValueChange={setFontSize}>
-                <SelectTrigger className="w-[100px]">
+                <SelectTrigger className="w-full sm:max-w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -210,7 +210,7 @@ export default function EtiquetasPage() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Fonte:</span>
               <Select value={fontFamily} onValueChange={setFontFamily}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:max-w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

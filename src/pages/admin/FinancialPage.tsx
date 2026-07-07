@@ -496,8 +496,8 @@ export default function FinancialPage() {
     return (
       <div>
         <PageHeader title="Financeiro" badge={event?.title} />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-6">
-          {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonStatCard key={i} />)}
         </div>
         <SkeletonTable rows={5} columns={5} />
       </div>
@@ -518,7 +518,7 @@ export default function FinancialPage() {
         {/* Mobile: export actions */}
         <div className="md:hidden">
           <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-lg border border-border bg-card hover:bg-accent text-foreground transition-colors size-9 max-md:h-11 max-md:w-11">
+            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-lg border border-border bg-card hover:bg-accent text-foreground transition-colors size-9 max-md:h-11 max-md:w-11 md:h-10 md:w-10">
               <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -531,39 +531,39 @@ export default function FinancialPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground md:ml-auto max-md:h-11" onClick={(e) => { e.stopPropagation(); openAdd('income'); }}>
+        <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground md:ml-auto max-md:h-11 md:h-10" onClick={(e) => { e.stopPropagation(); openAdd('income'); }}>
           <Plus className="h-4 w-4 mr-1" /> Nova entrada
         </Button>
-        <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11" onClick={(e) => { e.stopPropagation(); openAdd('expense'); }}>
+        <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11 md:h-10" onClick={(e) => { e.stopPropagation(); openAdd('expense'); }}>
           <Plus className="h-4 w-4 mr-1" /> Nova saída
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
         <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Previsto</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-blue-400">{formatCurrency(totalExpected)}</p></CardContent>
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Previsto</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-blue-400">{formatCurrency(totalExpected)}</p></CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Real</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-emerald-400">{formatCurrency(netActual)}</p></CardContent>
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Real</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-emerald-400">{formatCurrency(netActual)}</p></CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Entradas (Ofertas)</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalOfferings)}</p></CardContent>
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Entradas (Ofertas)</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-emerald-400">{formatCurrency(totalOfferings)}</p></CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Saídas</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-red-400">{formatCurrency(totalExpenses)}</p></CardContent>
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Saídas</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-red-400">{formatCurrency(totalExpenses)}</p></CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Entradas</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-foreground">{formatCurrency(netActual + totalOfferings)}</p></CardContent>
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Total Entradas</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-foreground">{formatCurrency(netActual + totalOfferings)}</p></CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Saldo</CardTitle></CardHeader>
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Saldo</CardTitle></CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold ${netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className={`font-serif text-xl md:text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {formatCurrency(netBalance)}
             </p>
           </CardContent>
@@ -574,7 +574,7 @@ export default function FinancialPage() {
       <Card className="mb-6 bg-card backdrop-blur-xl border-border shadow-2xl">
         <CardHeader className="flex flex-row items-center justify-between cursor-pointer" onClick={() => setCollapseReg(!collapseReg)}>
           <CardTitle className="text-lg text-foreground">Inscrições</CardTitle>
-          <Button size="icon" className="h-7 w-7 max-md:h-11 max-md:w-11 bg-card backdrop-blur-md border-border hover:bg-accent text-foreground">
+          <Button size="icon" className="h-7 w-7 max-md:h-11 max-md:w-11 md:h-10 md:w-10 bg-card backdrop-blur-md border-border hover:bg-accent text-foreground">
             {collapseReg ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
           </Button>
         </CardHeader>
@@ -585,24 +585,24 @@ export default function FinancialPage() {
                 placeholder="Buscar inscrito..."
                 value={regSearch}
                 onChange={(e) => setRegSearch(e.target.value)}
-                className="w-full md:w-[180px]"
+                className="w-full md:min-w-0 md:flex-1 md:max-w-xs"
               />
               <Input
                 type="date"
                 value={regDateFrom}
                 onChange={(e) => setRegDateFrom(e.target.value)}
-                className="w-full md:w-[140px]"
+                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
                 placeholder="De"
               />
               <Input
                 type="date"
                 value={regDateTo}
                 onChange={(e) => setRegDateTo(e.target.value)}
-                className="w-full md:w-[140px]"
+                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
                 placeholder="Até"
               />
               <Select value={regStatusFilter} onValueChange={setRegStatusFilter}>
-                <SelectTrigger className="w-full md:w-[140px] !h-10">
+                <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
                   <SelectValue>
                     {(value) => value ? (paymentStatusLabels[value] || value) : "Status"}
                   </SelectValue>
@@ -615,7 +615,7 @@ export default function FinancialPage() {
                 </SelectContent>
               </Select>
               <Select value={regMethodFilter} onValueChange={setRegMethodFilter}>
-                <SelectTrigger className="w-full md:w-[140px] !h-10">
+                <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
                   <SelectValue>
                     {(value) => value ? (paymentMethodLabels[value] || value) : "Método"}
                   </SelectValue>
@@ -628,7 +628,7 @@ export default function FinancialPage() {
                 </SelectContent>
               </Select>
               <Select value={regPercentFilter} onValueChange={setRegPercentFilter}>
-                <SelectTrigger className="w-full md:w-[140px] !h-10">
+                <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
                   <SelectValue placeholder="Pagamento %" />
                 </SelectTrigger>
                 <SelectContent>
@@ -755,7 +755,7 @@ export default function FinancialPage() {
               )}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block rounded-lg border border-border overflow-hidden">
+            <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-accent">
@@ -846,7 +846,7 @@ export default function FinancialPage() {
         <CardHeader className="flex flex-row items-center justify-between cursor-pointer" onClick={() => setCollapseIncome(!collapseIncome)}>
           <CardTitle className="text-lg text-foreground">Ofertas / Outras Entradas</CardTitle>
           <div className="flex items-center gap-2">
-            <Button size="icon" className="h-7 w-7 max-md:h-11 max-md:w-11 bg-card backdrop-blur-md border-border hover:bg-accent text-foreground">
+            <Button size="icon" className="h-7 w-7 max-md:h-11 max-md:w-11 md:h-10 md:w-10 bg-card backdrop-blur-md border-border hover:bg-accent text-foreground">
               {collapseIncome ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
             </Button>
           </div>
@@ -855,7 +855,7 @@ export default function FinancialPage() {
           <CardContent>
             <div className="flex flex-wrap gap-2 mb-3">
               <Select value={incomeCategoryFilter} onValueChange={setIncomeCategoryFilter}>
-                <SelectTrigger className="w-full md:w-[140px] !h-10">
+                <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
                   <SelectValue>
                     {(value) => value ? incomeCategoryLabels[value] || value : "Categoria"}
                   </SelectValue>
@@ -871,14 +871,14 @@ export default function FinancialPage() {
                 type="date"
                 value={incomeDateFrom}
                 onChange={(e) => setIncomeDateFrom(e.target.value)}
-                className="w-full md:w-[140px]"
+                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
                 placeholder="De"
               />
               <Input
                 type="date"
                 value={incomeDateTo}
                 onChange={(e) => setIncomeDateTo(e.target.value)}
-                className="w-full md:w-[140px]"
+                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
                 placeholder="Até"
               />
               {hasIncomeFilters && (
@@ -929,7 +929,7 @@ export default function FinancialPage() {
               )}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block rounded-lg border border-border overflow-hidden">
+            <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-accent">
@@ -986,7 +986,7 @@ export default function FinancialPage() {
         <CardHeader className="flex flex-row items-center justify-between cursor-pointer" onClick={() => setCollapseExpense(!collapseExpense)}>
           <CardTitle className="text-lg text-foreground">Saídas / Despesas</CardTitle>
           <div className="flex items-center gap-2">
-            <Button size="icon" className="h-7 w-7 max-md:h-11 max-md:w-11 bg-card backdrop-blur-md border-border hover:bg-accent text-foreground">
+            <Button size="icon" className="h-7 w-7 max-md:h-11 max-md:w-11 md:h-10 md:w-10 bg-card backdrop-blur-md border-border hover:bg-accent text-foreground">
               {collapseExpense ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
             </Button>
           </div>
@@ -995,7 +995,7 @@ export default function FinancialPage() {
           <CardContent>
             <div className="flex flex-wrap gap-2 mb-3">
               <Select value={expenseCategoryFilter} onValueChange={setExpenseCategoryFilter}>
-                <SelectTrigger className="w-full md:w-[140px] !h-10">
+                <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
                   <SelectValue>
                     {(value) => value ? expenseCategoryLabels[value] || value : "Categoria"}
                   </SelectValue>
@@ -1011,14 +1011,14 @@ export default function FinancialPage() {
                 type="date"
                 value={expenseDateFrom}
                 onChange={(e) => setExpenseDateFrom(e.target.value)}
-                className="w-full md:w-[140px]"
+                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
                 placeholder="De"
               />
               <Input
                 type="date"
                 value={expenseDateTo}
                 onChange={(e) => setExpenseDateTo(e.target.value)}
-                className="w-full md:w-[140px]"
+                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
                 placeholder="Até"
               />
               {hasExpenseFilters && (
@@ -1052,7 +1052,7 @@ export default function FinancialPage() {
                 <div key={e.id} className="rounded-lg border border-border bg-muted p-4 space-y-2">
                   <div className="flex items-start justify-between gap-1">
                     <p className="font-medium text-sm capitalize text-foreground">{e.category}</p>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11 -mt-1 -mr-1 text-foreground hover:bg-accent" onClick={() => handleDelete(e.id)}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11 md:h-10 md:w-10 -mt-1 -mr-1 text-foreground hover:bg-accent" onClick={() => handleDelete(e.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -1069,7 +1069,7 @@ export default function FinancialPage() {
               )}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block rounded-lg border border-border overflow-hidden">
+            <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-accent">
