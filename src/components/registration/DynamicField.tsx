@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,18 +10,58 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { maskPhone } from '@/lib/utils';
 import { FileText } from 'lucide-react';
 import type { FormField } from '@/lib/form-fields';
+import type { FieldState } from '@/lib/conditional-logic';
 
 interface Props {
   field: FormField;
+  state?: FieldState;
   termsText?: string | null;
 }
 
-function DynamicFieldInner({ field, termsText }: Props) {
+function DynamicFieldInner({ field, state, termsText }: Props) {
   const form = useFormContext();
   const [termsOpen, setTermsOpen] = useState(false);
+  const prevVisibleRef = useRef(state?.visible ?? true);
 
   const error = form.formState.errors[field.field_key];
   const value = form.watch(field.field_key);
+
+  // Debug: log state when present
+  if (state && (state.autoFillValue || state.clearOnHide || state.disabled || state.readOnly || !state.visible)) {
+    console.log(`[DynamicField] ${field.field_key} state:`, state);
+  }
+
+  // Aplica auto_fill quando o campo fica visível com um valor automático
+  useEffect(() => {
+    if (state?.autoFillValue !== undefined && state.visible) {
+      const current = form.getValues(field.field_key);
+      if (current !== state.autoFillValue) {
+        console.log(`[DynamicField] auto_fill: ${field.field_key} = "${state.autoFillValue}"`);
+        form.setValue(field.field_key, state.autoFillValue);
+      }
+    }
+  }, [state?.autoFillValue, state?.visible, field.field_key, form]);
+
+  // Limpa valor quando campo fica oculto (clear_on_hide)
+  useEffect(() => {
+    const wasVisible = prevVisibleRef.current;
+    const isNowVisible = state?.visible ?? true;
+    prevVisibleRef.current = isNowVisible;
+
+    if (wasVisible && !isNowVisible && state?.clearOnHide) {
+      const current = form.getValues(field.field_key);
+      if (current !== undefined && current !== null && current !== '') {
+        console.log(`[DynamicField] clear_on_hide: ${field.field_key}`);
+        form.setValue(field.field_key, undefined);
+      }
+    }
+  }, [state?.visible, state?.clearOnHide, field.field_key, form]);
+
+  if (state && !state.visible) return null;
+
+  const effectiveRequired = state?.required ?? field.required;
+  const isDisabled = state?.disabled ?? false;
+  const isReadOnly = state?.readOnly ?? false;
 
   switch (field.field_type) {
     case 'textarea':
@@ -29,11 +69,13 @@ function DynamicFieldInner({ field, termsText }: Props) {
         <div>
           <Label htmlFor={field.field_key}>
             {field.label}
-            {field.required && ' *'}
+            {effectiveRequired && ' *'}
           </Label>
           <Textarea
             id={field.field_key}
             rows={4}
+            disabled={isDisabled}
+            readOnly={isReadOnly}
             {...form.register(field.field_key)}
           />
           {error && <p className="text-sm text-destructive mt-1">{error.message as string}</p>}
@@ -48,11 +90,12 @@ function DynamicFieldInner({ field, termsText }: Props) {
               <Checkbox
                 id={field.field_key}
                 checked={!!value}
+                disabled={isDisabled}
                 onCheckedChange={(v) => form.setValue(field.field_key, !!v)}
               />
               <Label htmlFor={field.field_key} className="leading-relaxed">
                 {field.label}
-                {field.required && ' *'}
+                {effectiveRequired && ' *'}
               </Label>
             </div>
             <button
@@ -87,31 +130,68 @@ function DynamicFieldInner({ field, termsText }: Props) {
         );
       }
 
+      if (field.options && field.options.length > 0) {
+        const selected: string[] = Array.isArray(value) ? value : [];
+        return (
+          <div>
+            <Label>
+              {field.label}
+              {effectiveRequired && ' *'}
+            </Label>
+            <div className="mt-1.5 space-y-2">
+              {field.options.map((opt) => {
+                const optionId = `${field.field_key}-${opt}`;
+                return (
+                  <div key={opt} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={optionId}
+                      checked={selected.includes(opt)}
+                      disabled={isDisabled}
+                      onCheckedChange={(v) => {
+                        const next = v
+                          ? [...selected, opt]
+                          : selected.filter((s) => s !== opt);
+                        form.setValue(field.field_key, next);
+                      }}
+                    />
+                    <Label htmlFor={optionId} className="leading-relaxed">{opt}</Label>
+                  </div>
+                );
+              })}
+            </div>
+            {error && <p className="text-sm text-destructive mt-1">{error.message as string}</p>}
+          </div>
+        );
+      }
+
       return (
         <div className="flex items-start space-x-2">
           <Checkbox
             id={field.field_key}
             checked={!!value}
+            disabled={isDisabled}
             onCheckedChange={(v) => form.setValue(field.field_key, !!v)}
           />
           <Label htmlFor={field.field_key} className="leading-relaxed">
             {field.label}
-            {field.required && ' *'}
+            {effectiveRequired && ' *'}
           </Label>
           {error && <p className="text-sm text-destructive">{error.message as string}</p>}
         </div>
       );
 
+    case 'gender':
     case 'select':
       return (
         <div>
           <Label htmlFor={field.field_key}>
             {field.label}
-            {field.required && ' *'}
+            {effectiveRequired && ' *'}
           </Label>
           <Select
             value={value || ''}
             onValueChange={(v) => form.setValue(field.field_key, v)}
+            disabled={isDisabled}
           >
             <SelectTrigger id={field.field_key}>
               <SelectValue placeholder={field.placeholder || 'Selecione...'} />
@@ -131,11 +211,13 @@ function DynamicFieldInner({ field, termsText }: Props) {
         <div>
           <Label htmlFor={field.field_key}>
             {field.label}
-            {field.required && ' *'}
+            {effectiveRequired && ' *'}
           </Label>
           <Input
             id={field.field_key}
             placeholder={field.placeholder}
+            disabled={isDisabled}
+            readOnly={isReadOnly}
             {...form.register(field.field_key)}
             onChange={(e) => {
               const masked = maskPhone(e.target.value);
@@ -151,11 +233,13 @@ function DynamicFieldInner({ field, termsText }: Props) {
         <div>
           <Label htmlFor={field.field_key}>
             {field.label}
-            {field.required && ' *'}
+            {effectiveRequired && ' *'}
           </Label>
           <Input
             id={field.field_key}
             type="date"
+            disabled={isDisabled}
+            readOnly={isReadOnly}
             {...form.register(field.field_key)}
           />
           {error && <p className="text-sm text-destructive mt-1">{error.message as string}</p>}
@@ -167,13 +251,15 @@ function DynamicFieldInner({ field, termsText }: Props) {
         <div>
           <Label htmlFor={field.field_key}>
             {field.label}
-            {field.required && ' *'}
+            {effectiveRequired && ' *'}
           </Label>
           <Input
             id={field.field_key}
             type="number"
             step="0.01"
             placeholder={field.placeholder}
+            disabled={isDisabled}
+            readOnly={isReadOnly}
             {...form.register(field.field_key, { valueAsNumber: true })}
           />
           {error && <p className="text-sm text-destructive mt-1">{error.message as string}</p>}
@@ -185,12 +271,14 @@ function DynamicFieldInner({ field, termsText }: Props) {
         <div>
           <Label htmlFor={field.field_key}>
             {field.label}
-            {field.required && ' *'}
+            {effectiveRequired && ' *'}
           </Label>
           <Input
             id={field.field_key}
             type={field.field_type === 'email' ? 'email' : 'text'}
             placeholder={field.placeholder}
+            disabled={isDisabled}
+            readOnly={isReadOnly}
             {...form.register(field.field_key)}
           />
           {error && <p className="text-sm text-destructive mt-1">{error.message as string}</p>}

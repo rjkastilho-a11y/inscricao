@@ -110,6 +110,8 @@ export default function EtiquetasPage() {
   const [fontSize, setFontSize] = useState('14pt');
   const [fontFamily, setFontFamily] = useState('Arial, sans-serif');
   const [isBold, setIsBold] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [labels, setLabels] = useState<string[]>([]);
   const config = PIMACO_CONFIGS[selectedModel] || PIMACO_CONFIGS['6081/6181/6281'];
 
@@ -139,7 +141,23 @@ export default function EtiquetasPage() {
       });
   }, [eventId]);
 
+  useEffect(() => {
+    setSelectedIndices(new Set(labels.map((_, i) => i)));
+  }, [labels]);
+
+  const toggleSelection = (index: number) => {
+    setSelectedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
   const totalLabels = config.colunas * config.linhas;
+  const sheets = Math.max(1, Math.ceil(labels.length / totalLabels));
+  const selectedLabels = labels.filter((_, i) => selectedIndices.has(i));
+  const printSheets = Math.max(1, Math.ceil(selectedLabels.length / totalLabels));
 
   const gridStyle = {
     display: 'grid',
@@ -148,7 +166,7 @@ export default function EtiquetasPage() {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full print:bg-white">
       {/* Controls — hidden on print */}
       <div className="print:hidden">
         <PageHeader
@@ -214,6 +232,16 @@ export default function EtiquetasPage() {
                 Negrito
               </label>
             </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="showGrid"
+                checked={showGrid}
+                onCheckedChange={(checked) => setShowGrid(checked === true)}
+              />
+              <label htmlFor="showGrid" className="text-sm text-muted-foreground cursor-pointer">
+                Mostrar grade
+              </label>
+            </div>
           </div>
           <Button
             variant="outline"
@@ -224,16 +252,37 @@ export default function EtiquetasPage() {
             Imprimir
           </Button>
         </div>
+
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            {selectedIndices.size} de {labels.length} etiquetas selecionadas
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedIndices(new Set(labels.map((_, i) => i)))}
+          >
+            Selecionar Todos
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedIndices(new Set())}
+          >
+            Desmarcar Todos
+          </Button>
+        </div>
       </div>
 
       {/* Preview — hidden on print */}
-      <div className="print:hidden rounded-lg border border-dashed border-border bg-muted/30 p-8">
+      <div className="print:hidden rounded-lg border border-dashed border-border bg-muted/30 p-8 overflow-auto">
         <div className="text-center mb-4">
           <p className="text-sm font-medium text-muted-foreground">
             Pré-visualização — {config.name}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             {config.colunas} × {config.linhas} = {totalLabels} etiquetas por folha
+            {sheets > 1 && <span> — {sheets} folhas no total</span>}
           </p>
           {!eventId && (
             <p className="text-xs text-amber-500 mt-2">
@@ -247,77 +296,111 @@ export default function EtiquetasPage() {
           )}
         </div>
         <div
-          className="mx-auto overflow-auto"
-          style={{ width: '21cm', minHeight: '29.7cm' }}
+          className="mx-auto"
+          style={{ width: '21cm', maxHeight: '80vh' }}
         >
-          <div
-            className="etiqueta-grid"
-            style={{
-              ...gridStyle,
-              marginTop: cm(config.margemSuperior),
-              marginLeft: cm(config.margemLateral),
-            }}
-          >
-            {Array.from({ length: totalLabels }, (_, i) => (
+          {Array.from({ length: sheets }, (_, s) => (
+            <div key={s} className="mb-8" style={{ height: '29.7cm' }}>
+              {sheets > 1 && (
+                <p className="text-center text-xs text-muted-foreground mb-1">
+                  Folha {s + 1} de {sheets}
+                </p>
+              )}
               <div
-                key={i}
-                className="border border-dashed border-border/50 rounded-sm flex flex-col items-center justify-center text-center p-1"
+                className="etiqueta-grid"
                 style={{
-                  width: cm(config.larguraEtiqueta),
-                  height: cm(config.alturaEtiqueta),
+                  ...gridStyle,
+                  marginTop: cm(config.margemSuperior),
+                  marginLeft: cm(config.margemLateral),
                 }}
               >
-                {i < labels.length ? (
-                  <span
-                    className="text-foreground leading-tight truncate w-full"
-                    style={{ fontSize, fontFamily, fontWeight: isBold ? '700' : '400' }}
-                  >
-                    {labels[i]}
-                  </span>
-                ) : null}
+                {Array.from({ length: totalLabels }, (_, i) => {
+                  const labelIdx = s * totalLabels + i;
+                  return (
+                    <div
+                      key={i}
+                      className={`relative flex flex-col items-center justify-center text-center p-1 ${showGrid ? 'border border-dashed border-border/50 rounded-sm' : ''} ${labelIdx < labels.length ? 'cursor-pointer' : ''}`}
+                      style={{
+                        width: cm(config.larguraEtiqueta),
+                        height: cm(config.alturaEtiqueta),
+                      }}
+                      onClick={() => labelIdx < labels.length && toggleSelection(labelIdx)}
+                    >
+                      {labelIdx < labels.length ? (
+                        <>
+                          <div className="absolute top-0.5 left-0.5 z-10">
+                            <div
+                              className={`size-3 rounded-sm border flex items-center justify-center ${selectedIndices.has(labelIdx) ? 'bg-primary border-primary' : 'bg-white border-gray-300'}`}
+                            >
+                              {selectedIndices.has(labelIdx) && (
+                                <svg className="size-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                          <span
+                            className={`text-foreground leading-tight truncate w-full ${!selectedIndices.has(labelIdx) ? 'opacity-40' : ''}`}
+                            style={{ fontSize, fontFamily, fontWeight: isBold ? '700' : '400' }}
+                          >
+                            {labels[labelIdx]}
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Print layout — only visible on print */}
-      <div
-        className="hidden print:block print:visible print:w-full print:m-0 print:p-0 print:break-inside-avoid"
-      >
-        <div
-          className="print:grid"
-          style={{
-            ...gridStyle,
-            marginTop: cm(config.margemSuperior),
-            marginLeft: cm(config.margemLateral),
-          }}
-        >
-          {Array.from({ length: totalLabels }, (_, i) => (
+      <div className="hidden print:block print:visible print:w-full print:m-0 print:p-0 print:bg-white">
+        {Array.from({ length: printSheets }, (_, s) => (
+          <div
+            key={s}
+            style={{ pageBreakAfter: 'always' }}
+          >
             <div
-              key={i}
-              className="flex flex-col items-center justify-center text-center p-1 print:border print:border-dashed print:border-gray-300 print:rounded-sm"
+              className="print:grid"
               style={{
-                width: cm(config.larguraEtiqueta),
-                height: cm(config.alturaEtiqueta),
+                ...gridStyle,
+                marginTop: cm(config.margemSuperior),
+                marginLeft: cm(config.margemLateral),
               }}
             >
-              {i < labels.length ? (
-                <span
-                  className="leading-tight truncate w-full"
-                  style={{
-                    fontSize,
-                    fontFamily,
-                    fontWeight: isBold ? '700' : '400',
-                    color: '#000',
-                  }}
-                >
-                  {labels[i]}
-                </span>
-              ) : null}
+              {Array.from({ length: totalLabels }, (_, i) => {
+                const nameIdx = s * totalLabels + i;
+                return (
+                  <div
+                    key={i}
+                    className={`flex flex-col items-center justify-center text-center p-1 ${showGrid ? 'print:border print:border-dashed print:border-gray-300 print:rounded-sm' : ''}`}
+                    style={{
+                      width: cm(config.larguraEtiqueta),
+                      height: cm(config.alturaEtiqueta),
+                    }}
+                  >
+                    {nameIdx < selectedLabels.length ? (
+                      <span
+                        className="leading-tight truncate w-full"
+                        style={{
+                          fontSize,
+                          fontFamily,
+                          fontWeight: isBold ? '700' : '400',
+                          color: '#000',
+                        }}
+                      >
+                        {selectedLabels[nameIdx]}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
       <style>{`
@@ -334,8 +417,15 @@ export default function EtiquetasPage() {
           html, body {
             margin: 0 !important;
             padding: 0 !important;
+            background: #fff !important;
+            color: #000 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+
+          * {
+            background: transparent !important;
+            color: #000 !important;
           }
         }
       `}</style>

@@ -63,7 +63,7 @@ export function ChurchSwitcher() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border bg-popover p-1 shadow-md max-h-48 overflow-y-auto">
+          <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border bg-popover p-1 shadow-md max-h-48 overflow-y-auto">
             {churches.length === 0 && (
               <p className="px-2 py-3 text-xs text-muted-foreground text-center">
                 Nenhuma igreja encontrada

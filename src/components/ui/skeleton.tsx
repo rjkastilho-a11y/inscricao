@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 function Skeleton({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn('animate-pulse rounded-md bg-muted/70', className)}
+      className={cn('animate-pulse rounded-lg bg-muted/70', className)}
       {...props}
     />
   );
@@ -25,7 +25,7 @@ function SkeletonCard({ className }: { className?: string }) {
 
 function SkeletonTable({ rows = 5, columns = 4 }: { rows?: number; columns?: number }) {
   return (
-    <div className="rounded-md border border-border overflow-hidden">
+    <div className="rounded-lg border border-border overflow-hidden">
       <div className="border-b border-border bg-accent/50 p-3 flex gap-4">
         {Array.from({ length: columns }).map((_, i) => (
           <Skeleton key={i} className="h-4 flex-1" />

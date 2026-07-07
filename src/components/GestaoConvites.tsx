@@ -168,8 +168,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
-            size="sm"
-            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground hidden md:inline-flex"
+            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground hidden md:inline-flex dark:bg-muted/50 dark:hover:bg-muted/70 dark:border-foreground/20"
             onClick={handleExportCsv}
             disabled={loading || generating}
           >
@@ -178,8 +177,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
           </Button>
           <Button
             variant="outline"
-            size="sm"
-            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground flex-1 sm:flex-none max-md:h-11"
+            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground flex-1 sm:flex-none max-md:h-11 dark:bg-muted/50 dark:hover:bg-muted/70 dark:border-foreground/20"
             onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => handleGenerate(1)}
             disabled={generating}
           >
@@ -188,8 +186,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
           </Button>
           <Button
             variant="outline"
-            size="sm"
-            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground flex-1 sm:flex-none max-md:h-11"
+            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground flex-1 sm:flex-none max-md:h-11 dark:bg-muted/50 dark:hover:bg-muted/70 dark:border-foreground/20"
             onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => handleGenerate(100)}
             disabled={generating}
           >
@@ -208,14 +205,14 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs text-muted-foreground">
+              <Badge variant={publicOpen ? 'default' : 'secondary'} className="text-xs">
                 {publicOpen ? 'Ativo' : 'Bloqueado'}
-              </span>
-              <Button
-                variant={publicOpen ? 'destructive' : 'default'}
-                size="sm"
-                className="h-7 text-xs max-md:h-11"
-                onClick={handleTogglePublic}
+              </Badge>
+          <Button
+              variant={publicOpen ? 'destructive' : 'default'}
+              size="sm"
+              className="h-7 text-xs max-md:h-11 dark:bg-destructive/70 dark:hover:bg-destructive/80 dark:text-destructive-foreground"
+              onClick={handleTogglePublic}
                 disabled={togglingPublic}
               >
                 {togglingPublic ? (
@@ -232,7 +229,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs shrink-0 max-md:h-11"
+              className="h-7 text-xs shrink-0 max-md:h-11 dark:bg-muted/50 dark:hover:bg-muted/70 dark:border-foreground/20"
               onClick={handleCopyPublicLink}
             >
               {copiedPublicLink ? (
@@ -289,7 +286,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                               href={whatsappUrl(invite)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center h-7 w-7 max-md:h-11 max-md:w-11 rounded-md text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
+                              className="inline-flex items-center justify-center h-7 w-7 max-md:h-11 max-md:w-11 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
                             >
                               <MessageCircle className="h-3.5 w-3.5" />
                             </a>
@@ -340,7 +337,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
               )}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block rounded-md border border-border overflow-hidden">
+            <div className="hidden md:block rounded-lg border border-border overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-accent">
@@ -383,7 +380,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                                   href={whatsappUrl(invite)}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
+                                  className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
                                 >
                                   <MessageCircle className="h-3.5 w-3.5" />
                                 </a>

@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Navigate } from 'react-router-dom';
-import { Building2, Plus, AlertCircle, Loader2, Lock, Unlock, Clock, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Building2, Plus, AlertCircle, Loader2, Lock, Unlock, Clock, MoreHorizontal, Trash2, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 interface Church {
   id: string;
@@ -32,6 +33,13 @@ export default function MasterDashboardPage() {
   const [adminEmails, setAdminEmails] = useState<Record<string, string>>({});
   const [deleteTarget, setDeleteTarget] = useState<Church | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [liberateTarget, setLiberateTarget] = useState<Church | null>(null);
+  const [liberating, setLiberating] = useState(false);
+  const [pendingUserIds, setPendingUserIds] = useState<string[] | null>(null);
+  const [showKeyDialog, setShowKeyDialog] = useState(false);
+  const [serviceKey, setServiceKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [deletingAuth, setDeletingAuth] = useState(false);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -103,18 +111,118 @@ export default function MasterDashboardPage() {
     );
   };
 
+  const handleLiberarAcesso = async () => {
+    if (!liberateTarget) return;
+    setLiberating(true);
+    setError(null);
+
+    const { error: updateError } = await supabase
+      .from('churches')
+      .update({
+        status: 'active',
+        is_active: true,
+        trial_ends_at: null,
+        trial_suspended_at: null,
+        deleted_at: null,
+      })
+      .eq('id', liberateTarget.id);
+
+    if (updateError) {
+      setError(updateError.message);
+      setLiberating(false);
+      return;
+    }
+
+    setChurches(prev =>
+      prev.map(c => c.id === liberateTarget.id ? { ...c, status: 'active', is_active: true, trial_ends_at: null } : c)
+    );
+    setLiberateTarget(null);
+    setLiberating(false);
+    toast.success(`Acesso liberado para ${liberateTarget.name}`);
+    loadChurches();
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { error } = await supabase.rpc('delete_church', { p_church_id: deleteTarget.id });
+
+    const { data: userIds, error } = await supabase.rpc('delete_church', { p_church_id: deleteTarget.id });
     if (error) {
       setError(error.message);
       setDeleting(false);
       return;
     }
+
+    const failedIds: string[] = [];
+
+    if (userIds && userIds.length > 0) {
+      const siteUrl = window.location.origin;
+      for (const uid of userIds) {
+        try {
+          const res = await fetch(`${siteUrl}/.netlify/functions/delete-auth-user`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: uid }),
+          });
+          if (!res.ok) failedIds.push(uid);
+        } catch {
+          failedIds.push(uid);
+        }
+      }
+    }
+
     setChurches(prev => prev.filter(c => c.id !== deleteTarget.id));
     setDeleteTarget(null);
     setDeleting(false);
+
+    if (failedIds.length > 0) {
+      setPendingUserIds(failedIds);
+      toast.success('Igreja excluída com sucesso', {
+        description: 'Para liberar o e-mail e testar novo cadastro, clique em "Liberar e-mail".',
+        action: {
+          label: 'Liberar e-mail',
+          onClick: () => setShowKeyDialog(true),
+        },
+        duration: 10000,
+      });
+    } else {
+      toast.success('Igreja excluída com sucesso');
+    }
+  };
+
+  const handleDeleteAuthUser = async () => {
+    if (!pendingUserIds || !serviceKey.trim()) return;
+    setDeletingAuth(true);
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    let successCount = 0;
+
+    for (const uid of pendingUserIds) {
+      try {
+        const res = await fetch(`${supabaseUrl}/auth/v1/admin/users/${uid}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'apiKey': serviceKey.trim(),
+            'Authorization': `Bearer ${serviceKey.trim()}`,
+          },
+        });
+        if (res.ok) successCount++;
+      } catch {
+        // ignora
+      }
+    }
+
+    setDeletingAuth(false);
+    setShowKeyDialog(false);
+    setServiceKey('');
+    setPendingUserIds(null);
+
+    if (successCount > 0) {
+      toast.success(`${successCount} usuário(s) liberado(s) com sucesso!`);
+    } else {
+      toast.error('Não foi possível liberar o e-mail. Verifique a chave e tente novamente.');
+    }
   };
 
   if (authLoading) {
@@ -199,7 +307,7 @@ export default function MasterDashboardPage() {
                   Nenhuma igreja cadastrada ainda.
                 </div>
               ) : (
-                <div className="rounded-md border border-border overflow-hidden">
+                <div className="rounded-lg border border-border overflow-hidden">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-border bg-accent">
@@ -279,10 +387,19 @@ export default function MasterDashboardPage() {
                                 {church.is_active ? 'Bloquear' : 'Ativar'}
                               </Button>
                               <DropdownMenu>
-                                <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors size-8">
+                                <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors size-8">
                                   <MoreHorizontal className="size-4" />
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  {church.status !== 'active' && (
+                                    <DropdownMenuItem
+                                      className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                                      onClick={() => setLiberateTarget(church)}
+                                    >
+                                      <Sparkles className="size-4 mr-2" />
+                                      Liberar Acesso
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive cursor-pointer"
                                     onClick={() => setDeleteTarget(church)}
@@ -304,6 +421,72 @@ export default function MasterDashboardPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={showKeyDialog} onOpenChange={(open) => { if (!open) { setShowKeyDialog(false); setServiceKey(''); }}}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Liberar e-mail para novo cadastro</DialogTitle>
+            <DialogDescription>
+              O auth user não foi removido porque a Netlify Function não está disponível neste ambiente.
+              Cole abaixo a chave <strong>service_role</strong> do Supabase para liberar manualmente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Encontre a chave em: <strong>Supabase → Project Settings → API → service_role key</strong>
+            </p>
+            <div className="relative">
+              <Input
+                type={showKey ? "text" : "password"}
+                value={serviceKey}
+                onChange={(e) => setServiceKey(e.target.value)}
+                placeholder="eyJhbGciOiJIUzI1NiIs..."
+                className="pr-10 font-mono text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(!showKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowKeyDialog(false); setServiceKey(''); }} disabled={deletingAuth}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAuthUser} disabled={deletingAuth || !serviceKey.trim()}>
+              {deletingAuth ? 'Liberando...' : 'Liberar e-mail'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!liberateTarget} onOpenChange={(open) => !open && setLiberateTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Liberar Acesso Completo</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja liberar acesso completo para <strong>{liberateTarget?.name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>Esta ação irá:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Ativar o plano da igreja</li>
+              <li>Remover as restrições de trial (limite de inscrições e expiração)</li>
+              <li>Reativar a conta se estiver suspensa ou bloqueada</li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLiberateTarget(null)} disabled={liberating}>Cancelar</Button>
+            <Button onClick={handleLiberarAcesso} disabled={liberating}>
+              {liberating ? 'Liberando...' : 'Liberar Acesso'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>

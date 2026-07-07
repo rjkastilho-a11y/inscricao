@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, ChevronRight, Lock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, ChevronRight, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -137,113 +138,146 @@ export default function LoginPage() {
   }
 
   return (
-    // Fundo profissional alinhado com a Landing Page (gradient dark slate)
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 relative overflow-hidden antialiased text-slate-100">
-      
-      {/* Elementos decorativos de fundo (opcional, para dar mais 'vida') */}
-      <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-16 size-96 bg-[radial-gradient(circle,rgba(217,119,6,0.1)_0%,transparent_70%)]" />
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-10 -left-16 size-72 bg-[radial-gradient(circle,rgba(99,102,241,0.05)_0%,transparent_70%)]" />
+    <>
+      <style>{`
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient {
+          background-size: 200% 200%;
+          animation: gradient-shift 15s ease infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-gradient { animation: none; }
+        }
+      `}</style>
 
-      {/* Branding acima do Card */}
-      <Link to="/" className="font-serif text-2xl font-bold text-white mb-8 block hover:text-white/80 transition-colors z-10">
-        Kairós <span className="text-amber-500">Events</span>
-      </Link>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 relative overflow-hidden antialiased text-slate-100 animate-gradient">
 
-      {/* Card Refinado (Glassmorphism leve) */}
-      <Card className="w-full max-w-sm z-10 border-white/5 bg-card/50 backdrop-blur-sm shadow-2xl shadow-black/30">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold text-white">Acessar Painel</CardTitle>
-          <CardDescription className="text-slate-400">
-            Digite suas credenciais administrativas
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
-            {/* Campo E-mail */}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-200">E-mail</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="seu.email@igreja.com"
-                {...form.register('email')} 
-                className="bg-slate-900/50 border-slate-700 text-slate-100 placeholder:text-slate-600 focus-visible:ring-amber-500"
-              />
-              {form.formState.errors.email && (
-                <p className="text-sm text-red-400 mt-1 font-medium">{form.formState.errors.email.message}</p>
-              )}
-            </div>
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-16 size-96 bg-[radial-gradient(circle,rgba(217,119,6,0.1)_0%,transparent_70%)]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-10 -left-16 size-72 bg-[radial-gradient(circle,rgba(99,102,241,0.05)_0%,transparent_70%)]" />
+        <div aria-hidden="true" className="pointer-events-none absolute top-1/3 -right-10 size-48 bg-[radial-gradient(circle,rgba(217,119,6,0.06)_0%,transparent_70%)]" />
 
-            {/* Campo Senha */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-slate-200">Senha</Label>
-                {/* Melhoria de UX: Link de recuperar senha (precisa criar a rota) */}
-                <Link to="/reset-password" className="text-sm text-slate-400 hover:text-amber-400 transition-colors">
-                  Esqueceu a senha?
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        >
+          <Link to="/" className="font-serif text-2xl font-bold text-white mb-8 block hover:text-white/80 transition-colors z-10">
+            Kairós <span className="text-amber-500">Events</span>
+          </Link>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+          className="w-full max-w-sm z-10"
+        >
+          <Card className="border-white/10 bg-card/30 backdrop-blur-xl shadow-xl shadow-black/30">
+            <CardHeader className="space-y-2 text-center">
+              <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-amber-500/10">
+                <Lock className="size-5 text-amber-500" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-white">Acessar Painel</CardTitle>
+              <CardDescription className="text-slate-400">
+                Digite suas credenciais administrativas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-slate-200">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu.email@igreja.com"
+                    {...form.register('email')}
+                    className="bg-slate-900/50 border-slate-700 text-slate-100 placeholder:text-slate-600 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-all duration-200"
+                  />
+                  {form.formState.errors.email && (
+                    <p className="text-sm text-red-400 mt-1 font-medium">{form.formState.errors.email.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-slate-200">Senha</Label>
+                    <Link to="/reset-password" className="text-sm text-slate-400 hover:text-amber-400 transition-colors">
+                      Esqueceu a senha?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      {...form.register('password')}
+                      className="bg-slate-900/50 border-slate-700 text-slate-100 placeholder:text-slate-600 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-all duration-200 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-all duration-200"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  {form.formState.errors.password && (
+                    <p className="text-sm text-red-400 mt-1 font-medium">{form.formState.errors.password.message}</p>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="bg-red-900/30 border border-red-500/50 p-3 rounded-lg text-center">
+                    <p className="text-sm text-red-300 font-medium">{error}</p>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full bg-amber-600 text-white hover:bg-amber-700 font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  disabled={isLoading || isBlocked}
+                >
+                  {isBlocked ? (
+                    `Aguarde ${remaining}s`
+                  ) : isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Autenticando...
+                    </>
+                  ) : (
+                    <>
+                      Entrar no sistema <ChevronRight className="ml-1 size-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-slate-400">
+                Ainda não tem conta?{' '}
+                <Link to="/register" className="text-amber-500 hover:text-amber-400 font-medium transition-colors">
+                  Comece seu teste grátis
                 </Link>
-              </div>
-              <div className="relative">
-                <Input 
-                  id="password" 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="••••••••"
-                  {...form.register('password')} 
-                  className="bg-slate-900/50 border-slate-700 text-slate-100 placeholder:text-slate-600 focus-visible:ring-amber-500 pr-10"
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors">
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-              {form.formState.errors.password && (
-                <p className="text-sm text-red-400 mt-1 font-medium">{form.formState.errors.password.message}</p>
-              )}
-            </div>
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-            {/* Mensagem de erro da autenticação Supabase */}
-            {error && (
-              <div className="bg-red-900/30 border border-red-500/50 p-3 rounded-md text-center">
-                <p className="text-sm text-red-300 font-medium">{error}</p>
-              </div>
-            )}
-
-            {/* Botão com estados de carregamento */}
-            <Button 
-              type="submit" 
-              className="w-full bg-amber-600 text-white hover:bg-amber-700 transition-colors font-semibold" 
-              disabled={isLoading || isBlocked}
-            >
-              {isBlocked ? (
-                `Aguarde ${remaining}s`
-              ) : isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Autenticando...
-                </>
-              ) : (
-                <>
-                  Entrar no sistema <ChevronRight className="ml-1 size-4" />
-                </>
-              )}
-            </Button>
-          </form>
-
-          {/* Link de cadastro PLG */}
-          <p className="mt-6 text-center text-sm text-slate-400">
-            Ainda não tem conta?{' '}
-            <Link to="/register" className="text-amber-500 hover:text-amber-400 font-medium transition-colors">
-              Comece seu teste grátis
-            </Link>
+        <motion.footer
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="absolute bottom-4 text-center z-10"
+        >
+          <p className="text-xs text-slate-500 flex items-center gap-1.5 justify-center">
+            <ShieldCheck className="size-3" />
+            &copy; {new Date().getFullYear()} Kairós Events &middot; Conexão segura
           </p>
-        </CardContent>
-      </Card>
-
-      {/* Footer simples da página de login */}
-      <footer className="absolute bottom-4 text-center z-10">
-        <p className="text-xs text-slate-600">
-          &copy; {new Date().getFullYear()} Kairós Events &middot; Área Restrita
-        </p>
-      </footer>
-    </div>
+        </motion.footer>
+      </div>
+    </>
   );
 }

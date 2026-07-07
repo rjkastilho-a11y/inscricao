@@ -35,7 +35,7 @@ function DataTableInner<T extends { id: string }>({
   }
 
   return (
-    <div className="rounded-md border overflow-x-auto">
+    <div className="rounded-lg border overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>

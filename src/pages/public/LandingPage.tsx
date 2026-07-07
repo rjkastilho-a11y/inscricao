@@ -9,11 +9,11 @@ const FEATURES = [
   {
     icon: '📅',
     title: 'Gestão sem Taxas',
-    description: 'Receba o PIX direto na conta da igreja. Controle pagamentos manuais sem intermediários mordendo o caixa do evento.',
+    description: 'Receba o PIX direto na conta da sua organização. Controle pagamentos manuais sem intermediários mordendo o caixa do evento.',
     color: 'from-amber-500/20 to-amber-600/5',
     borderColor: 'border-amber-500/20',
     items: [
-      'PIX direto na conta da igreja — taxa zero',
+      'PIX direto na conta da sua organização — taxa zero',
       'Baixa manual de pagamentos confirmados',
       'Sem comissão por inscrição (adeus Sympla)',
       'Controle total de quem pagou e quem não pagou',
@@ -21,13 +21,13 @@ const FEATURES = [
   },
   {
     icon: '📋',
-    title: 'Secretaria Descomplicada',
-    description: 'Inscrição em etapas com autorização pastoral e envio automático de recibo via WhatsApp.',
+    title: 'Inscrição Descomplicada',
+    description: 'Inscrição em etapas com autorização digital e envio automático de recibo via WhatsApp.',
     color: 'from-indigo-500/20 to-indigo-600/5',
     borderColor: 'border-indigo-500/20',
     items: [
-      'Inscrição em etapas com dados pessoais e eclesiásticos',
-      'Autorização pastoral digital integrada',
+      'Inscrição em etapas com dados personalizados',
+      'Autorização digital integrada',
       'Recibo automático via WhatsApp com 1 clique',
       'Exportação CSV completa',
     ],
@@ -50,18 +50,18 @@ const FEATURES = [
 const STEPS = [
   {
     step: '1',
-    title: 'Crie o evento e envie o link para a igreja',
+    title: 'Crie o evento e envie o link para os participantes',
     description: 'Preencha título, datas, local e valor. Um link público é gerado automaticamente — compartilhe no WhatsApp ou redes sociais.',
   },
   {
     step: '2',
-    title: 'O membro se inscreve e faz o PIX direto para a tesouraria',
-    description: 'Os participantes acessam o link, preenchem o formulário e fazem o PIX diretamente para a conta da igreja. Sem taxas, sem intermediários.',
+    title: 'O participante se inscreve e faz o PIX direto para você',
+    description: 'Os participantes acessam o link, preenchem o formulário e fazem o PIX diretamente para a sua conta. Sem taxas, sem intermediários.',
   },
   {
     step: '3',
-    title: 'A secretária dá baixa, envia o recibo pelo WhatsApp e faz o check-in na porta',
-    description: 'Com 1 clique a secretária confirma o pagamento, dispara o recibo via WhatsApp e faz o check-in digital na hora do evento.',
+    title: 'Você dá baixa, envia o recibo pelo WhatsApp e faz o check-in na porta',
+    description: 'Com 1 clique você confirma o pagamento, dispara o recibo via WhatsApp e faz o check-in digital na hora do evento.',
   },
 ];
 
@@ -75,7 +75,7 @@ const FINANCIAL_CARDS = [
 const AUDIENCE = [
   {
     emoji: '⛪',
-    title: 'Igrejas locais',
+    title: 'Igrejas e organizações',
     desc: 'Retiros de jovens, conferências de casais, congressos e cultos especiais com inscrição prévia.',
   },
   {
@@ -87,6 +87,11 @@ const AUDIENCE = [
     emoji: '📣',
     title: 'Secretarias e coordenações',
     desc: 'Substitua planilhas e formulários manuais por um sistema organizado e profissional.',
+  },
+  {
+    emoji: '🏢',
+    title: 'Eventos corporativos',
+    desc: 'Workshops empresariais, cursos, palestras e confraternizações com gestão profissional de participantes.',
   },
 ];
 
@@ -127,6 +132,7 @@ export default function LandingPage() {
   }, []);
 
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [faqOpenIndex, setFaqOpenIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -156,13 +162,23 @@ export default function LandingPage() {
         <span className="font-serif text-lg font-bold text-white">
           Kairós <span className="text-amber-500">Events</span>
         </span>
-        <Button
-          onClick={() => navigate('/login')}
-          className="bg-amber-600 text-white hover:bg-amber-700"
-          size="sm"
-        >
-          Entrar <ChevronRight className="size-3.5" />
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/login')}
+            className="text-slate-400 hover:text-white hover:bg-white/10"
+            size="sm"
+          >
+            Entrar
+          </Button>
+          <Button
+            onClick={() => navigate('/register')}
+            className="bg-amber-600 text-white hover:bg-amber-700"
+            size="sm"
+          >
+            Testar Grátis <ChevronRight className="size-3.5" />
+          </Button>
+        </div>
       </header>
 
       <main className="pt-14">
@@ -176,7 +192,7 @@ export default function LandingPage() {
                 Funcionalidades
               </span>
               <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
-        Tudo que sua igreja precisa para organizar eventos
+        Tudo que sua organização precisa para organizar eventos
               </h2>
               <p className="mt-3 text-base text-slate-500">
                 Três módulos integrados que cobrem todo o ciclo do evento — da inscrição ao fechamento financeiro.
@@ -231,7 +247,7 @@ export default function LandingPage() {
               Pronto em 3 passos
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-base text-slate-500">
-              Sem treinamento. Sem complicação. Qualquer secretária ou pastor consegue usar no primeiro dia.
+              Sem treinamento. Sem complicação. Qualquer pessoa consegue usar no primeiro dia.
             </p>
 
             <motion.div
@@ -248,6 +264,70 @@ export default function LandingPage() {
                   </div>
                   <h3 className="mt-6 text-base font-semibold text-slate-900">{s.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-500">{s.description}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
+        </section>
+
+        {/* ======== TESTIMONIALS ======== */}
+        <section className="bg-white px-4 py-16 sm:px-8 sm:py-24 lg:py-32">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            className="mx-auto max-w-6xl text-center"
+          >
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-600">
+              Depoimentos
+            </span>
+            <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
+              Quem usa recomenda
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-base text-slate-500">
+              Veja o que líderes e organizadores estão falando sobre o Kairós Events.
+            </p>
+
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+              className="mt-14 grid gap-8 md:grid-cols-3 text-left"
+            >
+              {[
+                {
+                  name: 'Pr. Marcelo Almeida',
+                  role: 'Pastor Titular',
+                  church: 'Igreja Batista Nova Aliança',
+                  quote: 'Deixamos de pagar mais de R$ 3.000 em taxas por evento. O PIX cai direto na conta e conseguimos dar baixa em 1 clique.',
+                },
+                {
+                  name: 'Ana Claudia Santos',
+                  role: 'Secretária Ministerial',
+                  church: 'Comunidade Cristã Videira',
+                  quote: 'Antes eram 5 planilhas diferentes e sempre perdíamos algum pagamento. Agora tudo organizado em um painel. O check-in na portaria salvou nosso congresso.',
+                },
+                {
+                  name: 'Dc. Ricardo Oliveira',
+                  role: 'Diácono e Líder de Eventos',
+                  church: 'Igreja Presbiteriana Esperança',
+                  quote: 'Organizamos um retiro de 200 pessoas sem papelada. O recibo automático no WhatsApp foi o que mais fez diferença — os pais adoraram.',
+                },
+              ].map((t) => (
+                <motion.div key={t.name} variants={staggerItem} className="rounded-xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:border-amber-200 hover:shadow-lg hover:-translate-y-0.5">
+                  <div className="text-amber-400 text-4xl leading-none mb-4 font-serif">"</div>
+                  <p className="text-sm leading-relaxed text-slate-600">{t.quote}</p>
+                  <div className="mt-6 flex items-center gap-3 border-t border-slate-100 pt-4">
+                    <div className="flex size-10 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-700">
+                      {t.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">{t.name}</div>
+                      <div className="text-xs text-slate-500">{t.role} · {t.church}</div>
+                    </div>
+                  </div>
                 </motion.div>
               ))}
             </motion.div>
@@ -330,7 +410,7 @@ export default function LandingPage() {
               Para quem é
             </span>
             <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
-              Feito para a realidade das igrejas brasileiras
+              Feito para a realidade de quem organiza eventos
             </h2>
 
             <motion.div
@@ -338,7 +418,7 @@ export default function LandingPage() {
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-80px' }}
-              className="mt-12 grid gap-6 text-left md:grid-cols-3"
+              className="mt-12 grid gap-6 text-left md:grid-cols-4"
             >
               {AUDIENCE.map((item) => (
                 <motion.div
@@ -349,6 +429,136 @@ export default function LandingPage() {
                   <span className="block text-3xl" role="img" aria-hidden>{item.emoji}</span>
                   <h3 className="mt-4 text-base font-semibold text-slate-900">{item.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-500">{item.desc}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
+        </section>
+
+        {/* ======== COMPARISON TABLE ======== */}
+        <section className="bg-white px-4 py-16 sm:px-8 sm:py-24 lg:py-32">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            className="mx-auto max-w-5xl text-center"
+          >
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-600">
+              Comparativo
+            </span>
+            <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
+              Kairós vs. Alternativas
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-base text-slate-500">
+              Veja por que organizações estão trocando plataformas tradicionais e planilhas pelo Kairós Events.
+            </p>
+
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+              className="mt-14 overflow-x-auto"
+            >
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="p-4 font-semibold text-slate-900 w-1/3">Funcionalidade</th>
+                    <th className="p-4 font-semibold text-amber-600 bg-amber-50/50 w-1/3">
+                      <span className="inline-flex items-center gap-1.5">
+                        Kairós Events
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-amber-500 rounded-full px-2 py-0.5">Melhor</span>
+                      </span>
+                    </th>
+                    <th className="p-4 font-semibold text-slate-500 w-1/6">Sympla</th>
+                    <th className="p-4 font-semibold text-slate-500 w-1/6">Planilha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { feature: 'Taxa por inscrição', kairós: '0%', sympla: '~10%', planilha: '0% (mas...)', best: 'kairós' },
+                    { feature: 'PIX direto na sua conta', kairós: '✓ Sim', sympla: '✗ Não', planilha: '✗ Manual', best: 'kairós' },
+                    { feature: 'Recibo automático via WhatsApp', kairós: '✓ 1 clique', sympla: '✗', planilha: '✗ Manual', best: 'kairós' },
+                    { feature: 'Check-in digital', kairós: '✓ Online', sympla: '✓ Pago', planilha: '✗', best: 'kairós' },
+                    { feature: 'Formulário customizável', kairós: '✓ Sim', sympla: '✓ Limitado', planilha: '✗', best: 'kairós' },
+                    { feature: 'Controle financeiro', kairós: '✓ Completo', sympla: '✓ Básico', planilha: '✓ Manual', best: 'kairós' },
+                  ].map((row, i) => (
+                    <tr key={row.feature} className={`border-b border-slate-100 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                      <td className="p-4 font-medium text-slate-900">{row.feature}</td>
+                      {(['kairós', 'sympla', 'planilha'] as const).map((col) => (
+                        <td key={col} className={`p-4 ${row.best === col ? 'text-amber-700 font-semibold' : 'text-slate-500'}`}>
+                          {row[col]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </motion.div>
+          </motion.div>
+        </section>
+
+        {/* ======== FAQ ======== */}
+        <section className="bg-slate-50 px-4 py-16 sm:px-8 sm:py-24 lg:py-32">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            className="mx-auto max-w-3xl"
+          >
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-600 text-center block">
+              FAQ
+            </span>
+            <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl text-center">
+              Dúvidas frequentes
+            </h2>
+
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+              className="mt-12 space-y-3"
+            >
+              {[
+                {
+                  q: 'Precisa de cartão de crédito para testar?',
+                  a: 'Não. O teste gratuito de 15 dias não exige cartão de crédito nem qualquer forma de pagamento. Crie sua conta e comece a organizar seu evento imediatamente.',
+                },
+                {
+                  q: 'Como funciona o pagamento por PIX?',
+                  a: 'O participante faz o PIX diretamente para a sua conta — nenhum centavo passa pelo Kairós. Com 1 clique você confirma o pagamento no painel e o recibo é disparado automaticamente via WhatsApp.',
+                },
+                {
+                  q: 'Posso cancelar quando quiser?',
+                  a: 'Sim. Você pode cancelar a qualquer momento sem multa ou burocracia. Seus dados ficam disponíveis para exportação durante 30 dias após o cancelamento.',
+                },
+                {
+                  q: 'O que acontece depois dos 15 dias de teste?',
+                  a: 'Ao final do teste, você escolhe entre o Plano Mensal (R$ 97/mês) ou o Plano Anual (R$ 797/ano). Se não quiser continuar, sua conta é desativada sem custo.',
+                },
+                {
+                  q: 'Meus dados ficam seguros?',
+                  a: 'Sim. Utilizamos criptografia ponta a ponta, backup diário automatizado e seguimos as diretrizes da LGPD. Seus dados e dos participantes estão protegidos.',
+                },
+              ].map((item, i) => (
+                <motion.div key={i} variants={staggerItem}>
+                  <button
+                    onClick={() => setFaqOpenIndex(faqOpenIndex === i ? null : i)}
+                    className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 text-left transition-all hover:border-amber-200 hover:shadow-sm"
+                  >
+                    <span className="text-sm font-semibold text-slate-900 pr-4">{item.q}</span>
+                    <span className={`shrink-0 text-slate-400 transition-transform duration-200 ${faqOpenIndex === i ? 'rotate-180' : ''}`}>
+                      <ChevronRight className="size-4" />
+                    </span>
+                  </button>
+                  {faqOpenIndex === i && (
+                    <div className="px-5 pb-5 pt-3 text-sm leading-relaxed text-slate-500 border-x border-b border-slate-200 rounded-b-xl bg-white -mt-1">
+                      {item.a}
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </motion.div>
@@ -371,7 +581,7 @@ export default function LandingPage() {
               Pare de perder dinheiro com taxas
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-base text-slate-500">
-              Plataformas tradicionais cobram 10% por inscrição. Em um evento de R$ 30.000, você perde R$ 3.000 só de comissão. No Kairós Events o valor é fixo. O PIX cai 100% na conta da sua igreja.
+              Plataformas tradicionais cobram 10% por inscrição. Em um evento de R$ 30.000, você perde R$ 3.000 só de comissão. No Kairós Events o valor é fixo. O PIX cai 100% na sua conta.
             </p>
 
             <motion.div
@@ -385,7 +595,7 @@ export default function LandingPage() {
               {/* Card Plano Mensal */}
               <motion.div variants={staggerItem} className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-shadow hover:shadow-md">
                 <h3 className="text-xl font-bold text-slate-900">Plano Mensal</h3>
-                <p className="mt-2 text-sm text-slate-500">Ideal para igrejas que querem organizar um evento específico sem compromisso anual.</p>
+                <p className="mt-2 text-sm text-slate-500">Ideal para quem quer organizar um evento específico sem compromisso anual.</p>
                 <div className="mt-6 flex items-baseline gap-2">
                   <span className="text-4xl font-bold tracking-tight text-slate-900">R$ 97</span>
                   <span className="text-sm font-medium text-slate-500">/mês</span>
@@ -404,9 +614,12 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Button variant="outline" className="mt-8 w-full border-amber-200 text-amber-700 hover:bg-amber-50">
-                  Assinar Mensal
+                <Button variant="outline" className="mt-8 w-full border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => navigate('/register')}>
+                  Começar Teste Grátis
                 </Button>
+                <p className="mt-3 text-xs text-center text-slate-400">
+                  Cancele quando quiser · Sem multa
+                </p>
               </motion.div>
 
               {/* Card Plano Anual (Destaque) */}
@@ -441,9 +654,12 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Button className="mt-8 w-full bg-amber-500 text-slate-900 hover:bg-amber-400">
-                  Assinar Anual com Desconto
+                <Button className="mt-8 w-full bg-amber-500 text-slate-900 hover:bg-amber-400" onClick={() => navigate('/register')}>
+                  Começar Teste Grátis
                 </Button>
+                <p className="mt-3 text-xs text-center text-slate-400">
+                  Cancele quando quiser · Sem multa
+                </p>
               </motion.div>
 
             </motion.div>
@@ -476,11 +692,20 @@ export default function LandingPage() {
             </p>
             <Button
               size="lg"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/register')}
               className="mt-8 animate-cta-pulse bg-amber-600 text-white hover:bg-amber-700"
             >
               Começar agora <ArrowRight className="size-4" />
             </Button>
+            <p className="mt-4 text-sm text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="size-3.5 text-amber-500" /> 15 dias grátis
+                <span className="w-1 h-1 rounded-full bg-slate-600" />
+                Sem cartão
+                <span className="w-1 h-1 rounded-full bg-slate-600" />
+                Cancele quando quiser
+              </span>
+            </p>
           </motion.div>
         </section>
       </main>
@@ -491,6 +716,12 @@ export default function LandingPage() {
           Kairós <span className="text-amber-600">Events</span>
         </span>
         <div className="flex items-center gap-4">
+          <a href="/" className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-400 transition-colors">
+            Início
+          </a>
+          <a href="#planos" className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-400 transition-colors">
+            Planos
+          </a>
           <a href="/termos" className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-400 transition-colors">
             Termos de Uso
           </a>

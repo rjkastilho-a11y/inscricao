@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonStatCard, SkeletonTable, SkeletonMobileCard } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, paymentStatusLabels, paymentMethodLabels } from '@/lib/utils';
 import { useEvent } from '@/contexts/EventContext';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts';
 import { Building2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTrial } from '@/components/layout/ChurchGuard';
 
 interface EventStat {
@@ -33,8 +34,39 @@ interface Registration {
   gender: string | null;
   birth_date: string | null;
   church: string | null;
+  perfil_fe: string | null;
+  marital_status: string | null;
+  is_baptized: boolean | null;
+  church_role: string | null;
+  payment_status: string | null;
+  payment_method: string | null;
+  city: string | null;
+  event_id?: string;
   [key: string]: unknown;
 }
+
+type MetricKey = 'gender' | 'perfil_fe' | 'marital_status' | 'is_baptized'
+  | 'age' | 'church_role' | 'payment_status'
+  | 'church' | 'payment_method' | 'city';
+
+interface MetricConfig {
+  label: string;
+  slot: 1 | 2 | 3;
+  type: 'pie' | 'bar' | 'horizontal';
+}
+
+const METRICS: Record<MetricKey, MetricConfig> = {
+  gender:         { label: 'Gênero',          slot: 1, type: 'pie' },
+  perfil_fe:      { label: 'Perfil de Fé',    slot: 1, type: 'pie' },
+  marital_status: { label: 'Estado Civil',    slot: 1, type: 'pie' },
+  is_baptized:    { label: 'Batizado',        slot: 1, type: 'pie' },
+  age:            { label: 'Faixa Etária',    slot: 2, type: 'bar' },
+  church_role:    { label: 'Função na Igreja', slot: 2, type: 'bar' },
+  payment_status: { label: 'Status Pagamento', slot: 2, type: 'bar' },
+  church:         { label: 'Igrejas',         slot: 3, type: 'horizontal' },
+  payment_method: { label: 'Forma Pagamento',  slot: 3, type: 'horizontal' },
+  city:           { label: 'Cidade',          slot: 3, type: 'horizontal' },
+};
 
 const CHART_COLORS = {
   primary: '#f59e0b',
@@ -45,6 +77,8 @@ const CHART_COLORS = {
   violet: '#8b5cf6',
 };
 
+const CHURCH_COLORS = ['#f59e0b', '#0ea5e9', '#8b5cf6', '#10b981', '#f43f5e', '#eab308', '#06b6d4', '#a855f7', '#ec4899', '#14b8a6'];
+const TOP_N = 5;
 const AGE_RANGES = ['0-17', '18-25', '26-35', '36-50', '51+'];
 
 export default function DashboardPage() {
@@ -56,10 +90,12 @@ export default function DashboardPage() {
   const [finStats, setFinStats] = useState({ offerings: 0, expenses: 0 });
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
-  const [userChurchName, setUserChurchName] = useState<string | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [metric1, setMetric1] = useState<MetricKey>('gender');
+  const [metric2, setMetric2] = useState<MetricKey>('age');
+  const [metric3, setMetric3] = useState<MetricKey>('church');
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -72,9 +108,9 @@ export default function DashboardPage() {
     const fetch = async () => {
       const [eventsCountResult, regsCountResult, eventsDataResult, regsDataResult] = await Promise.all([
         supabase.from('events').select('*', { count: 'exact', head: true }),
-        supabase.from('registrations').select('*', { count: 'exact', head: true }),
+        supabase.from('registrations').select('*', { count: 'exact', head: true }).neq('payment_status', 'canceled'),
         supabase.from('events').select('*'),
-        supabase.from('registrations').select('*, events(price), event_lots!lot_id(price)'),
+        supabase.from('registrations').select('*, events(price), event_lots!lot_id(price)').neq('payment_status', 'canceled'),
       ]);
 
       const totalEvents = eventsCountResult.count;
@@ -114,7 +150,7 @@ export default function DashboardPage() {
 
         const perEvent = filteredEvents.map((ev: any) => {
           const evRegs = regs.filter((r) => r.event_id === ev.id);
-          const paid = evRegs.filter((r) => r.payment_status === 'paid');
+          const paid = evRegs.filter((r) => r.payment_status === 'paid' || (r.paid_amount != null && Number(r.paid_amount) > 0));
           const pending = evRegs.filter((r) =>
             r.payment_status === 'pending' || r.payment_status === 'overdue'
           );
@@ -122,7 +158,13 @@ export default function DashboardPage() {
           const expectedRevenue = evRegs
             .reduce((acc, r) => acc + Number((r as any).event_lots?.price ?? (r as any).events?.price ?? 0), 0);
           const actualRevenue = paid
-            .reduce((acc: number, r: any) => acc + Number(r.paid_amount ?? 0), 0);
+            .reduce((acc: number, r: any) => {
+              const paidAmt = r.paid_amount != null ? Number(r.paid_amount) : 0;
+              if (paidAmt > 0) return acc + paidAmt;
+              const lotPrice = (r as any).event_lots?.price;
+              const eventPrice = (r as any).events?.price;
+              return acc + Number(lotPrice ?? eventPrice ?? 0);
+            }, 0);
           return {
             eventId: ev.id,
             title: ev.title,
@@ -151,16 +193,6 @@ export default function DashboardPage() {
     };
     fetch();
   }, [eventId]);
-
-  useEffect(() => {
-    if (!churchId) return;
-    supabase
-      .from('churches')
-      .select('name')
-      .eq('id', churchId)
-      .maybeSingle()
-      .then(({ data }) => setUserChurchName(data?.name ?? null));
-  }, [churchId]);
 
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -191,27 +223,84 @@ export default function DashboardPage() {
     [registrations, eventId]
   );
 
-  const genderData = useMemo(() => {
-    const counts: Record<string, number> = { M: 0, F: 0 };
-    for (const r of filteredRegistrations) {
-      if (r.gender === 'M') counts.M++;
-      else if (r.gender === 'F') counts.F++;
-    }
-    return [
-      { name: 'Homens', value: counts.M, fill: CHART_COLORS.primary },
-      { name: 'Mulheres', value: counts.F, fill: CHART_COLORS.emerald },
-    ].filter((d) => d.value > 0);
-  }, [filteredRegistrations]);
+  // ── helpers ──────────────────────────────────────────────────────────
 
-  const ageData = useMemo(() => {
+  const getFieldValue = useCallback((reg: Registration, key: MetricKey): string | boolean | null | undefined => {
+    switch (key) {
+      case 'gender':         return reg.gender;
+      case 'perfil_fe':      return reg.perfil_fe;
+      case 'marital_status': return reg.marital_status;
+      case 'is_baptized':    return reg.is_baptized;
+      case 'age':            return reg.birth_date;
+      case 'church_role':    return reg.church_role;
+      case 'payment_status': return reg.payment_status;
+      case 'payment_method': return reg.payment_method;
+      case 'church':         return reg.church;
+      case 'city':           return reg.city;
+    }
+  }, []);
+
+  const normalizeValue = useCallback((key: MetricKey, val: string | boolean | null | undefined): string | null => {
+    if (val == null || val === '') return null;
+    if (key === 'gender') {
+      if (val === 'M') return 'Masculino';
+      if (val === 'F') return 'Feminino';
+      return String(val);
+    }
+    if (key === 'is_baptized') return val ? 'Sim' : 'Não';
+    if (key === 'payment_status') return paymentStatusLabels[String(val)] || String(val);
+    if (key === 'payment_method') return paymentMethodLabels[String(val)] || String(val);
+    if (typeof val === 'boolean') return val ? 'Sim' : 'Não';
+    return String(val).trim();
+  }, []);
+
+  const computeMetricData = useCallback((key: MetricKey): { name: string; value: number; fill: string }[] => {
+    if (key === 'age') return [];
+
+    const counts = new Map<string, number>();
+    for (const reg of filteredRegistrations) {
+      const raw = getFieldValue(reg, key);
+      const normalized = normalizeValue(key, raw);
+      if (normalized) {
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      }
+    }
+
+    if (key === 'is_baptized') {
+      if (!counts.has('Sim')) counts.set('Sim', 0);
+      if (!counts.has('Não')) counts.set('Não', 0);
+    }
+
+    const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+    if (key === 'church' || key === 'city') {
+      const top = sorted.slice(0, TOP_N);
+      const othersCount = sorted.slice(TOP_N).reduce((s, [_, v]) => s + v, 0);
+      const result = top.map(([name, value], i) => ({
+        name, value,
+        fill: CHURCH_COLORS[i % CHURCH_COLORS.length],
+      }));
+      if (othersCount > 0) {
+        result.push({ name: `Outros (${sorted.length - TOP_N})`, value: othersCount, fill: '#9ca3af' });
+      }
+      return result;
+    }
+
+    return sorted.map(([name, value], i) => ({
+      name, value,
+      fill: CHURCH_COLORS[i % CHURCH_COLORS.length],
+    }));
+  }, [filteredRegistrations, getFieldValue, normalizeValue]);
+
+  const computeAgeData = useCallback(() => {
     const ranges = [0, 0, 0, 0, 0];
-    const now = new Date();
-    for (const r of filteredRegistrations) {
-      if (!r.birth_date) continue;
-      const birth = new Date(r.birth_date);
-      let age = now.getFullYear() - birth.getFullYear();
-      const m = now.getMonth() - birth.getMonth();
-      if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+    const today = new Date();
+    for (const reg of filteredRegistrations) {
+      if (!reg.birth_date) continue;
+      const birth = new Date(reg.birth_date);
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
       if (age < 0) continue;
       if (age <= 17) ranges[0]++;
       else if (age <= 25) ranges[1]++;
@@ -222,26 +311,151 @@ export default function DashboardPage() {
     return AGE_RANGES.map((label, i) => ({ faixa: label, total: ranges[i] }));
   }, [filteredRegistrations]);
 
-  const churchData = useMemo(() => {
-    let myChurch = 0;
-    let otherChurch = 0;
-    let none = 0;
-    for (const r of filteredRegistrations) {
-      const ch = r.church?.trim();
-      if (!ch) {
-        none++;
-      } else if (userChurchName && ch.toLowerCase() === userChurchName.toLowerCase()) {
-        myChurch++;
-      } else {
-        otherChurch++;
-      }
+  const metric1Data = useMemo(() => computeMetricData(metric1), [computeMetricData, metric1]);
+  const metric2AgeData = useMemo(() => computeAgeData(), [computeAgeData]);
+  const metric2Data = useMemo(() => metric2 === 'age' ? [] : computeMetricData(metric2), [computeMetricData, metric2]);
+  const metric3Data = useMemo(() => computeMetricData(metric3), [computeMetricData, metric3]);
+
+  const hasMetric2AgeData = useMemo(() => metric2AgeData.some(d => d.total > 0), [metric2AgeData]);
+  const hasMetric2NonAgeData = useMemo(() => metric2Data.some(d => d.value > 0), [metric2Data]);
+  const hasMetric2Data = metric2 === 'age' ? hasMetric2AgeData : hasMetric2NonAgeData;
+
+  // fallback auto: se a métrica atual estiver vazia, troca pra primeira com dados
+  useEffect(() => {
+    const slot1Options: MetricKey[] = ['gender', 'perfil_fe', 'marital_status', 'is_baptized'];
+    if (!metric1Data.some(d => d.value > 0)) {
+      const next = slot1Options.find(k => k !== metric1 && computeMetricData(k).some(d => d.value > 0));
+      if (next) setMetric1(next);
     }
-    return [
-      { name: 'Minha igreja', value: myChurch, fill: CHART_COLORS.primary },
-      { name: 'Outra igreja', value: otherChurch, fill: CHART_COLORS.sky },
-      { name: 'Nenhuma', value: none, fill: CHART_COLORS.slate },
-    ].filter((d) => d.value > 0);
-  }, [filteredRegistrations, userChurchName]);
+  }, [filteredRegistrations, metric1, metric1Data, computeMetricData]);
+
+  useEffect(() => {
+    const slot2Options: MetricKey[] = ['age', 'church_role', 'payment_status'];
+    if (!hasMetric2Data) {
+      const next = slot2Options.find(k => k !== metric2 && (
+        k === 'age' ? computeAgeData().some(d => d.total > 0) : computeMetricData(k).some(d => d.value > 0)
+      ));
+      if (next) setMetric2(next);
+    }
+  }, [filteredRegistrations, metric2, hasMetric2Data, computeMetricData, computeAgeData]);
+
+  useEffect(() => {
+    const slot3Options: MetricKey[] = ['church', 'payment_method', 'city'];
+    if (!metric3Data.some(d => d.value > 0)) {
+      const next = slot3Options.find(k => k !== metric3 && computeMetricData(k).some(d => d.value > 0));
+      if (next) setMetric3(next);
+    }
+  }, [filteredRegistrations, metric3, metric3Data, computeMetricData]);
+
+  // ── render helpers ───────────────────────────────────────────────────
+
+  const renderPieChart = (data: { name: string; value: number; fill: string }[]) => (
+    <>
+      <ResponsiveContainer width="100%" height={200}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={48}
+            outerRadius={76}
+            paddingAngle={4}
+            dataKey="value"
+            stroke="none"
+            {...(!isMobile && {
+              label: ({ value, percent }: any) =>
+                `${value} (${(percent * 100).toFixed(0)}%)`,
+              labelLine: { stroke: 'hsl(215 16% 47%)', strokeWidth: 1 },
+            })}
+          >
+            {data.map((entry, i) => (
+              <Cell key={i} fill={entry.fill} />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{ background: 'hsl(222 47% 7%)', border: '1px solid hsl(217 32% 17%)', borderRadius: 8, color: 'hsl(210 40% 98%)' }}
+            formatter={(value: number, name: string) => [`${value} inscritos`, name]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="flex justify-center gap-4 mt-1 flex-wrap">
+        {data.map((d) => {
+          const total = data.reduce((s, g) => s + g.value, 0);
+          const pct = total > 0 ? ((d.value / total) * 100).toFixed(0) : '0';
+          return (
+            <div key={d.name} className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full" style={{ background: d.fill }} />
+              <span className="text-[11px] text-muted-foreground">
+                {d.name}: <span className="font-medium text-foreground">{d.value}</span>{' '}
+                <span className="text-muted-foreground">({pct}%)</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  const renderBarChart = (data: { faixa: string; total: number }[]) => (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data} margin={{ top: 20, right: 4, bottom: 0, left: -16 }}>
+        <XAxis dataKey="faixa" tick={{ fontSize: 11, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <Tooltip
+          contentStyle={{ background: 'hsl(222 47% 7%)', border: '1px solid hsl(217 32% 17%)', borderRadius: 8, color: 'hsl(210 40% 98%)' }}
+          formatter={(value: number) => [`${value} inscritos`, 'Total']}
+          cursor={{ fill: 'hsl(210 40% 96% / 0.3)' }}
+        />
+        <Bar dataKey="total" radius={[4, 4, 0, 0]} fill={CHART_COLORS.primary}>
+          <LabelList
+            dataKey="total"
+            position="top"
+            style={{ fontSize: 10, fill: 'hsl(215 16% 47%)', fontWeight: 600 }}
+            formatter={(v: number) => v > 0 ? v : ''}
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+
+  const renderHorizontalBars = (data: { name: string; value: number; fill: string }[]) => {
+    const total = data.reduce((s, d) => s + d.value, 0);
+    return (
+      <div className="space-y-3">
+        {data.map((d) => {
+          const pct = total > 0 ? (d.value / total) * 100 : 0;
+          return (
+            <div key={d.name} className="space-y-1">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground truncate">{d.name}</span>
+                <span className="font-medium text-foreground ml-2">{d.value}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: d.fill }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderSlotSelector = (slot: 1 | 2 | 3, current: MetricKey, onChange: (k: MetricKey) => void) => (
+    <Select value={current} onValueChange={(v) => onChange(v as MetricKey)}>
+      <SelectTrigger className="text-sm font-medium w-fit gap-1">
+        <SelectValue>{METRICS[current]?.label || current}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {Object.entries(METRICS)
+          .filter(([_, cfg]) => cfg.slot === slot)
+          .map(([key, cfg]) => (
+            <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+          ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const totalInscritos = filteredRegistrations.length;
 
   if (initialLoading) {
     return (
@@ -253,14 +467,14 @@ export default function DashboardPage() {
           ))}
         </div>
       <div className="grid grid-cols-4 gap-4 md:gap-5 md:grid-cols-5 mb-6">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <SkeletonStatCard key={i} />
-          ))}
+        {Array.from({ length: 5 }).map((_, i) => (
+          <SkeletonStatCard key={i} />
+        ))}
         </div>
       <div className="grid grid-cols-2 gap-4 md:gap-5 md:grid-cols-4 mb-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonStatCard key={i} />
-          ))}
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonStatCard key={i} />
+        ))}
         </div>
         <div className="md:hidden space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -360,7 +574,7 @@ export default function DashboardPage() {
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Pendentes</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-xl md:text-3xl font-bold text-muted-foreground">{totalRegs - totalPaid - totalRefundedCount}</p>
+            <p className="font-serif text-xl md:text-3xl font-bold text-muted-foreground">{eventStats.reduce((a, b) => a + b.pending, 0)}</p>
           </CardContent>
         </Card>
         <Card className="col-span-2 md:col-span-1 bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
@@ -429,131 +643,52 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {(genderData.length > 0 || ageData.some((d) => d.total > 0) || churchData.length > 0) && (showCharts || !isMobile) && (
+      {(showCharts || !isMobile) && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {genderData.length > 0 && (
+          {/* ─── Slot 1 – Pie ─── */}
+          {metric1Data.length > 0 && (
             <Card className="bg-card backdrop-blur-md border-border shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Gênero</CardTitle>
+                <div className="flex items-center justify-between">
+                  {renderSlotSelector(1, metric1, setMetric1)}
+                  <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
+                </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={genderData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={48}
-                      outerRadius={76}
-                      paddingAngle={4}
-                      dataKey="value"
-                      stroke="none"
-                      {...(!isMobile && {
-                        label: ({ name, value, percent }: any) =>
-                          `${name}: ${value} (${(percent * 100).toFixed(0)}%)`,
-                        labelLine: { stroke: 'hsl(215 16% 47%)', strokeWidth: 1 },
-                      })}
-                    >
-                      {genderData.map((entry, i) => (
-                        <Cell key={i} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: 'hsl(222 47% 7%)', border: '1px solid hsl(217 32% 17%)', borderRadius: 8, color: 'hsl(210 40% 98%)' }}
-                      formatter={(value: number, name: string) => [`${value} inscritos`, name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex justify-center gap-4 mt-1">
-                  {genderData.map((d) => {
-                    const total = genderData.reduce((s, g) => s + g.value, 0);
-                    const pct = total > 0 ? ((d.value / total) * 100).toFixed(0) : '0';
-                    return (
-                      <div key={d.name} className="flex items-center gap-1.5">
-                        <span className="inline-block size-2 rounded-full" style={{ background: d.fill }} />
-                        <span className="text-[11px] text-muted-foreground">{d.name}: <span className="font-medium text-foreground">{d.value}</span> <span className="text-muted-foreground">({pct}%)</span></span>
-                      </div>
-                    );
-                  })}
-                </div>
+                {renderPieChart(metric1Data)}
               </CardContent>
             </Card>
           )}
 
-          {ageData.some((d) => d.total > 0) && (
+          {/* ─── Slot 2 – Bar / Age ─── */}
+          {hasMetric2Data && (
             <Card className="bg-card backdrop-blur-md border-border shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Faixa Etária</CardTitle>
+                <div className="flex items-center justify-between">
+                  {renderSlotSelector(2, metric2, setMetric2)}
+                  <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
+                </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={ageData} margin={{ top: 20, right: 4, bottom: 0, left: -16 }}>
-                    <XAxis dataKey="faixa" tick={{ fontSize: 11, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{ background: 'hsl(222 47% 7%)', border: '1px solid hsl(217 32% 17%)', borderRadius: 8, color: 'hsl(210 40% 98%)' }}
-                      formatter={(value: number) => [`${value} inscritos`, 'Total']}
-                      cursor={{ fill: 'hsl(210 40% 96% / 0.3)' }}
-                    />
-                    <Bar dataKey="total" radius={[4, 4, 0, 0]} fill={CHART_COLORS.primary}>
-                      <LabelList
-                        dataKey="total"
-                        position="top"
-                        style={{ fontSize: 10, fill: 'hsl(215 16% 47%)', fontWeight: 600 }}
-                        formatter={(v: number) => v > 0 ? v : ''}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                {metric2 === 'age'
+                  ? renderBarChart(metric2AgeData)
+                  : renderPieChart(metric2Data)
+                }
               </CardContent>
             </Card>
           )}
 
-          {churchData.length > 0 && (
+          {/* ─── Slot 3 – Horizontal bars ─── */}
+          {metric3Data.length > 0 && (
             <Card className="bg-card backdrop-blur-md border-border shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Origem (Igreja)</CardTitle>
+                <div className="flex items-center justify-between">
+                  {renderSlotSelector(3, metric3, setMetric3)}
+                  <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
+                </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={churchData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={48}
-                      outerRadius={76}
-                      paddingAngle={4}
-                      dataKey="value"
-                      stroke="none"
-                      {...(!isMobile && {
-                        label: ({ name, value, percent }: any) =>
-                          `${name}: ${value} (${(percent * 100).toFixed(0)}%)`,
-                        labelLine: { stroke: 'hsl(215 16% 47%)', strokeWidth: 1 },
-                      })}
-                    >
-                      {churchData.map((entry, i) => (
-                        <Cell key={i} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: 'hsl(222 47% 7%)', border: '1px solid hsl(217 32% 17%)', borderRadius: 8, color: 'hsl(210 40% 98%)' }}
-                      formatter={(value: number, name: string) => [`${value} inscritos`, name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap justify-center gap-3 mt-1">
-                  {churchData.map((d) => {
-                    const total = churchData.reduce((s, c) => s + c.value, 0);
-                    const pct = total > 0 ? ((d.value / total) * 100).toFixed(0) : '0';
-                    return (
-                      <div key={d.name} className="flex items-center gap-1.5">
-                        <span className="inline-block size-2 rounded-full" style={{ background: d.fill }} />
-                        <span className="text-[11px] text-muted-foreground">{d.name}: <span className="font-medium text-foreground">{d.value}</span> <span className="text-muted-foreground">({pct}%)</span></span>
-                      </div>
-                    );
-                  })}
-                </div>
+                {renderHorizontalBars(metric3Data)}
               </CardContent>
             </Card>
           )}
@@ -580,7 +715,7 @@ export default function DashboardPage() {
                 <p className="text-[10px] text-muted-foreground">Confirmados</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-muted-foreground">{totalRegs - totalPaid - totalRefundedCount}</p>
+                <p className="text-lg font-bold text-muted-foreground">{eventStats.reduce((a, b) => a + b.pending, 0)}</p>
                 <p className="text-[10px] text-muted-foreground">Pendentes</p>
               </div>
             </div>
@@ -631,7 +766,7 @@ export default function DashboardPage() {
             )}
           </div>
           {/* Desktop: table */}
-          <div className="hidden md:block rounded-md border border-border">
+          <div className="hidden md:block rounded-lg border border-border">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-accent">

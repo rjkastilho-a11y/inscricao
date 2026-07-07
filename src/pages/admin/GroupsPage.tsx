@@ -19,7 +19,7 @@ import { useEvent } from '@/contexts/EventContext';
 import { useTrial } from '@/components/layout/ChurchGuard';
 
 export default function GroupsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { eventId, event } = useEvent();
   const trial = useTrial();
@@ -41,13 +41,6 @@ export default function GroupsPage() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [printMode, setPrintMode] = useState<'single' | 'compact'>('single');
   const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('portrait');
-
-  /* ── Segurança ── */
-  useEffect(() => {
-    if (!authLoading && user?.email !== 'rj.kastilho@gmail.com') {
-      navigate('/app/eventos', { replace: true });
-    }
-  }, [authLoading, user, navigate]);
 
   /* ── Carregar grupos do banco (group_assignments + registrations) ── */
   const loadGroupsFromDb = useCallback(async (eventId: string): Promise<boolean> => {
@@ -608,7 +601,7 @@ export default function GroupsPage() {
       />
 
       {error && (
-        <div className="mb-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
           <p className="font-medium">Erro ao carregar grupos</p>
           <p className="mt-1 text-red-600/80">{error}</p>
         </div>
@@ -633,7 +626,7 @@ export default function GroupsPage() {
             <button
               onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : handleRegenerate}
               disabled={regenerating}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50 dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted"
             >
               {regenerating ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -644,14 +637,14 @@ export default function GroupsPage() {
             </button>
             <button
               onClick={() => { setPrintMode('single'); setPrintOrientation('portrait'); setPrintDialogOpen(true); }}
-              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-700"
+              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-800"
             >
               <Printer className="size-4" />
               Imprimir PDF
             </button>
             <button
               onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => { setNewGroupName(''); setNewGroupGenero('misto'); setCreateDialogOpen(true); }}
-              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100"
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
             >
               <Plus className="size-4" />
               Criar Grupo Avulso
@@ -683,7 +676,7 @@ export default function GroupsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${printMode === 'single' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+            <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${printMode === 'single' ? 'border-amber-500 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40' : 'border-slate-200 hover:bg-slate-50 dark:border-border dark:hover:bg-muted'}`}>
               <input
                 type="radio"
                 name="printMode"
@@ -691,17 +684,17 @@ export default function GroupsPage() {
                 checked={printMode === 'single'}
                 onChange={() => setPrintMode('single')}
               />
-              <div>
-                <div className="flex items-center gap-2 font-medium text-slate-800">
-                  <FileText className="size-4 text-amber-600" />
-                  1 grupo por folha
-                </div>
-                <p className="mt-1 text-xs text-slate-500">
-                  Cada grupo ocupa uma folha inteira no formato paisagem. Ideal para visualização ampla.
-                </p>
+               <div>
+                 <div className="flex items-center gap-2 font-medium text-slate-800 dark:text-foreground">
+                   <FileText className="size-4 text-amber-600" />
+                   1 grupo por folha
+                 </div>
+                 <p className="mt-1 text-xs text-slate-500 dark:text-muted-foreground">
+                   Cada grupo ocupa uma folha inteira no formato paisagem. Ideal para visualização ampla.
+                 </p>
               </div>
             </label>
-            <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${printMode === 'compact' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+            <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${printMode === 'compact' ? 'border-amber-500 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40' : 'border-slate-200 hover:bg-slate-50 dark:border-border dark:hover:bg-muted'}`}>
               <input
                 type="radio"
                 name="printMode"
@@ -709,21 +702,21 @@ export default function GroupsPage() {
                 checked={printMode === 'compact'}
                 onChange={() => setPrintMode('compact')}
               />
-              <div>
-                <div className="flex items-center gap-2 font-medium text-slate-800">
-                  <Grid3X3 className="size-4 text-amber-600" />
-                  Vários grupos por folha
-                </div>
-                <p className="mt-1 text-xs text-slate-500">
-                  2 colunas por página. Grupos femininos e masculinos agrupados separadamente.
-                </p>
+               <div>
+                 <div className="flex items-center gap-2 font-medium text-slate-800 dark:text-foreground">
+                   <Grid3X3 className="size-4 text-amber-600" />
+                   Vários grupos por folha
+                 </div>
+                 <p className="mt-1 text-xs text-slate-500 dark:text-muted-foreground">
+                   2 colunas por página. Grupos femininos e masculinos agrupados separadamente.
+                 </p>
               </div>
             </label>
 
             {printMode === 'compact' && (
               <div className="space-y-2 pl-7">
-                <p className="text-sm font-medium text-slate-700">Orientação da página:</p>
-                <label className={`mr-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${printOrientation === 'portrait' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                <p className="text-sm font-medium text-slate-700 dark:text-muted-foreground">Orientação da página:</p>
+                <label className={`mr-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${printOrientation === 'portrait' ? 'border-amber-500 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40' : 'border-slate-200 hover:bg-slate-50 dark:border-border dark:hover:bg-muted'}`}>
                   <input
                     type="radio"
                     name="printOrientation"
@@ -733,7 +726,7 @@ export default function GroupsPage() {
                   />
                   <span className="text-sm">Retrato</span>
                 </label>
-                <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${printOrientation === 'landscape' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${printOrientation === 'landscape' ? 'border-amber-500 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40' : 'border-slate-200 hover:bg-slate-50 dark:border-border dark:hover:bg-muted'}`}>
                   <input
                     type="radio"
                     name="printOrientation"
@@ -751,7 +744,7 @@ export default function GroupsPage() {
               Cancelar
             </Button>
             <Button
-              className="bg-amber-600 text-white hover:bg-amber-700"
+              className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-800"
               onClick={() => {
                 setPrintDialogOpen(false);
                 handlePrintPdf(printMode, printOrientation);
@@ -824,7 +817,7 @@ export default function GroupsPage() {
               Cancelar
             </Button>
             <Button
-              className="bg-emerald-600/80 text-white hover:bg-emerald-600"
+              className="bg-emerald-600/80 text-white hover:bg-emerald-600 dark:bg-emerald-700 dark:hover:bg-emerald-800"
               onClick={handleCreateCustomGroup}
               disabled={creatingGroup || !newGroupName.trim()}
             >
@@ -859,7 +852,7 @@ export default function GroupsPage() {
               Cancelar
             </Button>
             <Button
-              className="bg-emerald-600/80 text-white hover:bg-emerald-600"
+              className="bg-emerald-600/80 text-white hover:bg-emerald-600 dark:bg-emerald-700 dark:hover:bg-emerald-800"
               onClick={handleRenameGroup}
               disabled={renaming || !renameValue.trim()}
             >

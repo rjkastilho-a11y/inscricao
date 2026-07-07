@@ -7,9 +7,16 @@ export const registrationSchema = z
     whatsapp:             z.string().regex(/^\(\d{2}\)\s\d{4,5}-\d{4}$/, 'WhatsApp inválido'),
     birth_date:           z.string().optional(),
     gender:               z.enum(['M', 'F']).optional(),
+    cpf:                  z.string().optional(),
+    rg:                   z.string().optional(),
+    cep:                  z.string().optional(),
+    address:              z.string().optional(),
+    city:                 z.string().optional(),
+    state:                z.string().optional(),
 
-    is_christian:           z.boolean(),
+    perfil_fe:              z.string().optional(),
     is_baptized:            z.boolean().optional(),
+    is_pastor:              z.string().optional(),
     church:                 z.string().optional(),
     pastor:                 z.string().optional(),
     church_role:            z.string().optional(),
@@ -19,10 +26,15 @@ export const registrationSchema = z
     pastoral_authorization: z.boolean().optional(),
 
     health_info:           z.string().optional(),
+    has_allergies:         z.boolean().optional(),
+    allergy_description:   z.string().optional(),
+    dietary_restrictions:  z.string().optional(),
     emergency_contact:     z.string().optional(),
     emergency_phone:       z.string().optional(),
 
-    payment_method:  z.enum(['pix', 'credit_card', 'cash', 'bank_transfer', 'other']),
+    accept_terms:          z.boolean().optional(),
+
+    payment_method:  z.enum(['pix', 'credit_card', 'cash', 'bank_transfer', 'other', 'external_link']),
     payment_status:  z.enum(['pending', 'paid', 'overdue', 'refunded', 'canceled']).optional(),
     paid_amount:     z.preprocess(
       (v) => (v === '' || v === undefined || v === null || (typeof v === 'number' && isNaN(v))) ? undefined : v,
@@ -32,12 +44,15 @@ export const registrationSchema = z
     private_notes:   z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.is_christian) {
+    if (data.perfil_fe === 'Já sou cristão(ã)') {
       if (!data.church) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Igreja obrigatória', path: ['church'] });
       }
       if (!data.pastor) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Pastor obrigatório', path: ['pastor'] });
+      }
+      if (!data.is_pastor) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Selecione se é pastor(a)', path: ['is_pastor'] });
       }
       if (!data.church_role) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Cargo obrigatório', path: ['church_role'] });
@@ -81,6 +96,7 @@ export const eventSchema = z.object({
   cover_url: z.string().optional(),
   terms_text: z.string().optional(),
   terms_enabled: z.boolean().optional(),
+  payment_link: z.string().url('URL inválida').optional().or(z.literal('')),
 });
 
 export const lotSchema = z.object({
@@ -111,4 +127,5 @@ export const paymentMethodLabels: Record<string, string> = {
   cash: 'Dinheiro',
   bank_transfer: 'Transferência',
   other: 'Outro',
+  external_link: 'Pagar online (Link externo)',
 };

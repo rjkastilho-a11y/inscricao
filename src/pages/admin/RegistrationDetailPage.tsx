@@ -20,6 +20,11 @@ import { formatDate, paymentStatusLabels, paymentMethodLabels } from '@/lib/util
 import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PaymentHistory } from '@/components/registration/PaymentHistory';
+import type { PaymentRecord } from '@/lib/payments';
+import { insertPayment, fetchPayments } from '@/lib/payments';
+import { fetchFormFields } from '@/lib/form-fields';
+import type { FormField } from '@/lib/form-fields';
 
 function cleanPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -51,7 +56,14 @@ interface Registration {
   whatsapp: string;
   birth_date: string;
   gender: string;
+  cpf: string | null;
+  rg: string | null;
+  cep: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
   is_christian: boolean;
+  perfil_fe: string;
   is_baptized: boolean;
   church: string;
   pastor: string;
@@ -61,6 +73,9 @@ interface Registration {
   godparent_contact: string;
   pastoral_authorization: boolean;
   health_info: string;
+  has_allergies: boolean | null;
+  allergy_description: string | null;
+  dietary_restrictions: string | null;
   emergency_contact: string;
   emergency_phone: string;
   payment_method: string;
@@ -68,7 +83,15 @@ interface Registration {
   private_notes: string;
   created_at: string;
   lot_id: string | null;
-  events: { title: string } | null;
+  extra_data: Record<string, any> | null;
+  events: {
+    title: string;
+    step_personal: boolean;
+    step_christian_life: boolean;
+    step_health: boolean;
+    step_emergency: boolean;
+    step_other: boolean;
+  } | null;
   event_lots: { name: string; price: number } | null;
 }
 
@@ -88,44 +111,68 @@ export default function RegistrationDetailPage() {
     cleanPhone: string;
   } | null>(null);
   const [receiptCopied, setReceiptCopied] = useState(false);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [overpaymentOpen, setOverpaymentOpen] = useState(false);
+  const [overpaymentData, setOverpaymentData] = useState<{
+    amount: number;
+    currentPaid: number;
+    price: number;
+  } | null>(null);
+  const [formFields, setFormFields] = useState<FormField[]>([]);
+
+  const refreshRegistration = async () => {
+    if (!id || !eventId) return;
+    const [{ data }, { data: eventsRes }] = await Promise.all([
+      supabase
+        .from('registrations')
+        .select('*, events(title, step_personal, step_christian_life, step_health, step_emergency, step_other), event_lots!lot_id(name, price)')
+        .eq('id', id)
+        .single(),
+      supabase
+        .from('events')
+        .select('is_custom')
+        .eq('id', eventId || '')
+        .single(),
+    ]);
+    setReg(data as unknown as Registration);
+
+    if (eventsRes && data) {
+      const isCustom = eventsRes.is_custom ?? false;
+      const disabledSteps: FormField[] = [];
+      if ((data as any).events?.step_personal === false) disabledSteps.push('personal' as any);
+      if ((data as any).events?.step_christian_life === false) disabledSteps.push('christian_life' as any);
+      if ((data as any).events?.step_health === false) disabledSteps.push('health' as any);
+      if ((data as any).events?.step_emergency === false) disabledSteps.push('emergency' as any);
+      if ((data as any).events?.step_other === false) disabledSteps.push('other' as any);
+      const fields = await fetchFormFields(eventId || '', isCustom, disabledSteps as any);
+      setFormFields(fields);
+    }
+
+    if (id) {
+      const updatedPayments = await fetchPayments(id);
+      setPayments(updatedPayments);
+    }
+  };
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase
-        .from('registrations')
-        .select('*, events(title), event_lots!lot_id(name, price)')
-        .eq('id', id)
-        .single();
-      setReg(data as unknown as Registration);
+      await refreshRegistration();
       setLoading(false);
     };
     fetch();
+  }, [id, eventId]);
+
+  useEffect(() => {
+    if (!id) return;
+    fetchPayments(id).then(setPayments);
   }, [id]);
 
-  const handleMarkAsPaid = async () => {
+  const processMarkAsPaid = async (amount: number) => {
     setPaying(true);
-    const amount = parseFloat(payAmount);
-
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Informe um valor válido.');
-      setPaying(false);
-      return;
-    }
-
-    const { error: updateError } = await supabase
-      .from('registrations')
-      .update({ payment_status: 'paid', paid_amount: amount })
-      .eq('id', id);
-
-    if (updateError) {
-      toast.error('Erro ao atualizar pagamento: ' + updateError.message);
-      setPaying(false);
-      return;
-    }
 
     const { data: existingEntry } = await supabase
       .from('financial_entries')
-      .select('id')
+      .select('id, amount')
       .eq('registration_id', id)
       .eq('type', 'income')
       .maybeSingle();
@@ -136,7 +183,7 @@ export default function RegistrationDetailPage() {
       type: 'income' as const,
       category: 'registration',
       description: 'Inscrição Paga',
-      amount,
+      amount: existingEntry ? Number(existingEntry.amount) + amount : amount,
       entry_date: new Date().toISOString().slice(0, 10),
     };
 
@@ -150,6 +197,15 @@ export default function RegistrationDetailPage() {
       return;
     }
 
+    const { error: paymentError } = await insertPayment(id!, amount, reg!.payment_method);
+    if (paymentError) {
+      toast.error('Erro ao registrar no histórico: ' + paymentError);
+      setPaying(false);
+      return;
+    }
+
+    await refreshRegistration();
+
     setPaymentSuccess({
       amount,
       receipt: formatReceipt(reg!.full_name, reg!.events?.title || 'Evento', amount),
@@ -157,6 +213,31 @@ export default function RegistrationDetailPage() {
     });
     setPayAmount('');
     setPaying(false);
+    setOverpaymentOpen(false);
+  };
+
+  const handleMarkAsPaid = async () => {
+    setPaying(true);
+    const amount = parseFloat(payAmount);
+
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Informe um valor válido.');
+      setPaying(false);
+      return;
+    }
+
+    const price = reg?.event_lots?.price ?? 0;
+    const currentPaid = Number((reg as any).paid_amount) || 0;
+
+    if (price > 0 && currentPaid + amount >= price) {
+      setPayDialogOpen(false);
+      setOverpaymentData({ amount, currentPaid, price });
+      setOverpaymentOpen(true);
+      setPaying(false);
+      return;
+    }
+
+    await processMarkAsPaid(amount);
   };
 
   const handleDelete = async () => {
@@ -168,6 +249,50 @@ export default function RegistrationDetailPage() {
       return;
     }
     navigate('/app/evento/' + eventId + '/inscricoes');
+  };
+
+  const refreshPayments = async () => {
+    if (!id) return;
+    const updated = await fetchPayments(id);
+    setPayments(updated);
+  };
+
+  const CUSTOM_FIELD_KEY_TO_DB_COLUMN: Record<string, string> = {
+    'e-crsitao': 'perfil_fe',
+    'e-cristao': 'perfil_fe',
+    'e-pastor': 'pastor',
+    'nome-da-igreja': 'church',
+    'e-batizado': 'is_baptized',
+    'cargo': 'church_role',
+    'qual-cargo': 'church_role_other',
+    'padrinho': 'godparent',
+    'contato-do-padrinho': 'godparent_contact',
+  };
+
+  const hasField = (fieldKey: string): boolean => {
+    return formFields.some(f => {
+      if (!f.is_active) return false;
+      if (f.field_key === fieldKey || f.db_column === fieldKey) return true;
+      if (f.db_column && CUSTOM_FIELD_KEY_TO_DB_COLUMN[f.field_key] === f.db_column && fieldKey === f.db_column) return true;
+      if (!f.db_column && CUSTOM_FIELD_KEY_TO_DB_COLUMN[f.field_key] === fieldKey) return true;
+      return false;
+    });
+  };
+
+  const getFieldValue = (fieldKey: string, dbColumn: string | null): unknown => {
+    if (dbColumn && (reg as any)[dbColumn] != null) return (reg as any)[dbColumn];
+    const extra = (reg as any).extra_fields;
+    if (extra && typeof extra === 'object' && extra[fieldKey] != null) return extra[fieldKey];
+    if (dbColumn) return (reg as any)[dbColumn];
+    return null;
+  };
+
+  const formatFieldValue = (field: FormField, val: unknown): string => {
+    if (val == null || val === '') return '-';
+    if (Array.isArray(val)) return val.join(', ');
+    if (typeof val === 'boolean') return val ? 'Sim' : 'Não';
+    if (field.field_type === 'date') return formatDate(String(val));
+    return String(val);
   };
 
   if (loading) {
@@ -204,10 +329,28 @@ export default function RegistrationDetailPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="E-mail" value={reg.email} />
-            <Row label="WhatsApp" value={reg.whatsapp} />
-            <Row label="Nascimento" value={reg.birth_date ? formatDate(reg.birth_date) : '-'} />
-            <Row label="Gênero" value={reg.gender === 'M' ? 'Masculino' : reg.gender === 'F' ? 'Feminino' : '-'} />
+            {hasField('email') && <Row label="E-mail" value={getFieldValue('email', 'email') || '-'} />}
+            {hasField('whatsapp') && <Row label="WhatsApp" value={getFieldValue('whatsapp', 'whatsapp') || '-'} />}
+            {hasField('birth_date') && <Row label="Nascimento" value={getFieldValue('birth_date', 'birth_date') ? formatDate(String(getFieldValue('birth_date', 'birth_date'))) : '-'} />}
+            {hasField('gender') && <Row label="Gênero" value={getFieldValue('gender', 'gender') === 'M' ? 'Masculino' : getFieldValue('gender', 'gender') === 'F' ? 'Feminino' : '-'} />}
+            {hasField('cpf') && <Row label="CPF" value={getFieldValue('cpf', 'cpf') || '-'} />}
+            {hasField('rg') && <Row label="RG" value={getFieldValue('rg', 'rg') || '-'} />}
+            {hasField('cep') && <Row label="CEP" value={getFieldValue('cep', 'cep') || '-'} />}
+            {hasField('address') && <Row label="Endereço" value={getFieldValue('address', 'address') || '-'} />}
+            {hasField('city') && <Row label="Cidade" value={getFieldValue('city', 'city') || '-'} />}
+            {hasField('state') && <Row label="Estado" value={getFieldValue('state', 'state') || '-'} />}
+            {hasField('spouse_name') && <Row label="Nome do Cônjuge" value={getFieldValue('spouse_name', 'spouse_name') || '-'} />}
+            {hasField('marital_status') && <Row label="Estado Civil" value={getFieldValue('marital_status', 'marital_status') || '-'} />}
+            {hasField('wedding_date') && <Row label="Data de Casamento" value={getFieldValue('wedding_date', 'wedding_date') ? formatDate(String(getFieldValue('wedding_date', 'wedding_date'))) : '-'} />}
+            {(() => {
+              const knownCols = ['email', 'whatsapp', 'birth_date', 'gender', 'cpf', 'rg', 'cep', 'address', 'city', 'state', 'spouse_name', 'marital_status', 'wedding_date'];
+              return formFields
+                .filter(f => f.is_active && f.step === 'personal' && !knownCols.includes(f.field_key) && !knownCols.includes(f.db_column || ''))
+                .filter(f => { const v = getFieldValue(f.field_key, f.db_column); return v != null && v !== '' && v !== false; })
+                .map(field => (
+                  <Row key={field.id} label={field.label} value={formatFieldValue(field, getFieldValue(field.field_key, field.db_column))} />
+                ));
+            })()}
           </CardContent>
         </Card>
 
@@ -219,37 +362,82 @@ export default function RegistrationDetailPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Cristão" value={reg.is_christian ? 'Sim' : 'Não'} />
-            {reg.is_christian && (
+            {hasField('perfil_fe') && <Row label="Perfil" value={getFieldValue('perfil_fe', 'perfil_fe') === 'Já sou cristão(ã)' ? 'Cristão(ã)' : 'Não cristão(ã) / Conhecendo'} />}
+            {getFieldValue('perfil_fe', 'perfil_fe') === 'Já sou cristão(ã)' && (
               <>
-                <Row label="Batizado" value={reg.is_baptized ? 'Sim' : 'Não'} />
-                <Row label="Igreja" value={reg.church || '-'} />
-                <Row label="Pastor" value={reg.pastor || '-'} />
-                <Row label="Cargo" value={reg.church_role === 'Outro' ? reg.church_role_other : reg.church_role || '-'} />
-                <Row label="Autorização pastoral" value={reg.pastoral_authorization ? 'Sim' : 'Não'} />
+                {hasField('is_baptized') && <Row label="Batizado" value={getFieldValue('is_baptized', 'is_baptized') ? 'Sim' : 'Não'} />}
+                {hasField('church') && <Row label="Igreja" value={getFieldValue('church', 'church') || '-'} />}
+                {hasField('pastor') && <Row label="Pastor" value={getFieldValue('pastor', 'pastor') || '-'} />}
+                {hasField('church_role') && <Row label="Cargo" value={getFieldValue('church_role', 'church_role') === 'Outro' ? getFieldValue('church_role_other', 'church_role_other') : getFieldValue('church_role', 'church_role') || '-'} />}
+                {hasField('pastoral_authorization') && <Row label="Autorização pastoral" value={getFieldValue('pastoral_authorization', 'pastoral_authorization') ? 'Sim' : 'Não'} />}
               </>
             )}
+            {(() => {
+              const knownCols = ['perfil_fe', 'is_baptized', 'church', 'pastor', 'church_role', 'church_role_other', 'pastoral_authorization'];
+              return formFields
+                .filter(f => f.is_active && f.step === 'christian_life' && !knownCols.includes(f.field_key) && !knownCols.includes(f.db_column || ''))
+                .filter(f => { const v = getFieldValue(f.field_key, f.db_column); return v != null && v !== '' && v !== false; })
+                .map(field => (
+                  <Row key={field.id} label={field.label} value={formatFieldValue(field, getFieldValue(field.field_key, field.db_column))} />
+                ));
+            })()}
           </CardContent>
         </Card>
 
+        {reg.events && (reg.events.step_health !== false || reg.events.step_emergency !== false) && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg font-medium">Saúde & Emergência</CardTitle>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=2`)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {hasField('health_info') && <Row label="Informações de saúde" value={getFieldValue('health_info', 'health_info') || '-'} />}
+              {hasField('has_allergies') && <Row label="Possui alergias" value={getFieldValue('has_allergies', 'has_allergies') ? 'Sim' : 'Não'} />}
+              {hasField('allergy_description') && getFieldValue('allergy_description', 'allergy_description') && <Row label="Descrição alergias" value={String(getFieldValue('allergy_description', 'allergy_description'))} />}
+              {hasField('dietary_restrictions') && getFieldValue('dietary_restrictions', 'dietary_restrictions') && <Row label="Restrições alimentares" value={String(getFieldValue('dietary_restrictions', 'dietary_restrictions'))} />}
+              {hasField('has_special_needs') && <Row label="Necessidades Especiais" value={getFieldValue('has_special_needs', 'has_special_needs') ? 'Sim' : 'Não'} />}
+              {hasField('special_needs_description') && getFieldValue('special_needs_description', 'special_needs_description') && <Row label="Qual?" value={String(getFieldValue('special_needs_description', 'special_needs_description'))} />}
+              {hasField('emergency_contact') && <Row label="Contato de emergência" value={getFieldValue('emergency_contact', 'emergency_contact') || '-'} />}
+              {hasField('emergency_phone') && <Row label="Telefone de emergência" value={getFieldValue('emergency_phone', 'emergency_phone') || '-'} />}
+              {(() => {
+                const knownCols = ['health_info', 'has_allergies', 'allergy_description', 'dietary_restrictions', 'has_special_needs', 'special_needs_description', 'emergency_contact', 'emergency_phone'];
+                return formFields
+                  .filter(f => f.is_active && (f.step === 'health' || f.step === 'emergency') && !knownCols.includes(f.field_key) && !knownCols.includes(f.db_column || ''))
+                  .filter(f => { const v = getFieldValue(f.field_key, f.db_column); return v != null && v !== '' && v !== false; })
+                  .map(field => (
+                    <Row key={field.id} label={field.label} value={formatFieldValue(field, getFieldValue(field.field_key, field.db_column))} />
+                  ));
+              })()}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-medium">Saúde & Emergência</CardTitle>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=2`)}>
+            <CardTitle className="text-lg font-medium">Outros...</CardTitle>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=4`)}>
               <Pencil className="h-3 w-3" />
             </Button>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Informações de saúde" value={reg.health_info || '-'} />
-            <Row label="Contato de emergência" value={reg.emergency_contact || '-'} />
-            <Row label="Telefone de emergência" value={reg.emergency_phone || '-'} />
+            {(() => {
+              const knownCols: string[] = [];
+              return formFields
+                .filter(f => f.is_active && f.step === 'other' && !knownCols.includes(f.field_key) && !knownCols.includes(f.db_column || ''))
+                .filter(f => { const v = getFieldValue(f.field_key, f.db_column); return v != null && v !== '' && v !== false; })
+                .map(field => (
+                  <Row key={field.id} label={field.label} value={formatFieldValue(field, getFieldValue(field.field_key, field.db_column))} />
+                ));
+            })()}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">Pagamento</CardTitle>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=4`)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=5`)}>
               <Pencil className="h-3 w-3" />
             </Button>
           </CardHeader>
@@ -258,8 +446,20 @@ export default function RegistrationDetailPage() {
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Status</span>
               <Badge
-                variant={reg.payment_status === 'paid' ? 'default' : 'secondary'}
-                className={reg.payment_status === 'refunded' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' : reg.payment_status === 'canceled' ? 'bg-muted text-muted-foreground' : ''}
+                variant="secondary"
+                className={
+                  reg.payment_status === 'paid'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
+                    : reg.payment_status === 'pending'
+                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200'
+                      : reg.payment_status === 'overdue'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200'
+                        : reg.payment_status === 'refunded'
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-200'
+                          : reg.payment_status === 'canceled'
+                            ? 'bg-muted text-muted-foreground'
+                            : ''
+                }
               >
                 {paymentStatusLabels[reg.payment_status] || reg.payment_status}
               </Badge>
@@ -273,15 +473,20 @@ export default function RegistrationDetailPage() {
             {(reg as any).refunded_amount != null && (
               <Row label="Valor reemb." value={`R$ ${Number((reg as any).refunded_amount).toFixed(2)}`} />
             )}
-            {reg.payment_status !== 'paid' && (
-              <Button
-                size="sm"
-                className="w-full mt-2 bg-emerald-600/80 text-white hover:bg-emerald-600"
-                onClick={() => setPayDialogOpen(true)}
-              >
-                <CheckCircle className="h-4 w-4 mr-1" /> Dar Baixa
-              </Button>
-            )}
+            <Button
+              size="sm"
+              className="w-full mt-2 bg-emerald-600/80 text-white hover:bg-emerald-600"
+              onClick={() => setPayDialogOpen(true)}
+            >
+              <CheckCircle className="h-4 w-4 mr-1" /> Adicionar pagamento
+            </Button>
+            <PaymentHistory
+              payments={payments}
+              registrationId={id!}
+              onRefresh={refreshPayments}
+              paidAmount={(reg as any).paid_amount}
+              paymentMethod={reg.payment_method}
+            />
           </CardContent>
         </Card>
       </div>
@@ -311,7 +516,7 @@ export default function RegistrationDetailPage() {
           {!paymentSuccess ? (
             <>
               <DialogHeader>
-                <DialogTitle>Confirmar pagamento</DialogTitle>
+                <DialogTitle>{reg?.payment_status === 'paid' ? 'Adicionar pagamento' : 'Confirmar pagamento'}</DialogTitle>
                 <DialogDescription>
                   Registre o valor pago por <strong>{reg?.full_name}</strong>.
                   O church_id será preenchido automaticamente pelo trigger do banco.
@@ -416,6 +621,35 @@ export default function RegistrationDetailPage() {
             </DialogClose>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={overpaymentOpen} onOpenChange={setOverpaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-amber-600">Valor acima do esperado</DialogTitle>
+            <DialogDescription>
+              O valor deste pagamento (<strong>R$ {overpaymentData?.amount.toFixed(2)}</strong>)
+              somado ao já pago (<strong>R$ {overpaymentData?.currentPaid.toFixed(2)}</strong>)
+              ultrapassa o valor da inscrição (<strong>R$ {overpaymentData?.price.toFixed(2)}</strong>).
+              <br /><br />
+              Deseja prosseguir com este pagamento?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOverpaymentOpen(false); setOverpaymentData(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600/80 text-white hover:bg-emerald-600"
+              onClick={() => {
+                if (overpaymentData) processMarkAsPaid(overpaymentData.amount);
+              }}
+              disabled={paying}
+            >
+              {paying ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Processando...</> : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>

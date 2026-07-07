@@ -14,7 +14,7 @@ interface Props {
 
 function PageHeaderInner({ title, badge, description, action }: Props) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-border">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="font-serif text-3xl font-bold text-foreground">{title}</h1>
@@ -32,14 +32,14 @@ function PageHeaderInner({ title, badge, description, action }: Props) {
         action.onClick ? (
           <button
             onClick={action.onClick}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 max-md:min-h-[44px]"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 max-md:min-h-[44px]"
           >
             {action.label}
           </button>
         ) : (
           <Link
             to={action.to}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 max-md:min-h-[44px]"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 max-md:min-h-[44px]"
           >
             {action.label}
           </Link>

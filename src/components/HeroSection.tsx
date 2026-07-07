@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Shield, Lock, Database } from 'lucide-react';
+import { Shield, Lock, Database, ChevronDown } from 'lucide-react';
 
 const TRUST_ITEMS = [
   { icon: Shield, label: 'LGPD' },
@@ -58,7 +58,7 @@ export default function HeroSection() {
         >
           {/* 1. BADGE */}
           <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-yellow-400">
-            ⚡ Novo · Eventos ministeriais sem taxa de plataforma
+            ⚡ Novo · Eventos sem taxa de plataforma
           </div>
 
           {/* 2. HEADLINE */}
@@ -69,13 +69,13 @@ export default function HeroSection() {
 
           {/* 3. SUBTEXTO */}
           <p className="mb-7 max-w-lg text-base leading-relaxed text-slate-400">
-            Receba o <strong className="font-semibold text-white">PIX direto na conta da sua igreja</strong>, gerencie lotes, emita recibos e diga adeus à prancheta de papel — tudo em um sistema feito para quem organiza eventos ministeriais.
+            Receba o <strong className="font-semibold text-white">PIX direto na conta da sua igreja ou organização</strong>, gerencie lotes, emita recibos e diga adeus à prancheta de papel — tudo em um sistema feito para quem organiza eventos.
           </p>
 
           {/* 4. CTA */}
           <div className="mb-2">
             <Button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/register')}
               className="rounded-xl bg-[#FACC15] px-8 py-[16px] text-base font-bold text-[#0d1117] shadow-lg shadow-amber-500/25 hover:brightness-110 hover:shadow-xl hover:shadow-amber-500/30"
             >
               Criar meu evento grátis →
@@ -101,7 +101,7 @@ export default function HeroSection() {
           <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-5 py-4">
             <div className="flex-1 text-center">
               <div className="text-lg font-bold text-[#FACC15] sm:text-xl">+340</div>
-              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Igrejas usando</div>
+              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">organizações usando</div>
             </div>
             <div className="h-10 w-px bg-white/[0.08]" />
             <div className="flex-1 text-center">
@@ -129,11 +129,20 @@ export default function HeroSection() {
           >
             <span className="text-sm">📊</span>
             <span className="text-xs text-slate-400">
-              Chega de Excel. Sua igreja merece o maximo controle para seu evento.
+              Chega de Excel. Sua organização merece o máximo controle para seu evento.
             </span>
           </motion.div>
         </motion.div>
       </div>
+      <motion.div
+        animate={{ y: [0, 10, 0], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+        className="mt-10 flex w-full justify-center lg:mt-6"
+      >
+        <div className="rounded-full bg-white/10 p-3 ring-1 ring-white/20">
+          <ChevronDown className="size-6 text-amber-400" />
+        </div>
+      </motion.div>
     </section>
   );
 }

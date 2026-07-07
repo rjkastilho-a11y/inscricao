@@ -35,31 +35,31 @@
   }
 
   .dark {
-    --background: 222 47% 4%;         /* slate-950 */
+    --background: 222 24% 12%;          /* fundo da página, bem mais respirável */
     --foreground: 210 40% 98%;        /* slate-50 */
 
-    --card: 222 47% 7%;
+    --card: 222 20% 21%;         /* card/painel — 1 degrau acima do fundo */
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 4%;
+    --popover: 222 20% 24%;      /* dropdowns/popovers — 1 degrau acima do card */
     --popover-foreground: 210 40% 98%;
 
     --primary: 38 92% 50%;            /* amber-500 */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 217 33% 17%;         /* slate-800 */
+    --secondary: 222 16% 22%;         /* slate-800 */
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
+    --muted: 222 16% 22%; 
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217 33% 17%;
+    --accent: 222 16% 24%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 32% 17%;            /* slate-800 */
-    --input: 217 32% 17%;
+    --border: 222 14% 28%;           /* slate-700 */
+    --input: 222 20% 38%;
     --ring: 38 92% 50%;               /* amber-500 */
   }
 

@@ -32,7 +32,7 @@ function SectionPage({ title, registrants, total, eventName, eventDate }: {
         <h1 className="text-2xl font-bold text-foreground">{eventName}</h1>
       </div>
 
-      <div className="flex border border-border rounded-md mb-6 divide-x divide-border">
+      <div className="flex border border-border rounded-lg mb-6 divide-x divide-border">
         <div className="flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm text-muted-foreground">
           <CalendarDays className="h-4 w-4" />
           <span>Data: {eventDate ? formatDate(eventDate) : '-'}</span>
@@ -45,20 +45,20 @@ function SectionPage({ title, registrants, total, eventName, eventDate }: {
 
       <h2 className="text-lg font-semibold mb-4">{title} ({registrants.length})</h2>
 
-      <table className="freq-table">
+      <table className="w-full border-collapse">
         <thead>
           <tr>
-            <th>Nº</th>
-            <th>Nome</th>
-            <th className="w-48">Visto</th>
+            <th className="border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Nº</th>
+            <th className="border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Nome</th>
+            <th className="w-48 border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Visto</th>
           </tr>
         </thead>
         <tbody>
           {registrants.map((r, i) => (
             <tr key={i}>
-              <td className="text-center text-muted-foreground">{i + 1}</td>
-              <td>{r.full_name}</td>
-              <td />
+              <td className="border border-border px-3 py-2 text-center text-muted-foreground">{i + 1}</td>
+              <td className="border border-border px-3 py-2 text-foreground">{r.full_name}</td>
+              <td className="border border-border px-3 py-2" />
             </tr>
           ))}
         </tbody>
@@ -71,21 +71,27 @@ export default function FrequenciaPage() {
   const { event, eventId, loading: eventLoading } = useEvent();
   const [men, setMen] = useState<Registrant[]>([]);
   const [women, setWomen] = useState<Registrant[]>([]);
+  const [unknown, setUnknown] = useState<Registrant[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!eventId) return;
 
     const fetch = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('registrations')
         .select('full_name, gender')
         .eq('event_id', eventId)
+        .neq('payment_status', 'canceled')
         .order('full_name', { ascending: true });
 
+      if (error) {
+        console.error('[FrequenciaPage] Erro na query:', error);
+      }
       if (data) {
         setMen(data.filter((r) => r.gender === 'M'));
         setWomen(data.filter((r) => r.gender === 'F'));
+        setUnknown(data.filter((r) => r.gender !== 'M' && r.gender !== 'F'));
       }
       setLoading(false);
     };
@@ -107,35 +113,38 @@ export default function FrequenciaPage() {
     );
   }
 
-  const total = men.length + women.length;
+  const sections = ([
+    ['Homens', men],
+    ['Mulheres', women],
+    ['Geral', unknown],
+  ] as const).filter(([, arr]) => arr.length > 0);
+
+  const total = men.length + women.length + unknown.length;
   const eventName = event?.title || 'Evento';
   const eventDate = event?.start_date ?? null;
 
   return (
-    <div>
+    <div className="print:bg-white">
       <style>{`
         @media print {
           @page { size: A4 portrait; margin: 15mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+            color: #000 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          * {
+            background: transparent !important;
+            color: #000 !important;
+          }
           .print-section { page-break-after: always; break-after: page; }
           .print-section:last-child { page-break-after: auto; break-after: auto; }
         }
         .print-section {
           display: block;
-        }
-        .freq-table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        .freq-table th,
-        .freq-table td {
-          border: 1px solid #999;
-          padding: 6px 10px;
-          text-align: left;
-        }
-        .freq-table th {
-          background: #f5f5f5;
-          font-weight: 700;
         }
       `}</style>
 
@@ -146,31 +155,22 @@ export default function FrequenciaPage() {
         </Button>
       </div>
 
-      {men.length > 0 && (
-        <SectionPage
-          title="Homens"
-          registrants={men}
-          total={total}
-          eventName={eventName}
-          eventDate={eventDate}
-        />
-      )}
-
-      {men.length > 0 && women.length > 0 && (
-        <div className="print:hidden border-t-2 border-dashed border-muted-foreground/30 my-8 py-2 text-center text-xs text-muted-foreground">
-          — Quebra de página —
+      {sections.map(([title, registrants], idx) => (
+        <div key={title}>
+          {idx > 0 && (
+            <div className="print:hidden border-t-2 border-dashed border-muted-foreground/30 my-8 py-2 text-center text-xs text-muted-foreground">
+              — Quebra de página —
+            </div>
+          )}
+          <SectionPage
+            title={title}
+            registrants={registrants}
+            total={total}
+            eventName={eventName}
+            eventDate={eventDate}
+          />
         </div>
-      )}
-
-      {women.length > 0 && (
-        <SectionPage
-          title="Mulheres"
-          registrants={women}
-          total={total}
-          eventName={eventName}
-          eventDate={eventDate}
-        />
-      )}
+      ))}
 
       {total === 0 && (
         <div className="text-center py-12 text-muted-foreground">Nenhuma inscrição encontrada.</div>

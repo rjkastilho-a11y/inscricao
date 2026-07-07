@@ -81,7 +81,7 @@ export default function CheckinLinkPage() {
           ) : checkinToken && checkinUrl ? (
             <>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-muted rounded-md px-2.5 py-1.5 text-foreground truncate">
+                <code className="flex-1 text-xs bg-muted rounded-lg px-2.5 py-1.5 text-foreground truncate">
                   {checkinUrl}
                 </code>
                 <Button

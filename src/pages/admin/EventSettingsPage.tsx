@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -57,6 +57,19 @@ export default function EventSettingsPage() {
               <span className="text-muted-foreground">Vagas:</span>
               <span>{event.max_capacity ?? 'Ilimitado'}</span>
             </div>
+            {event.payment_link && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Link de pagamento:</span>
+                <a
+                  href={event.payment_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline text-sm truncate max-w-[200px] flex items-center gap-1"
+                >
+                  {event.payment_link.replace(/^https?:\/\//, '').slice(0, 30)}... <ExternalLink className="size-3 shrink-0" />
+                </a>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

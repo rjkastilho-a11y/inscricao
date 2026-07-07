@@ -77,7 +77,7 @@ function MonitorInput({ eventId, groupNumber }: { eventId: string; groupNumber: 
     setSaving(false);
   };
 
-  if (loading) return <div className="h-10 animate-pulse rounded-lg bg-slate-100" />;
+  if (loading) return <div className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-muted" />;
 
   return (
     <div className="relative">
@@ -87,10 +87,10 @@ function MonitorInput({ eventId, groupNumber }: { eventId: string; groupNumber: 
         onChange={(e) => setMonitorName(e.target.value)}
         onBlur={handleBlur}
         placeholder="Monitor responsável..."
-        className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white px-3 py-2 pr-8 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+        className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white px-3 py-2 pr-8 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
       />
       {saving && (
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 dark:text-muted-foreground">
           salvando…
         </span>
       )}
@@ -193,9 +193,9 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-border dark:bg-card">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-900">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-foreground">
           {grupo.custom_name || `Grupo ${grupo.grupo_numero} — ${grupo.genero_saida}`}
         </h3>
         <div className="flex items-center gap-2">
@@ -203,7 +203,7 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
             <Tooltip content="Renomear grupo">
               <button
                 onClick={() => onRename?.(grupo.grupo_numero, grupo.custom_name || '')}
-                className="flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600"
+                className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:text-muted-foreground dark:hover:bg-amber-500/10"
               >
                 <Pencil className="size-3.5" />
               </button>
@@ -211,13 +211,13 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
             <Tooltip content="Excluir grupo">
               <button
                 onClick={() => onDeleteGroup?.(grupo.grupo_numero)}
-                className="flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-muted-foreground dark:hover:bg-red-500/10"
               >
                 <Trash2 className="size-3.5" />
               </button>
             </Tooltip>
           </div>
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500 dark:bg-muted dark:text-muted-foreground">
             {grupo.integrantes.length}
           </span>
         </div>
@@ -233,9 +233,9 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
             return (
               <div
                 key={memberKey}
-                className="group relative flex items-center justify-between gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-slate-50"
+                className="group relative flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50 dark:hover:bg-muted"
               >
-                <span className="text-sm text-slate-600">
+                <span className="text-sm text-slate-600 dark:text-muted-foreground">
                   {integrante.nome}
                   {!integrante.registration_id && (
                     <span className="ml-2 text-[10px] font-medium text-red-400" title="sem ID no banco">
@@ -250,7 +250,7 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
                     onClick={() =>
                       setOpenMenuFor(openMenuFor === memberKey ? null : memberKey)
                     }
-                    className="flex size-7 items-center justify-center rounded-md text-slate-300 opacity-0 transition-all hover:bg-amber-50 hover:text-amber-600 group-hover:opacity-100 disabled:opacity-30"
+                    className="flex size-7 items-center justify-center rounded-lg text-slate-300 opacity-0 transition-all hover:bg-amber-50 hover:text-amber-600 group-hover:opacity-100 disabled:opacity-30 dark:text-muted-foreground dark:hover:bg-amber-500/10"
                     title="Mover para outro grupo"
                   >
                     {moving ? (
@@ -264,13 +264,13 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
                 {openMenuFor === memberKey && (
                   <div
                     ref={menuRef}
-                    className="absolute right-0 top-full z-10 mt-1 min-w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                    className="absolute right-0 top-full z-10 mt-1 min-w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-border dark:bg-card"
                   >
                     {otherGroups.map((g) => (
                       <button
                         key={g.grupo_numero}
                         onClick={() => handleMove(integrante.registration_id, g.grupo_numero)}
-                        className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                        className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-muted-foreground dark:hover:bg-muted"
                       >
                         Mover para {g.custom_name || `Grupo ${g.grupo_numero} — ${g.genero_saida}`}
                       </button>
@@ -281,7 +281,7 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
             );
           })
         ) : (
-          <p className="py-2 text-sm italic text-slate-400">Nenhum integrante neste grupo</p>
+          <p className="py-2 text-sm italic text-slate-400 dark:text-muted-foreground">Nenhum integrante neste grupo</p>
         )}
       </div>
     </div>

@@ -18,6 +18,12 @@ export interface EventData {
   watermark_url: string | null;
   terms_text: string | null;
   terms_enabled: boolean;
+  step_personal: boolean;
+  step_christian_life: boolean;
+  step_health: boolean;
+  step_emergency: boolean;
+  step_other: boolean;
+  payment_link: string | null;
   created_at: string;
 }
 

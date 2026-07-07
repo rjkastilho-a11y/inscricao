@@ -12,7 +12,7 @@ export default function ReportsPage() {
   useEffect(() => {
     const fetch = async () => {
       const { data: events } = await supabase.from('events').select('*');
-      const { data: registrations } = await supabase.from('registrations').select('*, events(price), event_lots!lot_id(price)');
+      const { data: registrations } = await supabase.from('registrations').select('*, events(price), event_lots!lot_id(price)').neq('payment_status', 'canceled');
 
       if (events && registrations) {
         const stats = events.map((ev: any) => {
@@ -80,10 +80,10 @@ export default function ReportsPage() {
           <CardTitle className="text-lg">Por Evento</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-lg border border-border">
             <table className="w-full">
               <thead>
-                <tr className="border-b bg-muted/50">
+                <tr className="border-b bg-muted">
                   <th className="text-left p-4 text-sm font-medium">Evento</th>
                   <th className="text-left p-4 text-sm font-medium">Inscrições</th>
                   <th className="text-left p-4 text-sm font-medium">Pagos</th>

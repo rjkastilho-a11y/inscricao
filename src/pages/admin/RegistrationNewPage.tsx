@@ -5,9 +5,18 @@ import { RegistrationForm } from '@/components/registration/RegistrationForm';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog, DialogContent, DialogDescription,
+  DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { useEvent } from '@/contexts/EventContext';
-import { CheckCircle, ClipboardEdit } from 'lucide-react';
+import { CheckCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { fetchFormFields, splitFieldValues } from '@/lib/form-fields';
+import type { FormStep } from '@/lib/form-fields';
+import { insertPayment } from '@/lib/payments';
 import { useTrial } from '@/components/layout/ChurchGuard';
 
 async function hashTerms(text: string): Promise<string> {
@@ -59,6 +68,23 @@ export default function RegistrationNewPage() {
   const [showForm, setShowForm] = useState(false);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [fieldsLoaded, setFieldsLoaded] = useState(false);
+  const [disabledSteps, setDisabledSteps] = useState<FormStep[]>([]);
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('pix');
+  const [pendingPayment, setPendingPayment] = useState<{ amount: number; method: string } | null>(null);
+
+  const handleAddPayment = () => {
+    const amount = parseFloat(payAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Informe um valor válido.');
+      return;
+    }
+    setPendingPayment({ amount, method: payMethod });
+    setPayDialogOpen(false);
+    setPayAmount('');
+    toast.success('Pagamento será registrado após confirmar a inscrição.');
+  };
 
   const clearFormError = useCallback(() => {
     setFormError(null);
@@ -84,7 +110,16 @@ export default function RegistrationNewPage() {
       });
       setLotCounts(counts);
 
-      const fFields = await fetchFormFields(eventId, event.is_custom ?? false);
+      const fFields = await fetchFormFields(eventId, event.is_custom ?? false, (() => {
+        const disabled: FormStep[] = [];
+        if (event.step_personal === false) disabled.push('personal');
+        if (event.step_christian_life === false) disabled.push('christian_life');
+        if (event.step_health === false) disabled.push('health');
+        if (event.step_emergency === false) disabled.push('emergency');
+        if (event.step_other === false) disabled.push('other');
+        setDisabledSteps(disabled);
+        return disabled;
+      })());
       const filteredFields = event.terms_enabled === false
         ? fFields.filter(f => f.field_key !== 'accept_terms')
         : fFields;
@@ -102,6 +137,9 @@ export default function RegistrationNewPage() {
       ...columns,
       event_id: eventId,
       extra_fields: Object.keys(extra).length > 0 ? extra : null,
+      payment_status: data.payment_status ?? 'pending',
+      payment_method: data.payment_method ?? 'pix',
+      private_notes: data.private_notes ?? null,
     };
     if (selectedLot) {
       payload.lot_id = selectedLot.id;
@@ -112,7 +150,7 @@ export default function RegistrationNewPage() {
       payload.terms_version = await hashTerms(event.terms_text);
     }
 
-    const { error } = await supabase.from('registrations').insert(payload);
+    const { data: newReg, error } = await supabase.from('registrations').insert(payload).select('id').single();
     if (error) {
       if (error.code === '23505') {
         setFormError('Este e-mail já está inscrito neste evento.');
@@ -123,6 +161,32 @@ export default function RegistrationNewPage() {
       setIsLoading(false);
       return;
     }
+
+    if (data.payment_status === 'paid' && Number(data.paid_amount) > 0 && newReg?.id) {
+      const { error: paymentError } = await insertPayment(
+        newReg.id,
+        Number(data.paid_amount),
+        data.payment_method || 'pix'
+      );
+      if (paymentError) {
+        toast.error('Erro ao registrar no histórico: ' + paymentError);
+      }
+    }
+
+    if (pendingPayment && newReg?.id) {
+      const { error: paymentError } = await insertPayment(
+        newReg.id,
+        pendingPayment.amount,
+        pendingPayment.method
+      );
+      if (paymentError) {
+        toast.error('Inscrição criada, mas erro ao registrar pagamento: ' + paymentError);
+      } else {
+        toast.success('Pagamento registrado!');
+      }
+      setPendingPayment(null);
+    }
+
     navigate(`/app/evento/${eventId}/inscricoes`);
   };
 
@@ -292,9 +356,50 @@ export default function RegistrationNewPage() {
             fields={formFields}
             customMode={event?.is_custom ?? false}
             termsText={event?.terms_text}
+            disabledSteps={disabledSteps}
+            onAddPayment={() => setPayDialogOpen(true)}
+            onPaymentMethodChange={setPayMethod}
           />
         </CardContent>
       </Card>
+
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar pagamento</DialogTitle>
+            <DialogDescription>
+              Registre um pagamento para esta inscrição. Ele será lançado após a confirmação.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="pay-amount">Valor (R$)</Label>
+              <Input
+                id="pay-amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="0,00"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPayDialogOpen(false); setPayAmount(''); }}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600/80 text-white hover:bg-emerald-600"
+              onClick={handleAddPayment}
+              disabled={!payAmount}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

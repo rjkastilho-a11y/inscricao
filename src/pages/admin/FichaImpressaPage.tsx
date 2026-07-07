@@ -1,7 +1,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import { useEvent } from '@/contexts/EventContext';
 import { Button } from '@/components/ui/button';
-import { fetchFormFields, type FormField, STEP_LABELS, STEP_ORDER } from '@/lib/form-fields';
+import { fetchFormFields, type FormField, type FormStep, STEP_LABELS, STEP_ORDER } from '@/lib/form-fields';
 import { formatDate } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import { useTrial } from '@/components/layout/ChurchGuard';
 
 const EXCLUDED_KEYS = new Set(['accept_terms', 'pastoral_authorization', 'church_role', 'church_role_other', 'godparent', 'godparent_contact', 'cep', 'city', 'state']);
 
-const BINARY_KEYS = new Set(['is_christian', 'is_baptized', 'has_allergies']);
+const BINARY_KEYS = new Set(['is_baptized', 'has_allergies']);
 
 const LABEL_OVERRIDES: Record<string, string> = {
   pastor: 'Autorização do Pastor',
@@ -48,7 +48,15 @@ export default function FichaImpressaPage() {
     if (!event) return;
     setWatermarkUrl(event.watermark_url || '');
     setLoading(true);
-    fetchFormFields(event.id, event.is_custom).then((data) => {
+    fetchFormFields(event.id, event.is_custom, (() => {
+      const disabled: FormStep[] = [];
+      if (event.step_personal === false) disabled.push('personal');
+      if (event.step_christian_life === false) disabled.push('christian_life');
+      if (event.step_health === false) disabled.push('health');
+      if (event.step_emergency === false) disabled.push('emergency');
+      if (event.step_other === false) disabled.push('other');
+      return disabled;
+    })()).then((data) => {
       setFields(data);
       setLoading(false);
     });
@@ -82,6 +90,18 @@ export default function FichaImpressaPage() {
       );
     }
     if (isCheckbox(field)) {
+      if (field.options && field.options.length > 0) {
+        return (
+          <div className="print-select-options">
+            {field.options.map((opt) => (
+              <label key={opt} className="print-option">
+                <span className="print-checkbox" />
+                {opt}
+              </label>
+            ))}
+          </div>
+        );
+      }
       if (BINARY_KEYS.has(field.field_key)) {
         return (
           <div className="print-binary-options">
@@ -113,10 +133,10 @@ export default function FichaImpressaPage() {
       <style>{`
         .print-area {
           position: relative;
-          max-width: 210mm;
+          max-width: 960px;
           margin: 0 auto;
-          padding: 8px 15px;
-          background: white;
+          padding: 24px 32px;
+          background: hsl(var(--card));
         }
         .print-area.has-watermark::before {
           content: '';
@@ -137,31 +157,31 @@ export default function FichaImpressaPage() {
           text-align: center;
           margin-bottom: 16px;
           padding-bottom: 12px;
-          border-bottom: 2px solid #222;
+          border-bottom: 2px solid hsl(var(--border));
         }
         .print-header h1 {
           font-family: 'Georgia', 'Times New Roman', serif;
-          font-size: 18px;
+          font-size: 26px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: hsl(var(--foreground));
           margin: 0 0 4px 0;
           letter-spacing: 0.5px;
           text-transform: uppercase;
         }
         .print-header p {
-          font-size: 11px;
-          color: #555;
+          font-size: 14px;
+          color: hsl(var(--muted-foreground));
           margin: 1px 0;
         }
 
         .print-section {
-          margin-bottom: 14px;
+          margin-bottom: 24px;
         }
         .print-section h2 {
-          font-size: 12px;
+          font-size: 16px;
           font-weight: 700;
-          color: #1a1a1a;
-          border-bottom: 1.5px solid #bbb;
+          color: hsl(var(--foreground));
+          border-bottom: 1.5px solid hsl(var(--border));
           padding-bottom: 3px;
           margin: 0 0 8px 0;
           text-transform: uppercase;
@@ -171,7 +191,7 @@ export default function FichaImpressaPage() {
         .print-fields-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 6px 16px;
+          gap: 12px 24px;
         }
         .print-field {
           display: flex;
@@ -182,20 +202,20 @@ export default function FichaImpressaPage() {
           grid-column: span 2;
         }
         .print-field-label {
-          font-size: 9.5px;
+          font-size: 13px;
           font-weight: 600;
-          color: #444;
+          color: hsl(var(--muted-foreground));
           margin-bottom: 1px;
           letter-spacing: 0.2px;
         }
         .print-line {
-          border-bottom: 1px solid #666;
-          height: 20px;
+          border-bottom: 1px solid hsl(var(--border));
+          height: 32px;
           margin-top: 1px;
         }
         .print-textarea-line {
-          border: 1px solid #666;
-          height: 48px;
+          border: 1px solid hsl(var(--border));
+          height: 72px;
           border-radius: 1px;
           margin-top: 1px;
         }
@@ -223,8 +243,8 @@ export default function FichaImpressaPage() {
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          font-size: 10px;
-          color: #333;
+          font-size: 13px;
+          color: hsl(var(--foreground));
           white-space: nowrap;
         }
         .print-checkbox-wrapper {
@@ -232,9 +252,9 @@ export default function FichaImpressaPage() {
         }
         .print-checkbox {
           display: inline-block;
-          width: 13px;
-          height: 13px;
-          border: 1.5px solid #555;
+          width: 18px;
+          height: 18px;
+          border: 1.5px solid hsl(var(--border));
           border-radius: 2px;
           flex-shrink: 0;
         }
@@ -257,20 +277,20 @@ export default function FichaImpressaPage() {
           flex-shrink: 0;
         }
         .print-declaration {
-          border: 1px solid #999;
+          border: 1px solid hsl(var(--border));
           padding: 12px 14px;
           margin-top: 10px;
         }
         .print-declaration p {
-          font-size: 9.5px;
+          font-size: 13px;
           line-height: 1.45;
-          color: #1a1a1a;
+          color: hsl(var(--foreground));
           margin: 0 0 8px 0;
           text-align: justify;
         }
         .print-declaration-obs {
-          font-size: 9px;
-          color: #555;
+          font-size: 12px;
+          color: hsl(var(--muted-foreground));
           margin-top: 8px !important;
           margin-bottom: 0 !important;
         }
@@ -284,12 +304,11 @@ export default function FichaImpressaPage() {
           flex: 1;
         }
         .print-signature-line span:first-child {
-          font-size: 10px;
+          font-size: 13px;
           font-weight: 600;
-          color: #444;
+          color: hsl(var(--muted-foreground));
           white-space: nowrap;
         }
-
         @media print {
           body { background: white !important; }
           @page { margin: 12mm 15mm; size: A4; }
@@ -297,15 +316,27 @@ export default function FichaImpressaPage() {
           .print-area {
             padding: 0 !important;
             max-width: none !important;
+            background: white !important;
+          }
+          .print-header { border-bottom-color: #222 !important; }
+          .print-header h1 { color: #1a1a1a !important; }
+          .print-header p { color: #555 !important; }
+          .print-section h2 { color: #1a1a1a !important; border-bottom-color: #bbb !important; }
+          .print-field-label { color: #444 !important; }
+          .print-line { border-bottom-color: #666 !important; }
+          .print-textarea-line { border-color: #666 !important; }
+          .print-option { color: #333 !important; }
+          .print-checkbox { border-color: #555 !important; }
+          .print-declaration { border-color: #999 !important; }
+          .print-declaration p { color: #1a1a1a !important; }
+          .print-declaration-obs { color: #555 !important; }
+          .print-signature-line span:first-child { color: #444 !important; }
+          .print-area.has-watermark::before {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
-          .print-section {
-            page-break-inside: avoid;
-          }
-          .print-declaration {
-            page-break-inside: avoid;
-          }
+          .print-section { page-break-inside: avoid; }
+          .print-declaration { page-break-inside: avoid; }
         }
       `}</style>
 
@@ -329,7 +360,7 @@ export default function FichaImpressaPage() {
             value={watermarkUrl}
             onChange={(e) => setWatermarkUrl(e.target.value)}
             placeholder="URL da marca d'água (opcional)"
-            className="flex h-9 min-w-[250px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex h-9 min-w-[250px] rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <Button disabled={savingWatermark} onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : handleSaveWatermark}>
             {savingWatermark ? 'Salvando...' : 'Salvar'}

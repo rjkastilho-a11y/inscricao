@@ -3,9 +3,10 @@ import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { RegistrationForm } from '@/components/registration/RegistrationForm';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { CheckCircle } from 'lucide-react';
 import { fetchFormFields, splitFieldValues } from '@/lib/form-fields';
-import type { FormField } from '@/lib/form-fields';
+import type { FormField, FormStep } from '@/lib/form-fields';
 
 async function hashTerms(text: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -61,6 +62,8 @@ export default function EventRegistration() {
   const [tokenValid, setTokenValid] = useState<boolean | null>(token ? null : true);
   const [showForm, setShowForm] = useState(false);
   const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [disabledSteps, setDisabledSteps] = useState<FormStep[]>([]);
+  const [lastPaymentMethod, setLastPaymentMethod] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -119,7 +122,16 @@ export default function EventRegistration() {
       });
       setLotCounts(counts);
 
-      const fFields = await fetchFormFields(data.id, data.is_custom ?? false);
+      const fFields = await fetchFormFields(data.id, data.is_custom ?? false, (() => {
+        const disabled: FormStep[] = [];
+        if (data.step_personal === false) disabled.push('personal');
+        if (data.step_christian_life === false) disabled.push('christian_life');
+        if (data.step_health === false) disabled.push('health');
+        if (data.step_emergency === false) disabled.push('emergency');
+        if (data.step_other === false) disabled.push('other');
+        setDisabledSteps(disabled);
+        return disabled;
+      })());
       const filteredFields = data.terms_enabled === false
         ? fFields.filter(f => f.field_key !== 'accept_terms')
         : fFields;
@@ -160,6 +172,7 @@ export default function EventRegistration() {
 
   const handleSubmit = async (data: Record<string, any>) => {
     setFormError(null);
+    setLastPaymentMethod(data.payment_method || null);
 
     let inviteId: string | null = null;
 
@@ -184,6 +197,13 @@ export default function EventRegistration() {
       extra_fields: Object.keys(extra).length > 0 ? extra : null,
     };
 
+    if (data.payment_method) {
+      payload.payment_method = data.payment_method;
+    }
+    if (data.payment_status) {
+      payload.payment_status = data.payment_status;
+    }
+
     if (selectedLot) {
       payload.lot_id = selectedLot.id;
     }
@@ -204,6 +224,7 @@ export default function EventRegistration() {
         setFormError('Este e-mail já está inscrito neste evento.');
         setIsDuplicateEmail(true);
       } else {
+        console.error('[Registration] insert error:', insertError.code, insertError.message, insertError.details);
         setFormError('Erro ao realizar inscrição. Tente novamente.');
       }
       return;
@@ -234,6 +255,8 @@ export default function EventRegistration() {
   if (error) return <div className="p-8 text-center text-muted-foreground">{error}</div>;
 
   if (submitted) {
+    const showPaymentLink = lastPaymentMethod === 'external_link' && event.payment_link;
+
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-8">
         <div className="text-center space-y-4">
@@ -241,9 +264,16 @@ export default function EventRegistration() {
           <p className="text-muted-foreground">
             Você receberá confirmação no e-mail e WhatsApp informados.
           </p>
+          {showPaymentLink && (
+            <a href={event.payment_link} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="w-full max-w-xs mx-auto">
+                Pagar agora pelo Link
+              </Button>
+            </a>
+          )}
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors max-md:h-11"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors max-md:h-11"
           >
             Voltar ao início
           </Link>
@@ -415,6 +445,7 @@ export default function EventRegistration() {
         onSubmit={handleSubmit}
         lotId={selectedLot?.id}
         lotPrice={selectedLot?.price ?? event.price ?? 0}
+        paymentLink={event.payment_link}
         errorMessage={formError}
         onClearError={clearFormError}
         errorActionLabel={isDuplicateEmail ? 'Corrigir e-mail' : undefined}
@@ -422,6 +453,7 @@ export default function EventRegistration() {
         fields={formFields}
         customMode={event.is_custom}
         termsText={event.terms_text}
+        disabledSteps={disabledSteps}
       />
     </div>
   );

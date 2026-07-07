@@ -70,7 +70,7 @@ export default function EventsPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { error } = await supabase.from('events').delete().eq('id', deleteTarget.id);
+    const { error } = await supabase.rpc('soft_delete_event', { p_event_id: deleteTarget.id });
     if (error) {
       toast.error('Erro ao excluir evento: ' + error.message);
       setDeleting(false);
@@ -119,7 +119,7 @@ export default function EventsPage() {
         <div className="hidden md:block">
           <div className="flex gap-2 mb-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-8 w-24 rounded-md bg-muted/70 animate-pulse" />
+              <div key={i} className="h-8 w-24 rounded-lg bg-muted/70 animate-pulse" />
             ))}
           </div>
           <SkeletonTable rows={4} columns={7} />
@@ -261,7 +261,7 @@ export default function EventsPage() {
       </div>
 
       {/* ── Tabela: desktop ── */}
-      <div className="hidden md:block rounded-md border border-border overflow-hidden">
+      <div className="hidden md:block rounded-lg border border-border overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-accent">

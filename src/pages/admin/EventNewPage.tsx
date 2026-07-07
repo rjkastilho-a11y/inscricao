@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { eventSchema, type LotFormData } from '@/lib/validations';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useTrial } from '@/components/layout/ChurchGuard';
+import { copyDefaultFields } from '@/lib/form-fields';
 
 
 const DEFAULT_TERMS = `Termo de Inscrição e Uso de Imagem
@@ -48,16 +50,22 @@ function slugify(text: string): string {
 export default function EventNewPage() {
   const navigate = useNavigate();
   const trial = useTrial();
+  const { churchId } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [lots, setLots] = useState<LotFormData[]>([]);
   const [formType, setFormType] = useState<'default' | 'custom'>('default');
+  const [stepPersonal, setStepPersonal] = useState(true);
+  const [stepChristianLife, setStepChristianLife] = useState(true);
+  const [stepHealth, setStepHealth] = useState(true);
+  const [stepEmergency, setStepEmergency] = useState(true);
+  const [stepOther, setStepOther] = useState(true);
   const [slugChecking, setSlugChecking] = useState(false);
   const [slugError, setSlugError] = useState<string | null>(null);
   const slugTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const form = useForm({
     resolver: zodResolver(eventSchema),
-    defaultValues: { is_open: false, price: 0, terms_text: DEFAULT_TERMS, terms_enabled: true },
+    defaultValues: { is_open: false, price: 0, terms_text: DEFAULT_TERMS, terms_enabled: true, payment_link: '' },
   });
 
   const title = form.watch('title');
@@ -79,6 +87,8 @@ export default function EventNewPage() {
       .from('events')
       .select('id')
       .eq('slug', value)
+      .eq('church_id', churchId)
+      .is('deleted_at', null)
       .maybeSingle();
     if (data) {
       setSlugError('Este slug já está em uso. Altere o título ou slug.');
@@ -116,6 +126,11 @@ export default function EventNewPage() {
         Object.entries(data).filter(([_, v]) => v !== '' && v !== undefined)
       ),
       is_custom: formType === 'custom',
+      step_personal: stepPersonal,
+      step_christian_life: stepChristianLife,
+      step_health: stepHealth,
+      step_emergency: stepEmergency,
+      step_other: stepOther,
     };
     const { data: eventData, error } = await supabase.from('events').insert(cleanData).select().single();
     if (error) {
@@ -144,6 +159,11 @@ export default function EventNewPage() {
         setIsLoading(false);
         return;
       }
+    }
+
+    // Copy default fields only for standard form events
+    if (formType !== 'custom') {
+      await copyDefaultFields(eventData.id);
     }
 
     navigate('/app/eventos');
@@ -225,6 +245,11 @@ export default function EventNewPage() {
                 <Input id="max_capacity" type="number" {...form.register('max_capacity')} />
               </div>
             </div>
+            <div>
+              <Label htmlFor="payment_link" className="text-foreground">Link de pagamento (opcional)</Label>
+              <Input id="payment_link" type="url" placeholder="https://..." {...form.register('payment_link')} />
+              <p className="text-xs text-muted-foreground mt-1">URL para página de pagamento externa (MercadoPago, Stripe, etc.)</p>
+            </div>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="is_open"
@@ -288,6 +313,64 @@ export default function EventNewPage() {
                 </div>
               </div>
             </div>
+
+            {formType === 'default' && (
+              <div className="border-t border-border pt-4 mt-6">
+                <div className="mb-4">
+                  <Label className="text-foreground font-semibold">Etapas do formulário</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Selecione quais etapas do formulário padrão devem aparecer para o participante.
+                  </p>
+                  <div className="space-y-2 mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stepPersonal}
+                        onChange={(e) => setStepPersonal(e.target.checked)}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Dados Pessoais</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stepChristianLife}
+                        onChange={(e) => setStepChristianLife(e.target.checked)}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Vida Cristã</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stepHealth}
+                        onChange={(e) => setStepHealth(e.target.checked)}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Saúde</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stepEmergency}
+                        onChange={(e) => setStepEmergency(e.target.checked)}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Emergência</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stepOther}
+                        onChange={(e) => setStepOther(e.target.checked)}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Outros...</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="border-t border-border pt-4 mt-6">
               <div className="flex items-center justify-between mb-4">

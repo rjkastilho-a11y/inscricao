@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatCurrency, paymentStatusLabels, paymentMethodLabels, formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Plus, Trash2, FileText, FileSpreadsheet, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react';
+import { Plus, Trash2, FileText, FileSpreadsheet, ChevronDown, ChevronUp, MoreHorizontal, ArrowUpDown, X } from 'lucide-react';
 import { useEvent } from '@/contexts/EventContext';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
@@ -41,9 +41,13 @@ interface FinEntry {
 }
 
 const INCOME_CATEGORIES = ['oferta', 'doação', 'outros'];
+const incomeCategoryLabels: Record<string, string> = { 'oferta': 'Oferta', 'doação': 'Doação', 'outros': 'Outros' };
 const EXPENSE_CATEGORIES = ['alimentação', 'local', 'materiais', 'transporte', 'divulgação', 'outros'];
+const expenseCategoryLabels: Record<string, string> = { 'alimentação': 'Alimentação', 'local': 'Local', 'materiais': 'Materiais', 'transporte': 'Transporte', 'divulgação': 'Divulgação', 'outros': 'Outros' };
 const PAYMENT_METHODS = Object.keys(paymentMethodLabels);
 const PAYMENT_STATUSES = Object.keys(paymentStatusLabels);
+const PERCENT_FILTERS = ['paid', 'partial', 'unpaid'] as const;
+const percentFilterLabels: Record<string, string> = { 'paid': 'Pago (100%)', 'partial': 'Parcial', 'unpaid': 'Não pago' };
 
 export default function FinancialPage() {
   const navigate = useNavigate();
@@ -59,6 +63,24 @@ export default function FinancialPage() {
 
   const [regStatusFilter, setRegStatusFilter] = useState('');
   const [regMethodFilter, setRegMethodFilter] = useState('');
+  const [regPercentFilter, setRegPercentFilter] = useState('');
+  const [regSearch, setRegSearch] = useState('');
+  const [regDateFrom, setRegDateFrom] = useState('');
+  const [regDateTo, setRegDateTo] = useState('');
+  const [regSortField, setRegSortField] = useState('full_name');
+  const [regSortDirection, setRegSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const [incomeCategoryFilter, setIncomeCategoryFilter] = useState('');
+  const [incomeDateFrom, setIncomeDateFrom] = useState('');
+  const [incomeDateTo, setIncomeDateTo] = useState('');
+  const [incomeSortField, setIncomeSortField] = useState('entry_date');
+  const [incomeSortDirection, setIncomeSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('');
+  const [expenseDateFrom, setExpenseDateFrom] = useState('');
+  const [expenseDateTo, setExpenseDateTo] = useState('');
+  const [expenseSortField, setExpenseSortField] = useState('entry_date');
+  const [expenseSortDirection, setExpenseSortDirection] = useState<'asc' | 'desc'>('desc');
   const [collapseReg, setCollapseReg] = useState(() => window.innerWidth < 768);
   const [collapseIncome, setCollapseIncome] = useState(() => window.innerWidth < 768);
   const [collapseExpense, setCollapseExpense] = useState(() => window.innerWidth < 768);
@@ -68,7 +90,8 @@ export default function FinancialPage() {
 
     let regQuery = supabase
       .from('registrations')
-      .select('id, full_name, payment_method, payment_status, paid_amount, refunded_amount, created_at, events(title, price), event_lots!lot_id(name, price)');
+      .select('id, full_name, payment_method, payment_status, paid_amount, refunded_amount, created_at, events(title, price), event_lots!lot_id(name, price)')
+      .neq('payment_status', 'canceled');
 
     if (eventId) {
       regQuery = regQuery.eq('event_id', eventId);
@@ -114,21 +137,98 @@ export default function FinancialPage() {
   const totalExpected = regPayments
     .reduce((sum, r) => sum + r.amount, 0);
   const paidRegAmount = regPayments
-    .filter((r) => r.status === 'paid')
-    .reduce((sum, r) => sum + (r.paid_amount != null ? r.paid_amount : 0), 0);
+    .filter((r) => r.status === 'paid' || (r.paid_amount != null && r.paid_amount > 0))
+    .reduce((sum, r) => {
+      if (r.paid_amount != null && r.paid_amount > 0) return sum + r.paid_amount;
+      return sum + r.amount;
+    }, 0);
   const totalActual = paidRegAmount;
   const totalOfferings = incomeEntries.filter((e) => e.category !== 'registration').reduce((sum, e) => sum + e.amount, 0);
   const totalExpenses = expenseEntries.reduce((sum, e) => sum + e.amount, 0);
   const netActual = totalActual;
   const netBalance = netActual + totalOfferings - totalExpenses;
 
-  const filteredRegPayments = regPayments.filter((r) => {
-    if (regStatusFilter && r.status !== regStatusFilter) return false;
-    if (regMethodFilter && r.method !== regMethodFilter) return false;
-    return true;
-  });
-  const filteredIncome = incomeEntries.filter((e) => e.category !== 'registration');
-  const filteredExpenses = expenseEntries;
+  const filteredRegPayments = useMemo(() => {
+    let result = regPayments.filter((r) => {
+      if (regStatusFilter && r.status !== regStatusFilter) return false;
+      if (regMethodFilter && r.method !== regMethodFilter) return false;
+      if (regSearch && !r.full_name.toLowerCase().includes(regSearch.toLowerCase())) return false;
+      if (regDateFrom && r.created_at < regDateFrom) return false;
+      if (regDateTo && r.created_at > regDateTo + 'T23:59:59') return false;
+      if (regPercentFilter) {
+        if (r.amount > 0 && r.paid_amount != null) {
+          const pct = Math.min(100, Math.round((r.paid_amount / r.amount) * 100));
+          if (regPercentFilter === 'paid' && pct !== 100) return false;
+          if (regPercentFilter === 'partial' && (pct === 0 || pct === 100)) return false;
+          if (regPercentFilter === 'unpaid' && pct !== 0) return false;
+        } else {
+          if (regPercentFilter !== 'unpaid') return false;
+        }
+      }
+      return true;
+    });
+
+    result.sort((a, b) => {
+      let valA: any, valB: any;
+      switch (regSortField) {
+        case 'full_name': valA = a.full_name; valB = b.full_name; break;
+        case 'amount': valA = a.amount; valB = b.amount; break;
+        case 'paid_amount': valA = a.paid_amount ?? 0; valB = b.paid_amount ?? 0; break;
+        case 'method': valA = a.method; valB = b.method; break;
+        case 'status': valA = a.status; valB = b.status; break;
+        case 'created_at': valA = a.created_at; valB = b.created_at; break;
+        default: return 0;
+      }
+      if (typeof valA === 'string') return regSortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      return regSortDirection === 'asc' ? valA - valB : valB - valA;
+    });
+
+    return result;
+  }, [regPayments, regStatusFilter, regMethodFilter, regPercentFilter, regSearch, regDateFrom, regDateTo, regSortField, regSortDirection]);
+
+  const filteredIncome = useMemo(() => {
+    let result = finEntries.filter((e) => e.type === 'income' && e.category !== 'registration');
+
+    if (incomeCategoryFilter) result = result.filter((e) => e.category === incomeCategoryFilter);
+    if (incomeDateFrom) result = result.filter((e) => e.entry_date >= incomeDateFrom);
+    if (incomeDateTo) result = result.filter((e) => e.entry_date <= incomeDateTo);
+
+    result.sort((a, b) => {
+      let valA: any, valB: any;
+      switch (incomeSortField) {
+        case 'category': valA = a.category; valB = b.category; break;
+        case 'amount': valA = a.amount; valB = b.amount; break;
+        case 'entry_date': valA = a.entry_date; valB = b.entry_date; break;
+        default: return 0;
+      }
+      if (typeof valA === 'string') return incomeSortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      return incomeSortDirection === 'asc' ? valA - valB : valB - valA;
+    });
+
+    return result;
+  }, [finEntries, incomeCategoryFilter, incomeDateFrom, incomeDateTo, incomeSortField, incomeSortDirection]);
+
+  const filteredExpenses = useMemo(() => {
+    let result = finEntries.filter((e) => e.type === 'expense');
+
+    if (expenseCategoryFilter) result = result.filter((e) => e.category === expenseCategoryFilter);
+    if (expenseDateFrom) result = result.filter((e) => e.entry_date >= expenseDateFrom);
+    if (expenseDateTo) result = result.filter((e) => e.entry_date <= expenseDateTo);
+
+    result.sort((a, b) => {
+      let valA: any, valB: any;
+      switch (expenseSortField) {
+        case 'category': valA = a.category; valB = b.category; break;
+        case 'amount': valA = a.amount; valB = b.amount; break;
+        case 'entry_date': valA = a.entry_date; valB = b.entry_date; break;
+        default: return 0;
+      }
+      if (typeof valA === 'string') return expenseSortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      return expenseSortDirection === 'asc' ? valA - valB : valB - valA;
+    });
+
+    return result;
+  }, [finEntries, expenseCategoryFilter, expenseDateFrom, expenseDateTo, expenseSortField, expenseSortDirection]);
 
   const openAdd = (type: 'income' | 'expense') => {
     setDialogType(type);
@@ -142,6 +242,64 @@ export default function FinancialPage() {
     });
     setDialogOpen(true);
   };
+
+  const handleRegSort = (field: string) => {
+    if (regSortField === field) {
+      setRegSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setRegSortField(field);
+      setRegSortDirection(field === 'full_name' ? 'asc' : 'desc');
+    }
+  };
+
+  const handleIncomeSort = (field: string) => {
+    if (incomeSortField === field) {
+      setIncomeSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setIncomeSortField(field);
+      setIncomeSortDirection(field === 'entry_date' ? 'desc' : 'asc');
+    }
+  };
+
+  const handleExpenseSort = (field: string) => {
+    if (expenseSortField === field) {
+      setExpenseSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setExpenseSortField(field);
+      setExpenseSortDirection(field === 'entry_date' ? 'desc' : 'asc');
+    }
+  };
+
+  const clearRegFilters = () => {
+    setRegSearch('');
+    setRegStatusFilter('');
+    setRegMethodFilter('');
+    setRegPercentFilter('');
+    setRegDateFrom('');
+    setRegDateTo('');
+    setRegSortField('full_name');
+    setRegSortDirection('asc');
+  };
+
+  const clearIncomeFilters = () => {
+    setIncomeCategoryFilter('');
+    setIncomeDateFrom('');
+    setIncomeDateTo('');
+    setIncomeSortField('entry_date');
+    setIncomeSortDirection('desc');
+  };
+
+  const clearExpenseFilters = () => {
+    setExpenseCategoryFilter('');
+    setExpenseDateFrom('');
+    setExpenseDateTo('');
+    setExpenseSortField('entry_date');
+    setExpenseSortDirection('desc');
+  };
+
+  const hasRegFilters = regSearch || regStatusFilter || regMethodFilter || regPercentFilter || regDateFrom || regDateTo;
+  const hasIncomeFilters = incomeCategoryFilter || incomeDateFrom || incomeDateTo;
+  const hasExpenseFilters = expenseCategoryFilter || expenseDateFrom || expenseDateTo;
 
   const openEdit = (entry: FinEntry) => {
     setDialogType(entry.type);
@@ -351,10 +509,10 @@ export default function FinancialPage() {
       <PageHeader title="Financeiro" badge={event?.title} />
 
       <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <Button size="sm" className="hidden md:inline-flex bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={handleExportExcel}>
+        <Button className="hidden md:inline-flex bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={handleExportExcel}>
           <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
         </Button>
-        <Button size="sm" className="hidden md:inline-flex bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={handleExportPdf}>
+        <Button className="hidden md:inline-flex bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={handleExportPdf}>
           <FileText className="h-4 w-4 mr-1" /> PDF
         </Button>
         {/* Mobile: export actions */}
@@ -373,10 +531,10 @@ export default function FinancialPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <Button size="sm" className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground md:ml-auto max-md:h-11" onClick={(e) => { e.stopPropagation(); openAdd('income'); }}>
+        <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground md:ml-auto max-md:h-11" onClick={(e) => { e.stopPropagation(); openAdd('income'); }}>
           <Plus className="h-4 w-4 mr-1" /> Nova entrada
         </Button>
-        <Button size="sm" className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11" onClick={(e) => { e.stopPropagation(); openAdd('expense'); }}>
+        <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11" onClick={(e) => { e.stopPropagation(); openAdd('expense'); }}>
           <Plus className="h-4 w-4 mr-1" /> Nova saída
         </Button>
       </div>
@@ -423,8 +581,28 @@ export default function FinancialPage() {
         {!collapseReg && (
           <CardContent>
             <div className="flex flex-wrap gap-2 mb-3">
+              <Input
+                placeholder="Buscar inscrito..."
+                value={regSearch}
+                onChange={(e) => setRegSearch(e.target.value)}
+                className="w-full md:w-[180px]"
+              />
+              <Input
+                type="date"
+                value={regDateFrom}
+                onChange={(e) => setRegDateFrom(e.target.value)}
+                className="w-full md:w-[140px]"
+                placeholder="De"
+              />
+              <Input
+                type="date"
+                value={regDateTo}
+                onChange={(e) => setRegDateTo(e.target.value)}
+                className="w-full md:w-[140px]"
+                placeholder="Até"
+              />
               <Select value={regStatusFilter} onValueChange={setRegStatusFilter}>
-                <SelectTrigger className="w-full md:w-[140px]">
+                <SelectTrigger className="w-full md:w-[140px] !h-10">
                   <SelectValue>
                     {(value) => value ? (paymentStatusLabels[value] || value) : "Status"}
                   </SelectValue>
@@ -437,7 +615,7 @@ export default function FinancialPage() {
                 </SelectContent>
               </Select>
               <Select value={regMethodFilter} onValueChange={setRegMethodFilter}>
-                <SelectTrigger className="w-full md:w-[140px]">
+                <SelectTrigger className="w-full md:w-[140px] !h-10">
                   <SelectValue>
                     {(value) => value ? (paymentMethodLabels[value] || value) : "Método"}
                   </SelectValue>
@@ -449,7 +627,57 @@ export default function FinancialPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={regPercentFilter} onValueChange={setRegPercentFilter}>
+                <SelectTrigger className="w-full md:w-[140px] !h-10">
+                  <SelectValue placeholder="Pagamento %" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {PERCENT_FILTERS.map((f) => (
+                    <SelectItem key={f} value={f}>{percentFilterLabels[f]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hasRegFilters && (
+                <Button variant="ghost" size="sm" onClick={clearRegFilters} className="text-xs">
+                  Limpar filtros
+                </Button>
+              )}
             </div>
+            {hasRegFilters && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {regSearch && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setRegSearch('')}>
+                    Busca: {regSearch} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {regDateFrom && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setRegDateFrom('')}>
+                    De: {formatDate(regDateFrom)} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {regDateTo && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setRegDateTo('')}>
+                    Até: {formatDate(regDateTo)} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {regStatusFilter && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setRegStatusFilter('')}>
+                    Status: {paymentStatusLabels[regStatusFilter]} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {regMethodFilter && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setRegMethodFilter('')}>
+                    Método: {paymentMethodLabels[regMethodFilter]} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {regPercentFilter && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setRegPercentFilter('')}>
+                    Pagamento: {percentFilterLabels[regPercentFilter]} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+              </div>
+            )}
             {/* Mobile */}
             <div className="grid gap-3 md:hidden">
               {filteredRegPayments.map((r) => {
@@ -461,7 +689,7 @@ export default function FinancialPage() {
                       ? 'border-l-yellow-500'
                       : 'border-l-red-500';
                 return (
-                <div key={r.id} className={`rounded-lg border border-border border-l-4 ${statusAccent} p-3 space-y-1.5`}>
+                <div key={r.id} className={`rounded-lg border border-border border-l-4 ${statusAccent} p-3 space-y-1.5 cursor-pointer`} onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${r.id}/editar?step=5`)}>
                   <p className="font-medium text-sm text-foreground">{r.full_name}</p>
                   <div className="text-sm space-y-0.5">
                     <div className="flex justify-between">
@@ -500,12 +728,16 @@ export default function FinancialPage() {
                         variant="secondary"
                         className={`cursor-pointer hover:opacity-80 ${
                           r.status === 'paid'
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                            : r.status === 'refunded'
-                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
-                              : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
+                            : r.status === 'pending'
+                              ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200'
+                              : r.status === 'overdue'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200'
+                                : r.status === 'refunded'
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-200'
+                                  : 'bg-muted text-muted-foreground'
                         }`}
-                        onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${r.id}/editar?step=4`)}
+                        onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${r.id}/editar?step=5`)}
                       >
                         {paymentStatusLabels[r.status]}
                       </Badge>
@@ -523,22 +755,37 @@ export default function FinancialPage() {
               )}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block rounded-md border border-border overflow-hidden">
+            <div className="hidden md:block rounded-lg border border-border overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-accent">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Inscrito</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Valor Ficha</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Valor Pago</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">%</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Método</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Data</th>
+                    {[
+                      { field: 'full_name', label: 'Inscrito' },
+                      { field: 'amount', label: 'Valor Ficha' },
+                      { field: 'paid_amount', label: 'Valor Pago' },
+                      { field: null, label: '%' },
+                      { field: 'method', label: 'Método' },
+                      { field: 'status', label: 'Status' },
+                      { field: 'created_at', label: 'Data' },
+                    ].map(({ field, label }) => (
+                      <th
+                        key={label}
+                        className={`text-left p-4 text-sm font-medium text-muted-foreground ${field ? 'cursor-pointer hover:text-foreground select-none' : ''}`}
+                        onClick={field ? () => handleRegSort(field) : undefined}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {label}
+                          {field && regSortField === field && (
+                            <ArrowUpDown className="h-3 w-3 text-primary" />
+                          )}
+                        </span>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRegPayments.map((r) => (
-                    <tr key={r.id} className="border-b border-border hover:bg-accent">
+                    <tr key={r.id} className="border-b border-border hover:bg-accent cursor-pointer" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${r.id}/editar?step=5`)}>
                       <td className="p-4 text-sm font-medium text-foreground">{r.full_name}</td>
                       <td className="p-4 text-sm text-muted-foreground">
                         <span>{formatCurrency(r.amount)}</span>
@@ -564,15 +811,19 @@ export default function FinancialPage() {
                       <td className="p-4 text-sm text-muted-foreground">{paymentMethodLabels[r.method] || r.method}</td>
                       <td className="p-4 text-sm">
                         <Badge
-                          variant={r.status === 'paid' ? 'default' : 'secondary'}
+                          variant="secondary"
                           className={`cursor-pointer hover:opacity-80 ${
-                            r.status === 'refunded'
-                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
-                              : r.status === 'canceled'
-                                ? 'bg-muted text-muted-foreground'
-                                : ''
+                            r.status === 'paid'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
+                              : r.status === 'pending'
+                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200'
+                                : r.status === 'overdue'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200'
+                                  : r.status === 'refunded'
+                                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-200'
+                                    : 'bg-muted text-muted-foreground'
                           }`}
-                          onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${r.id}/editar?step=4`)}
+                          onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${r.id}/editar?step=5`)}
                         >
                           {paymentStatusLabels[r.status]}
                         </Badge>
@@ -602,6 +853,59 @@ export default function FinancialPage() {
         </CardHeader>
         {!collapseIncome && (
           <CardContent>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Select value={incomeCategoryFilter} onValueChange={setIncomeCategoryFilter}>
+                <SelectTrigger className="w-full md:w-[140px] !h-10">
+                  <SelectValue>
+                    {(value) => value ? incomeCategoryLabels[value] || value : "Categoria"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas</SelectItem>
+                  {INCOME_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>{incomeCategoryLabels[c]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={incomeDateFrom}
+                onChange={(e) => setIncomeDateFrom(e.target.value)}
+                className="w-full md:w-[140px]"
+                placeholder="De"
+              />
+              <Input
+                type="date"
+                value={incomeDateTo}
+                onChange={(e) => setIncomeDateTo(e.target.value)}
+                className="w-full md:w-[140px]"
+                placeholder="Até"
+              />
+              {hasIncomeFilters && (
+                <Button variant="ghost" size="sm" onClick={clearIncomeFilters} className="text-xs">
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+            {hasIncomeFilters && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {incomeCategoryFilter && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setIncomeCategoryFilter('')}>
+                    Categoria: {incomeCategoryLabels[incomeCategoryFilter]} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {incomeDateFrom && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setIncomeDateFrom('')}>
+                    De: {formatDate(incomeDateFrom)} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {incomeDateTo && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setIncomeDateTo('')}>
+                    Até: {formatDate(incomeDateTo)} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+              </div>
+            )}
             {/* Mobile */}
             <div className="grid gap-3 md:hidden">
               {filteredIncome.map((e) => (
@@ -625,16 +929,31 @@ export default function FinancialPage() {
               )}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block rounded-md border border-border overflow-hidden">
+            <div className="hidden md:block rounded-lg border border-border overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-accent">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Categoria</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Evento</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Descrição</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Valor</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Data</th>
-                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">Ações</th>
+                    {[
+                      { field: 'category', label: 'Categoria' },
+                      { field: null, label: 'Evento' },
+                      { field: null, label: 'Descrição' },
+                      { field: 'amount', label: 'Valor' },
+                      { field: 'entry_date', label: 'Data' },
+                      { field: null, label: 'Ações' },
+                    ].map(({ field, label }) => (
+                      <th
+                        key={label}
+                        className={`text-left p-4 text-sm font-medium text-muted-foreground ${field ? 'cursor-pointer hover:text-foreground select-none' : ''} ${label === 'Ações' ? 'text-right' : ''}`}
+                        onClick={field ? () => handleIncomeSort(field) : undefined}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {label}
+                          {field && incomeSortField === field && (
+                            <ArrowUpDown className="h-3 w-3 text-primary" />
+                          )}
+                        </span>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -674,6 +993,59 @@ export default function FinancialPage() {
         </CardHeader>
         {!collapseExpense && (
           <CardContent>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Select value={expenseCategoryFilter} onValueChange={setExpenseCategoryFilter}>
+                <SelectTrigger className="w-full md:w-[140px] !h-10">
+                  <SelectValue>
+                    {(value) => value ? expenseCategoryLabels[value] || value : "Categoria"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas</SelectItem>
+                  {EXPENSE_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>{expenseCategoryLabels[c]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={expenseDateFrom}
+                onChange={(e) => setExpenseDateFrom(e.target.value)}
+                className="w-full md:w-[140px]"
+                placeholder="De"
+              />
+              <Input
+                type="date"
+                value={expenseDateTo}
+                onChange={(e) => setExpenseDateTo(e.target.value)}
+                className="w-full md:w-[140px]"
+                placeholder="Até"
+              />
+              {hasExpenseFilters && (
+                <Button variant="ghost" size="sm" onClick={clearExpenseFilters} className="text-xs">
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+            {hasExpenseFilters && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {expenseCategoryFilter && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setExpenseCategoryFilter('')}>
+                    Categoria: {expenseCategoryLabels[expenseCategoryFilter]} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {expenseDateFrom && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setExpenseDateFrom('')}>
+                    De: {formatDate(expenseDateFrom)} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+                {expenseDateTo && (
+                  <Badge variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setExpenseDateTo('')}>
+                    Até: {formatDate(expenseDateTo)} <X className="h-3 w-3" />
+                  </Badge>
+                )}
+              </div>
+            )}
             {/* Mobile */}
             <div className="grid gap-3 md:hidden">
               {filteredExpenses.map((e) => (
@@ -697,16 +1069,31 @@ export default function FinancialPage() {
               )}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block rounded-md border border-border overflow-hidden">
+            <div className="hidden md:block rounded-lg border border-border overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-accent">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Categoria</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Evento</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Descrição</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Valor</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Data</th>
-                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">Ações</th>
+                    {[
+                      { field: 'category', label: 'Categoria' },
+                      { field: null, label: 'Evento' },
+                      { field: null, label: 'Descrição' },
+                      { field: 'amount', label: 'Valor' },
+                      { field: 'entry_date', label: 'Data' },
+                      { field: null, label: 'Ações' },
+                    ].map(({ field, label }) => (
+                      <th
+                        key={label}
+                        className={`text-left p-4 text-sm font-medium text-muted-foreground ${field ? 'cursor-pointer hover:text-foreground select-none' : ''} ${label === 'Ações' ? 'text-right' : ''}`}
+                        onClick={field ? () => handleExpenseSort(field) : undefined}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {label}
+                          {field && expenseSortField === field && (
+                            <ArrowUpDown className="h-3 w-3 text-primary" />
+                          )}
+                        </span>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>

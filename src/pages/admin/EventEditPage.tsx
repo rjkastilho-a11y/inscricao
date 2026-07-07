@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { eventSchema, type EventFormData, type LotFormData } from '@/lib/validations';
@@ -12,7 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { copyDefaultFields } from '@/lib/form-fields';
 
 interface LotWithId extends LotFormData {
   id?: string;
@@ -21,19 +23,56 @@ interface LotWithId extends LotFormData {
 export default function EventEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { churchId } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [lots, setLots] = useState<LotWithId[]>([]);
+  const [stepPersonal, setStepPersonal] = useState(true);
+  const [stepChristianLife, setStepChristianLife] = useState(true);
+  const [stepHealth, setStepHealth] = useState(true);
+  const [stepEmergency, setStepEmergency] = useState(true);
+  const [stepOther, setStepOther] = useState(true);
+  const [isCustom, setIsCustom] = useState(false);
+  const [originalSlug, setOriginalSlug] = useState('');
+  const [slugChecking, setSlugChecking] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const slugTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const form = useForm({
     resolver: zodResolver(eventSchema),
     defaultValues: { is_open: false, price: 0 },
   });
 
+  const slug = form.watch('slug');
+
+  const checkSlug = async (value: string) => {
+    if (!value || value.length < 3 || value === originalSlug) return;
+    setSlugChecking(true);
+    setSlugError(null);
+    const { data } = await supabase
+      .from('events')
+      .select('id')
+      .eq('slug', value)
+      .eq('church_id', churchId)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (data) {
+      setSlugError('Este slug já está em uso. Altere o título ou slug.');
+    }
+    setSlugChecking(false);
+  };
+
+  useEffect(() => {
+    if (slugTimer.current) clearTimeout(slugTimer.current);
+    slugTimer.current = setTimeout(() => checkSlug(slug), 500);
+    return () => { if (slugTimer.current) clearTimeout(slugTimer.current); };
+  }, [slug]);
+
   useEffect(() => {
     const fetch = async () => {
       const { data } = await supabase.from('events').select('*').eq('id', id).single();
       if (data) {
+        setOriginalSlug(data.slug);
         form.reset({
           title: data.title,
           slug: data.slug,
@@ -47,7 +86,14 @@ export default function EventEditPage() {
           cover_url: data.cover_url || '',
           terms_text: data.terms_text || '',
           terms_enabled: data.terms_enabled ?? true,
+          payment_link: data.payment_link || '',
         });
+        setStepPersonal(data.step_personal ?? true);
+        setStepChristianLife(data.step_christian_life ?? true);
+        setStepHealth(data.step_health ?? true);
+        setStepEmergency(data.step_emergency ?? true);
+        setStepOther(data.step_other ?? true);
+        setIsCustom(data.is_custom ?? false);
       }
 
       const { data: lotsData } = await supabase
@@ -89,15 +135,38 @@ export default function EventEditPage() {
   };
 
   const handleSubmit = async (data: Record<string, unknown>) => {
+    if (slugError) return;
+
     setIsLoading(true);
-    const cleanData = Object.fromEntries(
-      Object.entries(data).filter(([_, v]) => v !== '' && v !== undefined)
-    );
+    
+    // Detect if switching from non-custom to custom
+    const wasCustom = isCustom;
+    
+    const cleanData = {
+      ...Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== '' && v !== undefined)
+      ),
+      step_personal: stepPersonal,
+      step_christian_life: stepChristianLife,
+      step_health: stepHealth,
+      step_emergency: stepEmergency,
+      step_other: stepOther,
+      is_custom: isCustom,
+    };
     const { error } = await supabase.from('events').update(cleanData).eq('id', id);
     if (error) {
-      toast.error('Erro ao atualizar: ' + error.message);
+      if (error.code === '23505') {
+        toast.error('Este slug já está em uso. Por favor, altere o título ou slug.');
+      } else {
+        toast.error('Erro ao atualizar: ' + error.message);
+      }
       setIsLoading(false);
       return;
+    }
+
+    // Copy default fields when switching from non-custom to custom
+    if (!wasCustom && isCustom) {
+      await copyDefaultFields(id!);
     }
 
     const existingIds = new Set(lots.filter(l => l.id).map(l => l.id!));
@@ -149,7 +218,15 @@ export default function EventEditPage() {
             </div>
             <div>
               <Label htmlFor="slug" className="text-foreground">Slug *</Label>
-              <Input id="slug" {...form.register('slug')} />
+              <div className="relative">
+                <Input id="slug" {...form.register('slug')} />
+                {slugChecking && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              {slugError && (
+                <p className="text-sm text-destructive mt-1">{slugError}</p>
+              )}
             </div>
             <div>
               <Label htmlFor="description" className="text-foreground">Descrição</Label>
@@ -178,6 +255,11 @@ export default function EventEditPage() {
                 <Label htmlFor="max_capacity" className="text-foreground">Vagas</Label>
                 <Input id="max_capacity" type="number" {...form.register('max_capacity')} />
               </div>
+            </div>
+            <div>
+              <Label htmlFor="payment_link" className="text-foreground">Link de pagamento (opcional)</Label>
+              <Input id="payment_link" type="url" placeholder="https://..." {...form.register('payment_link')} />
+              <p className="text-xs text-muted-foreground mt-1">URL para página de pagamento externa (MercadoPago, Stripe, etc.)</p>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -210,6 +292,78 @@ export default function EventEditPage() {
                 </Label>
               </div>
             </div>
+
+            <div className="border-t border-border pt-4 mt-6">
+              <Label className="text-foreground font-semibold">Tipo de Formulário</Label>
+              <p className="text-sm text-muted-foreground mt-1 mb-2">
+                Escolha entre o formulário padrão ou crie um formulário personalizado.
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isCustom}
+                  onChange={(e) => setIsCustom(e.target.checked)}
+                  className="accent-primary"
+                />
+                <span className="text-sm">Formulário Personalizado</span>
+              </label>
+            </div>
+
+            {!isCustom && (
+              <div className="border-t border-border pt-4 mt-6">
+                <Label className="text-foreground font-semibold">Etapas do formulário</Label>
+                <p className="text-sm text-muted-foreground mt-1 mb-2">
+                  Selecione quais etapas do formulário padrão devem aparecer para o participante.
+                </p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={stepPersonal}
+                      onChange={(e) => setStepPersonal(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm">Dados Pessoais</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={stepChristianLife}
+                      onChange={(e) => setStepChristianLife(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm">Vida Cristã</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={stepHealth}
+                      onChange={(e) => setStepHealth(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm">Saúde</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={stepEmergency}
+                      onChange={(e) => setStepEmergency(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm">Emergência</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={stepOther}
+                      onChange={(e) => setStepOther(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm">Outros...</span>
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div className="border-t border-border pt-4 mt-6">
               <div className="flex items-center justify-between mb-4">

@@ -13,9 +13,12 @@ import {
   DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle } from 'lucide-react';
 import { fetchFormFields, splitFieldValues } from '@/lib/form-fields';
-import type { FormField } from '@/lib/form-fields';
+import { insertPayment, insertRefund, fetchPayments, syncPaidAmount } from '@/lib/payments';
+import type { PaymentRecord } from '@/lib/payments';
+import type { FormField, FormStep } from '@/lib/form-fields';
+import { PaymentHistory } from '@/components/registration/PaymentHistory';
 
 interface RegistrationRow {
   id: string;
@@ -24,7 +27,14 @@ interface RegistrationRow {
   whatsapp: string;
   birth_date: string | null;
   gender: string | null;
+  cpf: string | null;
+  rg: string | null;
+  cep: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
   is_christian: boolean;
+  perfil_fe: string | null;
   is_baptized: boolean | null;
   church: string | null;
   pastor: string | null;
@@ -34,6 +44,9 @@ interface RegistrationRow {
   godparent_contact: string | null;
   pastoral_authorization: boolean;
   health_info: string | null;
+  has_allergies: boolean | null;
+  allergy_description: string | null;
+  dietary_restrictions: string | null;
   emergency_contact: string | null;
   emergency_phone: string | null;
   payment_method: string;
@@ -49,14 +62,14 @@ interface EventLot {
   description: string | null;
 }
 
-const STEP_LABELS = ['Dados Pessoais', 'Vida Cristã', 'Saúde', 'Emergência', 'Pagamento'];
+const STEP_LABELS = ['Dados Pessoais', 'Vida Cristã', 'Saúde', 'Emergência', 'Outros...', 'Pagamento'];
 
 export default function RegistrationEditPage() {
   const { id, eventId } = useParams<{ id: string; eventId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const stepParam = parseInt(searchParams.get('step') || '0', 10);
-  const initialStep = stepParam >= 0 && stepParam <= 4 ? stepParam : 0;
+  const initialStep = stepParam >= 0 && stepParam <= 5 ? stepParam : 0;
   const [isLoading, setIsLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [defaultValues, setDefaultValues] = useState<Record<string, any>>({});
@@ -72,6 +85,73 @@ export default function RegistrationEditPage() {
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [isCustom, setIsCustom] = useState(false);
   const [termsText, setTermsText] = useState<string | null>(null);
+  const [disabledSteps, setDisabledSteps] = useState<FormStep[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [overpaymentOpen, setOverpaymentOpen] = useState(false);
+  const [overpaymentData, setOverpaymentData] = useState<{
+    amount: number;
+    currentPaid: number;
+    price: number;
+  } | null>(null);
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [paying, setPaying] = useState(false);
+  const [currentPaymentMethod, setCurrentPaymentMethod] = useState('pix');
+
+  const refreshPayments = async () => {
+    if (!id) return;
+    const updated = await fetchPayments(id);
+    setPayments(updated);
+  };
+
+  useEffect(() => {
+    if (!id) return;
+    fetchPayments(id).then(setPayments);
+  }, [id]);
+
+  const processAddPayment = async (amount: number) => {
+    setPaying(true);
+    const method = currentPaymentMethod || 'pix';
+
+    const { error } = await insertPayment(id!, amount, method);
+    if (error) {
+      toast.error('Erro ao registrar pagamento: ' + error);
+      setPaying(false);
+      return;
+    }
+
+    toast.success('Pagamento registrado!');
+    setPayAmount('');
+    setPayDialogOpen(false);
+    setPaying(false);
+    setDefaultValues((prev) => ({ ...prev, payment_status: 'paid', paid_amount: (prev.paid_amount || 0) + amount }));
+    refreshPayments();
+    setOverpaymentOpen(false);
+  };
+
+  const handleAddPayment = async () => {
+    setPaying(true);
+    const amount = parseFloat(payAmount);
+
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Informe um valor válido.');
+      setPaying(false);
+      return;
+    }
+
+    const price = selectedLot?.price ?? 0;
+    const currentPaid = Number(defaultValues.paid_amount) || 0;
+
+    if (price > 0 && currentPaid + amount >= price) {
+      setPayDialogOpen(false);
+      setOverpaymentData({ amount, currentPaid, price });
+      setOverpaymentOpen(true);
+      setPaying(false);
+      return;
+    }
+
+    await processAddPayment(amount);
+  };
 
   useEffect(() => {
     const fetch = async () => {
@@ -80,36 +160,12 @@ export default function RegistrationEditPage() {
         .select('*')
         .eq('id', id)
         .single();
-      if (data) {
-        const reg = data as unknown as RegistrationRow;
-        const extra = (reg as any).extra_fields || {};
-        setDefaultValues({
-          full_name: reg.full_name,
-          email: reg.email,
-          whatsapp: reg.whatsapp,
-          birth_date: reg.birth_date || undefined,
-          gender: (reg.gender as 'M' | 'F') || undefined,
-          is_christian: reg.is_christian,
-          is_baptized: reg.is_baptized || undefined,
-          church: reg.church || undefined,
-          pastor: reg.pastor || undefined,
-          church_role: reg.church_role || undefined,
-          church_role_other: reg.church_role_other || undefined,
-          godparent: reg.godparent || undefined,
-          godparent_contact: reg.godparent_contact || undefined,
-          pastoral_authorization: reg.pastoral_authorization,
-          health_info: reg.health_info || undefined,
-          emergency_contact: reg.emergency_contact || undefined,
-          emergency_phone: reg.emergency_phone || undefined,
-          payment_method: reg.payment_method || 'pix',
-          payment_status: reg.payment_status || undefined,
-          paid_amount: (reg as any).paid_amount || undefined,
-          lot_id: reg.lot_id || undefined,
-          private_notes: reg.private_notes || undefined,
-          ...extra,
-        });
-        setSelectedLotId(reg.lot_id);
+      if (!data) {
+        setFetching(false);
+        return;
       }
+
+      const reg = data as unknown as RegistrationRow;
 
       const [lotsData, eventRes] = await Promise.all([
         supabase
@@ -117,20 +173,78 @@ export default function RegistrationEditPage() {
           .select('id, name, price, description')
           .eq('event_id', eventId)
           .order('start_date', { ascending: true }),
-        supabase.from('events').select('is_custom, terms_text').eq('id', eventId).single(),
+        supabase.from('events').select('is_custom, terms_text, step_personal, step_christian_life, step_health, step_emergency, step_other').eq('id', eventId).single(),
       ]);
 
       if (lotsData.data) {
         setLots(lotsData.data as EventLot[]);
       }
 
+      let fFields: FormField[] = [];
+      let custom = false;
       if (eventRes.data && eventId) {
-        const custom = eventRes.data.is_custom ?? false;
+        custom = eventRes.data.is_custom ?? false;
         setIsCustom(custom);
         setTermsText(eventRes.data.terms_text ?? null);
-        const fFields = await fetchFormFields(eventId, custom);
+        const disabledSteps: FormStep[] = [];
+        if (eventRes.data.step_personal === false) disabledSteps.push('personal');
+        if (eventRes.data.step_christian_life === false) disabledSteps.push('christian_life');
+        if (!eventRes.data.step_health) disabledSteps.push('health');
+        if (!eventRes.data.step_emergency) disabledSteps.push('emergency');
+        if (eventRes.data.step_other === false) disabledSteps.push('other');
+        setDisabledSteps(disabledSteps);
+        fFields = await fetchFormFields(eventId, custom, disabledSteps);
         setFormFields(fFields);
       }
+
+      const extra = (reg as any).extra_fields || {};
+      const values: Record<string, any> = {
+        full_name: reg.full_name,
+        email: reg.email,
+        whatsapp: reg.whatsapp,
+        birth_date: reg.birth_date || undefined,
+        gender: (reg.gender as 'M' | 'F') || undefined,
+        cpf: reg.cpf || undefined,
+        rg: reg.rg || undefined,
+        cep: reg.cep || undefined,
+        address: reg.address || undefined,
+        city: reg.city || undefined,
+        state: reg.state || undefined,
+        is_christian: reg.is_christian,
+        perfil_fe: reg.perfil_fe || undefined,
+        is_baptized: reg.is_baptized || undefined,
+        church: reg.church || undefined,
+        pastor: reg.pastor || undefined,
+        church_role: reg.church_role || undefined,
+        church_role_other: reg.church_role_other || undefined,
+        godparent: reg.godparent || undefined,
+        godparent_contact: reg.godparent_contact || undefined,
+        pastoral_authorization: reg.pastoral_authorization,
+        health_info: reg.health_info || undefined,
+        has_allergies: reg.has_allergies || undefined,
+        allergy_description: reg.allergy_description || undefined,
+        dietary_restrictions: reg.dietary_restrictions || undefined,
+        emergency_contact: reg.emergency_contact || undefined,
+        emergency_phone: reg.emergency_phone || undefined,
+        payment_method: reg.payment_method || 'pix',
+        payment_status: reg.payment_status || undefined,
+        paid_amount: (reg as any).paid_amount || undefined,
+        lot_id: reg.lot_id || undefined,
+        private_notes: reg.private_notes || undefined,
+        ...extra,
+      };
+
+      if (custom && fFields.length > 0) {
+        for (const field of fFields) {
+          if (field.db_column && (reg as any)[field.db_column] !== undefined && values[field.field_key] === undefined) {
+            values[field.field_key] = (reg as any)[field.db_column];
+          }
+        }
+      }
+
+      setDefaultValues(values);
+      setCurrentPaymentMethod(values.payment_method || 'pix');
+      setSelectedLotId(reg.lot_id);
 
       setFetching(false);
     };
@@ -146,18 +260,12 @@ export default function RegistrationEditPage() {
       lot_id: selectedLotId || null,
       extra_fields: Object.keys(extra).length > 0 ? extra : null,
       payment_status: data.payment_status ?? null,
-      paid_amount: data.paid_amount ?? null,
       private_notes: data.private_notes ?? null,
       payment_method: data.payment_method ?? 'pix',
     };
 
-    if (data.payment_status === 'refunded') {
-      delete payload.paid_amount;
-    }
-
     if (data.payment_status === 'canceled') {
       payload.group_assignment_id = null as any;
-      delete payload.paid_amount;
     }
 
     const { error } = await supabase.from('registrations').update(payload).eq('id', id);
@@ -167,33 +275,9 @@ export default function RegistrationEditPage() {
       return;
     }
 
-    if (data.payment_status === 'paid' && Number(data.paid_amount) > 0 && eventId) {
-      const { data: existingEntry } = await supabase
-        .from('financial_entries')
-        .select('id')
-        .eq('registration_id', id)
-        .eq('type', 'income')
-        .maybeSingle();
-
-      const entryPayload = {
-        event_id: eventId,
-        registration_id: id,
-        type: 'income' as const,
-        category: 'registration',
-        description: 'Inscrição Paga',
-        amount: Number(data.paid_amount),
-        entry_date: new Date().toISOString().slice(0, 10),
-      };
-
-      const { error: finError } = existingEntry
-        ? await supabase.from('financial_entries').update(entryPayload).eq('id', existingEntry.id)
-        : await supabase.from('financial_entries').insert(entryPayload);
-
-      if (finError) {
-        toast.error('Erro ao registrar entrada financeira: ' + finError.message);
-        setIsLoading(false);
-        return;
-      }
+    const syncError = await syncPaidAmount(id!);
+    if (syncError) {
+      console.error('syncPaidAmount error:', syncError);
     }
 
     navigate(`/app/evento/${eventId}/inscricoes/${id}`);
@@ -201,7 +285,12 @@ export default function RegistrationEditPage() {
 
   const handleSubmit = async (data: Record<string, any>) => {
     if (data.payment_status === 'refunded' || data.payment_status === 'canceled') {
-      const paidAmount = Number(data.paid_amount || 0);
+      const { data: reg } = await supabase
+        .from('registrations')
+        .select('paid_amount')
+        .eq('id', id)
+        .single();
+      const paidAmount = Number(reg?.paid_amount || 0);
       if (paidAmount > 0 && eventId) {
         setRefundAmount(paidAmount);
         setRefundDialogData({ paidAmount, eventId, data });
@@ -261,6 +350,15 @@ export default function RegistrationEditPage() {
         setRefundProcessing(false);
         return;
       }
+
+      const { error: refundPaymentError } = await insertRefund(
+        id!,
+        amount,
+        refundDialogData.data.payment_method || 'pix'
+      );
+      if (refundPaymentError) {
+        toast.error('Erro ao registrar reembolso no histórico: ' + refundPaymentError);
+      }
     }
 
     setRefundDialogOpen(false);
@@ -276,7 +374,7 @@ export default function RegistrationEditPage() {
     <div>
       <PageHeader
         title={`Editar ${STEP_LABELS[initialStep]}`}
-        description="Altere os dados e salve."
+        description={defaultValues.full_name ? `Altere os dados de ${defaultValues.full_name} e salve.` : "Altere os dados e salve."}
       />
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -320,9 +418,53 @@ export default function RegistrationEditPage() {
             fields={formFields}
             customMode={isCustom}
             termsText={termsText}
+            payments={payments}
+            onRefreshPayments={refreshPayments}
+            registrationId={id}
+            onAddPayment={() => setPayDialogOpen(true)}
+            onPaymentMethodChange={setCurrentPaymentMethod}
+            disabledSteps={disabledSteps}
           />
         </CardContent>
       </Card>
+
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar pagamento</DialogTitle>
+            <DialogDescription>
+              Registre um novo pagamento para esta inscrição.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="pay-amount-edit">Valor (R$)</Label>
+              <Input
+                id="pay-amount-edit"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="0,00"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPayDialogOpen(false); setPayAmount(''); }} disabled={paying}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600/80 text-white hover:bg-emerald-600"
+              onClick={handleAddPayment}
+              disabled={paying || !payAmount}
+            >
+              {paying ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Registrando...</> : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
         <DialogContent>
@@ -365,6 +507,35 @@ export default function RegistrationEditPage() {
                 : refundDialogData?.data.payment_status === 'refunded'
                   ? 'Confirmar reembolso'
                   : 'Sim, reembolsar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={overpaymentOpen} onOpenChange={setOverpaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-amber-600">Valor acima do esperado</DialogTitle>
+            <DialogDescription>
+              O valor deste pagamento (<strong>R$ {overpaymentData?.amount.toFixed(2)}</strong>)
+              somado ao já pago (<strong>R$ {overpaymentData?.currentPaid.toFixed(2)}</strong>)
+              ultrapassa o valor da inscrição (<strong>R$ {overpaymentData?.price.toFixed(2)}</strong>).
+              <br /><br />
+              Deseja prosseguir com este pagamento?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOverpaymentOpen(false); setOverpaymentData(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600/80 text-white hover:bg-emerald-600"
+              onClick={() => {
+                if (overpaymentData) processAddPayment(overpaymentData.amount);
+              }}
+              disabled={paying}
+            >
+              {paying ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Processando...</> : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>

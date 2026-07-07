@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ export function useTrial() {
 }
 
 export function ChurchGuard({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const { user, isAdmin, isSuperAdmin, churchId } = useAuth();
   const [checking, setChecking] = useState(true);
   const [blocked, setBlocked] = useState(false);
@@ -170,10 +172,13 @@ export function ChurchGuard({ children }: { children: ReactNode }) {
                   )}
                 </ul>
                 <button
-                  onClick={() => toast.info('Em breve: Redirecionamento para Kiwify')}
+                  onClick={() => {
+                    setUpgradeModalOpen(false);
+                    navigate('/register');
+                  }}
                   className="border border-amber-500 text-amber-600 hover:bg-amber-50 w-full py-3 rounded-lg font-semibold mt-6 transition-colors"
                 >
-                  Assinar Mensal
+                  Criar nova conta grátis
                 </button>
               </div>
 
@@ -206,10 +211,13 @@ export function ChurchGuard({ children }: { children: ReactNode }) {
                   ))}
                 </ul>
                 <button
-                  onClick={() => toast.info('Em breve: Redirecionamento para Kiwify')}
+                  onClick={() => {
+                    setUpgradeModalOpen(false);
+                    navigate('/register');
+                  }}
                   className="bg-amber-500 hover:bg-amber-600 text-slate-950 w-full py-3 rounded-lg font-bold mt-6 shadow-lg shadow-amber-500/20 transition-colors"
                 >
-                  Assinar Anual com Desconto
+                  Criar nova conta grátis
                 </button>
               </div>
             </div>
