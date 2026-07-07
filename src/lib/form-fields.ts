@@ -109,7 +109,7 @@ export interface FormField {
 }
 
 export type FieldType = 'text' | 'email' | 'phone' | 'cpf' | 'cnpj' | 'cep' | 'date' | 'select' | 'checkbox' | 'textarea' | 'number' | 'gender';
-export type FormStep = 'personal' | 'christian_life' | 'health' | 'emergency' | 'other';
+export type FormStep = 'personal' | 'christian_life' | 'health' | 'emergency' | 'other' | 'payment';
 
 export const STEP_LABELS: Record<FormStep, string> = {
   personal: 'Dados Pessoais',
@@ -117,6 +117,7 @@ export const STEP_LABELS: Record<FormStep, string> = {
   health: 'Saúde',
   emergency: 'Emergência',
   other: 'Outros...',
+  payment: 'Pagamento',
 };
 
 export const STEP_ORDER: FormStep[] = ['personal', 'christian_life', 'health', 'emergency', 'other'];

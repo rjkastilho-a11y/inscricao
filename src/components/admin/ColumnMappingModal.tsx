@@ -40,6 +40,7 @@ const COLUMNS_BY_STEP: Record<FormStep, { value: string; label: string }[]> = {
     { value: 'emergency_phone', label: 'Telefone de emergência' },
   ],
   other: [],
+  payment: [],
 };
 
 interface Props {

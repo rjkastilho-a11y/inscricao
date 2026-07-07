@@ -12,7 +12,7 @@ import {
   DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { useEvent } from '@/contexts/EventContext';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, ClipboardEdit } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchFormFields, splitFieldValues } from '@/lib/form-fields';
 import type { FormStep } from '@/lib/form-fields';

@@ -658,11 +658,11 @@ export default function RegistrationDetailPage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: unknown }) {
   return (
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}:</span>
-      <span className="text-right">{value}</span>
+      <span className="text-right">{value != null ? String(value) : ''}</span>
     </div>
   );
 }

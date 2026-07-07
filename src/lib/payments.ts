@@ -40,7 +40,7 @@ export async function syncPaidAmount(registrationId: string): Promise<string | n
     return regError.message;
   }
 
-  const expectedPrice = Number(reg?.event_lots?.price ?? reg?.events?.price ?? 0);
+  const expectedPrice = Number(reg?.event_lots?.[0]?.price ?? reg?.events?.[0]?.price ?? 0);
 
   const update: Record<string, any> = { paid_amount: total || null };
 

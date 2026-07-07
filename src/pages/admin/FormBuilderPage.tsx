@@ -588,6 +588,7 @@ export default function FormBuilderPage() {
       health: 'step_health',
       emergency: 'step_emergency',
       other: 'step_other',
+      payment: 'step_payment',
     };
     const setters: Record<FormStep, (v: boolean) => void> = {
       personal: setStepPersonal,
@@ -595,6 +596,7 @@ export default function FormBuilderPage() {
       health: setStepHealth,
       emergency: setStepEmergency,
       other: setStepOther,
+      payment: () => {},
     };
     setSavingStepToggle(step);
     const { error } = await supabase.from('events').update({ [fieldMap[step]]: value }).eq('id', eventId);
@@ -739,6 +741,7 @@ export default function FormBuilderPage() {
                             health: setStepHealth,
                             emergency: setStepEmergency,
                             other: setStepOther,
+                            payment: () => {},
                           };
                           setters[group.step](value);
                           handleStepToggle(group.step, value);
@@ -998,7 +1001,7 @@ export default function FormBuilderPage() {
                   <ConditionalLogicBuilder
                     value={editingField.conditional_logic}
                     selfKey={editingField.field_key}
-                    allFields={fields}
+                    allFields={fields as FormField[]}
                     onChange={(cl) => setEditingField({ ...editingField, conditional_logic: cl })}
                   />
                 </div>
