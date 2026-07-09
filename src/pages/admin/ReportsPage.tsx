@@ -23,7 +23,7 @@ export default function ReportsPage() {
             title: ev.title,
             total: regs.length,
             paid: paid.length,
-            pending: regs.filter((r: any) => r.payment_status === 'pending' || r.payment_status === 'overdue').length,
+            pending: regs.filter((r: any) => r.payment_status === 'pending').length,
             revenue,
           };
         });

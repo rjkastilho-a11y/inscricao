@@ -116,7 +116,7 @@ export type EventFormData = z.infer<typeof eventSchema>;
 export const paymentStatusLabels: Record<string, string> = {
   pending: 'Pendente',
   paid: 'Pago',
-  overdue: 'Em atraso',
+  cortesia: 'Cortesia',
   refunded: 'Reembolsado',
   canceled: 'Cancelado',
 };

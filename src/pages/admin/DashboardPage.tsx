@@ -152,10 +152,11 @@ export default function DashboardPage() {
           const evRegs = regs.filter((r) => r.event_id === ev.id);
           const paid = evRegs.filter((r) => r.payment_status === 'paid' || (r.paid_amount != null && Number(r.paid_amount) > 0));
           const pending = evRegs.filter((r) =>
-            r.payment_status === 'pending' || r.payment_status === 'overdue'
+            r.payment_status === 'pending'
           );
           const refundedCount = evRegs.filter((r) => r.payment_status === 'refunded').length;
           const expectedRevenue = evRegs
+            .filter((r) => r.payment_status !== 'cortesia')
             .reduce((acc, r) => acc + Number((r as any).event_lots?.price ?? (r as any).events?.price ?? 0), 0);
           const actualRevenue = paid
             .reduce((acc: number, r: any) => {

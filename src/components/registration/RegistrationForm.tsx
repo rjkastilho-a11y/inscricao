@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { AlertCircle, X, Loader2, CheckCircle, QrCode, CreditCard, Banknote, Building, ExternalLink, Ellipsis, Clock, CheckCircle2, AlertTriangle, Undo2, XCircle } from 'lucide-react';
+import { AlertCircle, X, Loader2, CheckCircle, QrCode, CreditCard, Banknote, Building, ExternalLink, Ellipsis, Clock, CheckCircle2, Gift, Undo2, XCircle } from 'lucide-react';
 import { PaymentHistory } from '@/components/registration/PaymentHistory';
 import { CardSelector } from '@/components/ui/card-selector';
 import type { PaymentRecord } from '@/lib/payments';
@@ -460,7 +460,7 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
                     options={[
                       { value: 'pending', label: 'Pendente', icon: Clock },
                       { value: 'paid', label: 'Pago', icon: CheckCircle2 },
-                      { value: 'overdue', label: 'Em atraso', icon: AlertTriangle },
+                      { value: 'cortesia', label: 'Cortesia', icon: Gift },
                       { value: 'refunded', label: 'Reembolsado', icon: Undo2 },
                       { value: 'canceled', label: 'Cancelado', icon: XCircle },
                     ]}

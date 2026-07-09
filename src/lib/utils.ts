@@ -62,7 +62,7 @@ export function formatCurrency(value: number): string {
 export const paymentStatusLabels: Record<string, string> = {
   pending: 'Pendente',
   paid: 'Pago',
-  overdue: 'Em atraso',
+  cortesia: 'Cortesia',
   refunded: 'Reembolsado',
   canceled: 'Cancelado',
 };

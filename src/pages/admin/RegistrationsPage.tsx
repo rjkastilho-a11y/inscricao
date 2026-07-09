@@ -101,7 +101,7 @@ const PAYMENT_METHOD_MAP: Record<string, string> = {
 const PAYMENT_STATUS_MAP: Record<string, string> = {
   'Pendente': 'pending',
   'Pago': 'paid',
-  'Em atraso': 'overdue',
+  'Cortesia': 'cortesia',
   'Reembolsado': 'refunded',
   'Cancelado': 'canceled',
 };
@@ -414,7 +414,7 @@ export default function RegistrationsPage() {
     const paymentMethodCol = String.fromCharCode(64 + metaStartCol);
     const paymentStatusCol = String.fromCharCode(64 + metaStartCol + 1);
     (ws as any).dataValidations.add(`${paymentMethodCol}2:${paymentMethodCol}1000`, { type: 'list', formulae: ['"pix,credit_card,cash,bank_transfer,other,external_link"'] });
-    (ws as any).dataValidations.add(`${paymentStatusCol}2:${paymentStatusCol}1000`, { type: 'list', formulae: ['"pending,paid,overdue,refunded,canceled"'] });
+    (ws as any).dataValidations.add(`${paymentStatusCol}2:${paymentStatusCol}1000`, { type: 'list', formulae: ['"pending,paid,cortesia,refunded,canceled"'] });
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -1286,8 +1286,8 @@ export default function RegistrationsPage() {
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
                               : reg.payment_status === 'pending'
                                 ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200'
-                                : reg.payment_status === 'overdue'
-                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200'
+                                : reg.payment_status === 'cortesia'
+                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-200'
                                   : reg.payment_status === 'refunded'
                                     ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-200'
                                     : reg.payment_status === 'canceled'
