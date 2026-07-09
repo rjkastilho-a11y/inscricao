@@ -104,6 +104,12 @@ const FONT_FAMILIES = [
   { label: 'Times New Roman', value: '"Times New Roman", serif' },
 ];
 
+function abbreviateName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length <= 2) return name;
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+}
+
 export default function EtiquetasPage() {
   const { event, eventId } = useEvent();
   const [selectedModel, setSelectedModel] = useState('6081/6181/6281');
@@ -111,6 +117,8 @@ export default function EtiquetasPage() {
   const [fontFamily, setFontFamily] = useState('Arial, sans-serif');
   const [isBold, setIsBold] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
+  const [abbreviateNames, setAbbreviateNames] = useState(false);
+  const [breakLines, setBreakLines] = useState(false);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [labels, setLabels] = useState<string[]>([]);
   const config = PIMACO_CONFIGS[selectedModel] || PIMACO_CONFIGS['6081/6181/6281'];
@@ -242,6 +250,26 @@ export default function EtiquetasPage() {
                 Mostrar grade
               </label>
             </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="abbreviateNames"
+                checked={abbreviateNames}
+                onCheckedChange={(checked) => setAbbreviateNames(checked === true)}
+              />
+              <label htmlFor="abbreviateNames" className="text-sm text-muted-foreground cursor-pointer">
+                Abreviar nomes
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="breakLines"
+                checked={breakLines}
+                onCheckedChange={(checked) => setBreakLines(checked === true)}
+              />
+              <label htmlFor="breakLines" className="text-sm text-muted-foreground cursor-pointer">
+                Quebrar linha
+              </label>
+            </div>
           </div>
           <Button
             variant="outline"
@@ -340,10 +368,10 @@ export default function EtiquetasPage() {
                             </div>
                           </div>
                           <span
-                            className={`text-foreground leading-tight truncate w-full ${!selectedIndices.has(labelIdx) ? 'opacity-40' : ''}`}
+                            className={`text-foreground leading-tight w-full ${breakLines ? 'whitespace-normal break-words' : 'truncate'} ${!selectedIndices.has(labelIdx) ? 'opacity-40' : ''}`}
                             style={{ fontSize, fontFamily, fontWeight: isBold ? '700' : '400' }}
                           >
-                            {labels[labelIdx]}
+                            {abbreviateNames ? abbreviateName(labels[labelIdx]) : labels[labelIdx]}
                           </span>
                         </>
                       ) : null}
@@ -384,7 +412,7 @@ export default function EtiquetasPage() {
                   >
                     {nameIdx < selectedLabels.length ? (
                       <span
-                        className="leading-tight truncate w-full"
+                        className={`leading-tight w-full ${breakLines ? 'whitespace-normal break-words' : 'truncate'}`}
                         style={{
                           fontSize,
                           fontFamily,
@@ -392,7 +420,7 @@ export default function EtiquetasPage() {
                           color: '#000',
                         }}
                       >
-                        {selectedLabels[nameIdx]}
+                        {abbreviateNames ? abbreviateName(selectedLabels[nameIdx]) : selectedLabels[nameIdx]}
                       </span>
                     ) : null}
                   </div>
