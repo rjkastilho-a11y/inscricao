@@ -23,6 +23,7 @@ export default function ReportsPage() {
             title: ev.title,
             total: regs.length,
             paid: paid.length,
+            confirmed: regs.filter((r: any) => r.checked_in).length,
             pending: regs.filter((r: any) => r.payment_status === 'pending').length,
             revenue,
           };
@@ -35,12 +36,13 @@ export default function ReportsPage() {
 
   const totalRegs = eventStats.reduce((a, b) => a + b.total, 0);
   const totalPaid = eventStats.reduce((a, b) => a + b.paid, 0);
+  const totalConfirmed = eventStats.reduce((a, b) => a + b.confirmed, 0);
   const totalRevenue = eventStats.reduce((a, b) => a + b.revenue, 0);
 
   return (
     <div>
       <PageHeader title="Relatórios" />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Total Inscrições</CardTitle>
@@ -50,10 +52,17 @@ export default function ReportsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Confirmados</CardTitle>
+            <CardTitle className="text-sm">Pagos</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent><p className="text-2xl font-bold text-green-600">{totalPaid}</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm">Confirmados</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent><p className="text-2xl font-bold text-violet-600">{totalConfirmed}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -87,6 +96,7 @@ export default function ReportsPage() {
                   <th className="text-left p-4 text-sm font-medium">Evento</th>
                   <th className="text-left p-4 text-sm font-medium">Inscrições</th>
                   <th className="text-left p-4 text-sm font-medium">Pagos</th>
+                  <th className="text-left p-4 text-sm font-medium">Confirmados</th>
                   <th className="text-left p-4 text-sm font-medium">Pendentes</th>
                   <th className="text-left p-4 text-sm font-medium">Receita</th>
                 </tr>
@@ -98,6 +108,9 @@ export default function ReportsPage() {
                     <td className="p-4 text-sm">{ev.total}</td>
                     <td className="p-4 text-sm">
                       <Badge variant="default">{ev.paid}</Badge>
+                    </td>
+                    <td className="p-4 text-sm">
+                      <Badge variant="default" className="bg-violet-100 text-violet-700">{ev.confirmed}</Badge>
                     </td>
                     <td className="p-4 text-sm">
                       <Badge variant="secondary">{ev.pending}</Badge>

@@ -24,6 +24,7 @@ interface EventStat {
   start_date: string | null;
   total: number;
   paid: number;
+  confirmed: number;
   pending: number;
   refunded: number;
   expectedRevenue: number;
@@ -42,6 +43,7 @@ interface Registration {
   payment_method: string | null;
   city: string | null;
   event_id?: string;
+  checked_in?: boolean;
   [key: string]: unknown;
 }
 
@@ -151,6 +153,7 @@ export default function DashboardPage() {
         const perEvent = filteredEvents.map((ev: any) => {
           const evRegs = regs.filter((r) => r.event_id === ev.id);
           const paid = evRegs.filter((r) => r.payment_status === 'paid' || (r.paid_amount != null && Number(r.paid_amount) > 0));
+          const confirmed = evRegs.filter((r) => r.checked_in).length;
           const pending = evRegs.filter((r) =>
             r.payment_status === 'pending'
           );
@@ -173,6 +176,7 @@ export default function DashboardPage() {
             start_date: ev.start_date,
             total: evRegs.length,
             paid: paid.length,
+            confirmed,
             pending: pending.length,
             refunded: refundedCount,
             expectedRevenue,
@@ -211,6 +215,7 @@ export default function DashboardPage() {
 
   const totalRegs = eventStats.reduce((a, b) => a + b.total, 0);
   const totalPaid = eventStats.reduce((a, b) => a + b.paid, 0);
+  const totalConfirmed = eventStats.reduce((a, b) => a + b.confirmed, 0);
   const totalRefundedCount = eventStats.reduce((a, b) => a + b.refunded, 0);
   const totalExpected = eventStats.reduce((a, b) => a + b.expectedRevenue, 0);
   const totalActual = eventStats.reduce((a, b) => a + b.actualRevenue, 0);
@@ -553,7 +558,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 md:gap-4 md:grid-cols-5 mb-6">
+      <div className="grid grid-cols-4 gap-3 md:gap-4 md:grid-cols-6 mb-6">
         <Card className="hidden md:block bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Inscrições</CardTitle>
@@ -565,6 +570,14 @@ export default function DashboardPage() {
         <Card className="hidden md:block bg-card backdrop-blur-md border-border shadow-lg">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Confirmados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-serif text-xl md:text-3xl font-bold text-violet-400">{totalConfirmed}</p>
+          </CardContent>
+        </Card>
+        <Card className="hidden md:block bg-card backdrop-blur-md border-border shadow-lg">
+          <CardHeader className="pb-1 md:pb-2">
+            <CardTitle className="text-xs md:text-sm text-muted-foreground">Pagos</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="font-serif text-xl md:text-3xl font-bold text-primary">{totalPaid}</p>
@@ -706,13 +719,17 @@ export default function DashboardPage() {
           {/* Mobile: summary */}
           <div className="rounded-lg border border-border bg-card p-3 mb-3 md:hidden">
             <p className="text-xs font-medium text-muted-foreground mb-2">Resumo Geral</p>
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-4 gap-2 text-center">
               <div>
                 <p className="text-lg font-bold text-foreground">{stats.registrations}</p>
                 <p className="text-[10px] text-muted-foreground">Inscrições</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-primary">{totalPaid}</p>
+                <p className="text-[10px] text-muted-foreground">Pagos</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-violet-400">{totalConfirmed}</p>
                 <p className="text-[10px] text-muted-foreground">Confirmados</p>
               </div>
               <div>
@@ -733,6 +750,10 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Pagos</span>
                   <Badge variant="default">{ev.paid}</Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Confirmados</span>
+                  <Badge variant="default" className="bg-violet-100 text-violet-700">{ev.confirmed}</Badge>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Pendentes</span>
@@ -774,6 +795,7 @@ export default function DashboardPage() {
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Evento</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Inscrições</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Pagos</th>
+                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Confirmados</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Pendentes</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Reembolsados</th>
                   <th className="text-left p-4 text-sm font-medium text-muted-foreground">Previsto</th>
@@ -787,6 +809,9 @@ export default function DashboardPage() {
                     <td className="p-4 text-base">{ev.total}</td>
                     <td className="p-4 text-base">
                       <Badge variant="default">{ev.paid}</Badge>
+                    </td>
+                    <td className="p-4 text-base">
+                      <Badge variant="default" className="bg-violet-100 text-violet-700">{ev.confirmed}</Badge>
                     </td>
                     <td className="p-4 text-base">
                       <Badge variant="secondary">{ev.pending}</Badge>
