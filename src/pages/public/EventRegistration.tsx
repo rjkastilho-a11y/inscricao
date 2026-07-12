@@ -340,7 +340,7 @@ export default function EventRegistration() {
             ? 'opacity-60 cursor-not-allowed'
             : 'cursor-pointer hover:border-primary'
         } ${
-          selectedLot?.id === lot.id ? 'border-primary ring-1 ring-primary' : ''
+          selectedLot?.id === lot.id ? 'border-primary bg-primary/5 ring-2 ring-primary' : ''
         }`}
         onClick={() => !disabled && setSelectedLot(lot)}
       >
@@ -353,7 +353,7 @@ export default function EventRegistration() {
                   {cfg.label}
                 </span>
               )}
-              {selectedLot?.id === lot.id && <CheckCircle className="size-4 text-primary" />}
+              {selectedLot?.id === lot.id && <CheckCircle className="size-5 text-primary" />}
             </div>
             {lot.description && (
               <p className="text-sm text-muted-foreground">{lot.description}</p>
@@ -384,7 +384,7 @@ export default function EventRegistration() {
 
           <Card
             className={`cursor-pointer transition-all hover:border-primary ${
-              selectedLot === null ? 'border-primary ring-1 ring-primary' : ''
+              selectedLot === null ? 'border-primary bg-primary/5 ring-2 ring-primary' : ''
             }`}
             onClick={() => setSelectedLot(null)}
           >
@@ -392,7 +392,7 @@ export default function EventRegistration() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground">Inscrição Normal</span>
-                  {selectedLot === null && <CheckCircle className="size-4 text-primary" />}
+                  {selectedLot === null && <CheckCircle className="size-5 text-primary" />}
                 </div>
                 <p className="text-xs text-muted-foreground">Preço padrão do evento, sem lote específico</p>
               </div>

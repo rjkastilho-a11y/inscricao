@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { copyToClipboard } from '@/lib/clipboard';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonCard, SkeletonMobileCard, SkeletonTable } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -583,8 +584,8 @@ export default function RegistrationDetailPage() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => {
-                    navigator.clipboard.writeText(paymentSuccess.receipt);
+                  onClick={async () => {
+                    await copyToClipboard(paymentSuccess.receipt);
                     setReceiptCopied(true);
                     setTimeout(() => setReceiptCopied(false), 2000);
                   }}

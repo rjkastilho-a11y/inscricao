@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { copyToClipboard } from '@/lib/clipboard';
 import { useEvent } from '@/contexts/EventContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,8 +89,8 @@ export default function CheckinLinkPage() {
                   variant="outline"
                   size="sm"
                   className="shrink-0 bg-card backdrop-blur-md border-border"
-                  onClick={() => {
-                    navigator.clipboard.writeText(checkinUrl);
+                  onClick={async () => {
+                    await copyToClipboard(checkinUrl);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}

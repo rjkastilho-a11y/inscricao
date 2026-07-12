@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { copyToClipboard } from '@/lib/clipboard';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -145,8 +146,8 @@ export default function EventDetailPage() {
         <Button
           variant="outline"
           className="bg-card backdrop-blur-md border-border"
-          onClick={() => {
-            navigator.clipboard.writeText(`${window.location.origin}/e/${event.slug}`);
+          onClick={async () => {
+            await copyToClipboard(`${window.location.origin}/e/${event.slug}`);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
           }}

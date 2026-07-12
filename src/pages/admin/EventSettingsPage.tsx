@@ -1,5 +1,6 @@
 import { useEvent } from '@/contexts/EventContext';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { copyToClipboard } from '@/lib/clipboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -105,8 +106,8 @@ export default function EventSettingsPage() {
         </Link>
         <Button
           variant="outline"
-          onClick={() => {
-            navigator.clipboard.writeText(`${window.location.origin}/e/${event.slug}`);
+          onClick={async () => {
+            await copyToClipboard(`${window.location.origin}/e/${event.slug}`);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
           }}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { copyToClipboard } from '@/lib/clipboard';
 import { SkeletonMobileCard } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -120,9 +121,9 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
     URL.revokeObjectURL(url);
   };
 
-  const handleCopyPublicLink = () => {
+  const handleCopyPublicLink = async () => {
     const link = `${window.location.origin}/e/${eventSlug}`;
-    navigator.clipboard.writeText(link);
+    await copyToClipboard(link);
     setCopiedPublicLink(true);
     setTimeout(() => setCopiedPublicLink(false), 2000);
   };
@@ -139,9 +140,9 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
     setTogglingPublic(false);
   };
 
-  const handleCopyLink = (invite: Invite) => {
+  const handleCopyLink = async (invite: Invite) => {
     const link = `${window.location.origin}/e/${eventSlug}?token=${invite.token}`;
-    navigator.clipboard.writeText(link);
+    await copyToClipboard(link);
     setCopiedInviteId(invite.id);
     setTimeout(() => setCopiedInviteId(null), 2000);
   };

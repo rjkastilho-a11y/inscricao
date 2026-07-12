@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { copyToClipboard } from '@/lib/clipboard';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonCard, SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -239,8 +240,8 @@ export default function EventsPage() {
                 variant="outline"
                 size="sm"
                 className="bg-card border-border"
-                onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/e/${event.slug}`);
+                onClick={async () => {
+                  await copyToClipboard(`${window.location.origin}/e/${event.slug}`);
                   setCopiedId(event.id);
                   setTimeout(() => setCopiedId(null), 2000);
                 }}
@@ -318,8 +319,8 @@ export default function EventsPage() {
                         variant="ghost"
                         size="icon"
                         className="text-muted-foreground hover:text-foreground"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/e/${event.slug}`);
+                        onClick={async () => {
+                          await copyToClipboard(`${window.location.origin}/e/${event.slug}`);
                           setCopiedId(event.id);
                           setTimeout(() => setCopiedId(null), 2000);
                         }}

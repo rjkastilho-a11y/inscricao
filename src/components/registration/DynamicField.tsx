@@ -67,7 +67,7 @@ function DynamicFieldInner({ field, state, termsText }: Props) {
     case 'textarea':
       return (
         <div>
-          <Label htmlFor={field.field_key}>
+          <Label htmlFor={field.field_key} className="mb-1.5">
             {field.label}
             {effectiveRequired && ' *'}
           </Label>
@@ -134,11 +134,11 @@ function DynamicFieldInner({ field, state, termsText }: Props) {
         const selected: string[] = Array.isArray(value) ? value : [];
         return (
           <div>
-            <Label>
+            <Label className="mb-1.5">
               {field.label}
               {effectiveRequired && ' *'}
             </Label>
-            <div className="mt-1.5 space-y-2">
+            <div className="space-y-2">
               {field.options.map((opt) => {
                 const optionId = `${field.field_key}-${opt}`;
                 return (
@@ -184,7 +184,7 @@ function DynamicFieldInner({ field, state, termsText }: Props) {
     case 'select':
       return (
         <div>
-          <Label htmlFor={field.field_key}>
+          <Label htmlFor={field.field_key} className="mb-1.5">
             {field.label}
             {effectiveRequired && ' *'}
           </Label>
@@ -209,7 +209,7 @@ function DynamicFieldInner({ field, state, termsText }: Props) {
     case 'phone':
       return (
         <div>
-          <Label htmlFor={field.field_key}>
+          <Label htmlFor={field.field_key} className="mb-1.5">
             {field.label}
             {effectiveRequired && ' *'}
           </Label>
@@ -231,7 +231,7 @@ function DynamicFieldInner({ field, state, termsText }: Props) {
     case 'date':
       return (
         <div>
-          <Label htmlFor={field.field_key}>
+          <Label htmlFor={field.field_key} className="mb-1.5">
             {field.label}
             {effectiveRequired && ' *'}
           </Label>
@@ -249,7 +249,7 @@ function DynamicFieldInner({ field, state, termsText }: Props) {
     case 'number':
       return (
         <div>
-          <Label htmlFor={field.field_key}>
+          <Label htmlFor={field.field_key} className="mb-1.5">
             {field.label}
             {effectiveRequired && ' *'}
           </Label>
@@ -269,7 +269,7 @@ function DynamicFieldInner({ field, state, termsText }: Props) {
     default:
       return (
         <div>
-          <Label htmlFor={field.field_key}>
+          <Label htmlFor={field.field_key} className="mb-1.5">
             {field.label}
             {effectiveRequired && ' *'}
           </Label>
