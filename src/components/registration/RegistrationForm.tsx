@@ -507,12 +507,10 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
 
   const isLastStep = step === activeSteps.length - 1;
 
-  const handleNext = async () => {
-    let fieldsToValidate: string[] = [];
-
+  const getFieldsToValidate = useCallback(() => {
     if (customMode) {
       const currentStepKey = activeSteps[step]?.stepKey;
-      fieldsToValidate = fields
+      return fields
         ?.filter((f) => {
           if (f.step !== currentStepKey) return false;
           const fieldState = fieldStates.get(f.field_key);
@@ -521,26 +519,32 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
           return isVisible && isRequired;
         })
         .map((f) => f.field_key) ?? [];
-    } else {
-      const currentStepKey = activeSteps[step]?.stepKey;
-      if (step === 0) {
-        fieldsToValidate = ['full_name', 'email', 'whatsapp'].filter((k) => activeKeys.has(k) && fieldRequired(k));
-      } else if (step === 1) {
-        if (form.getValues('perfil_fe') === 'Já sou cristão(ã)') {
-          fieldsToValidate = ['church', 'pastor', 'church_role', 'pastoral_authorization'].filter((k) => activeKeys.has(k) && fieldRequired(k));
-          if (form.getValues('church_role') === 'Outro') {
-            if (activeKeys.has('church_role_other')) fieldsToValidate.push('church_role_other');
-          }
-        }
-      }
-
-      const dynamicKeys = fields
-        ?.filter((f) => f.step === currentStepKey && f.required)
-        .map((f) => f.field_key) ?? [];
-
-      fieldsToValidate.push(...dynamicKeys);
     }
 
+    const currentStepKey = activeSteps[step]?.stepKey;
+    let result: string[] = [];
+
+    if (step === 0) {
+      result = ['full_name', 'email', 'whatsapp'].filter((k) => activeKeys.has(k) && fieldRequired(k));
+    } else if (step === 1) {
+      if (form.getValues('perfil_fe') === 'Já sou cristão(ã)') {
+        result = ['church', 'pastor', 'church_role', 'pastoral_authorization'].filter((k) => activeKeys.has(k) && fieldRequired(k));
+        if (form.getValues('church_role') === 'Outro') {
+          if (activeKeys.has('church_role_other')) result.push('church_role_other');
+        }
+      }
+    }
+
+    const dynamicKeys = fields
+      ?.filter((f) => f.step === currentStepKey && f.required)
+      .map((f) => f.field_key) ?? [];
+
+    result.push(...dynamicKeys);
+    return result;
+  }, [step, activeSteps, customMode, fields, fieldStates, activeKeys, form, fieldRequired]);
+
+  const handleNext = async () => {
+    const fieldsToValidate = getFieldsToValidate();
     const valid = fieldsToValidate.length ? await form.trigger(fieldsToValidate as any) : true;
     if (!valid) {
       const firstKey = fieldsToValidate.find((k) => form.formState.errors[k]);
@@ -708,13 +712,8 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
                   if (!valid) return;
                   await onSubmit(form.getValues());
                 } else {
-                  const currentStepKey = activeSteps[step]?.stepKey;
-                  const stepFields = fields
-                    ?.filter(f => f.step === currentStepKey && f.required)
-                    .map(f => f.field_key) ?? [];
-                  const alwaysRequired = ['full_name', 'email', 'whatsapp'];
-                  const fieldsToValidate = [...new Set([...alwaysRequired, ...stepFields])];
-                  const valid = await form.trigger(fieldsToValidate as any);
+                  const fieldsToValidate = getFieldsToValidate();
+                  const valid = fieldsToValidate.length ? await form.trigger(fieldsToValidate as any) : true;
                   if (!valid) {
                     toast.error('Verifique os campos obrigatórios.');
                     return;
