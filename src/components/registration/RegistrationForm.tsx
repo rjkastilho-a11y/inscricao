@@ -708,7 +708,13 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
                   if (!valid) return;
                   await onSubmit(form.getValues());
                 } else {
-                  const valid = await form.trigger();
+                  const currentStepKey = activeSteps[step]?.stepKey;
+                  const stepFields = fields
+                    ?.filter(f => f.step === currentStepKey && f.required)
+                    .map(f => f.field_key) ?? [];
+                  const alwaysRequired = ['full_name', 'email', 'whatsapp'];
+                  const fieldsToValidate = [...new Set([...alwaysRequired, ...stepFields])];
+                  const valid = await form.trigger(fieldsToValidate as any);
                   if (!valid) {
                     toast.error('Verifique os campos obrigatórios.');
                     return;

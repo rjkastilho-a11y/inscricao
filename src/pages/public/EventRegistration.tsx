@@ -80,6 +80,12 @@ export default function EventRegistration() {
         return;
       }
 
+      if (data.end_date && new Date(data.end_date) < new Date()) {
+        setError('Evento não encontrado ou inscrições encerradas.');
+        setLoading(false);
+        return;
+      }
+
       setEvent(data);
 
       const { data: isBlocked } = await supabase

@@ -124,9 +124,21 @@ export default function RegistrationEditPage() {
     setPayAmount('');
     setPayDialogOpen(false);
     setPaying(false);
-    setDefaultValues((prev) => ({ ...prev, payment_status: 'paid', paid_amount: (prev.paid_amount || 0) + amount }));
-    refreshPayments();
     setOverpaymentOpen(false);
+
+    const { data: updatedReg } = await supabase
+      .from('registrations')
+      .select('payment_status, paid_amount')
+      .eq('id', id)
+      .single();
+    if (updatedReg) {
+      setDefaultValues((prev) => ({
+        ...prev,
+        payment_status: updatedReg.payment_status,
+        paid_amount: updatedReg.paid_amount,
+      }));
+    }
+    refreshPayments();
   };
 
   const handleAddPayment = async () => {
@@ -220,6 +232,7 @@ export default function RegistrationEditPage() {
         godparent: reg.godparent || undefined,
         godparent_contact: reg.godparent_contact || undefined,
         pastoral_authorization: reg.pastoral_authorization,
+        accept_terms: (reg as any).accept_terms ?? false,
         health_info: reg.health_info || undefined,
         has_allergies: reg.has_allergies || undefined,
         allergy_description: reg.allergy_description || undefined,

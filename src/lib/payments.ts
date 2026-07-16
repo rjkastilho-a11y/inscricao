@@ -12,8 +12,7 @@ export interface PaymentRecord {
 
 /**
  * Recalcula paid_amount no registrations a partir da soma dos payments.
- * Se o total pago >= preço estipulado, muda payment_status para 'paid' automaticamente.
- * Se não há preço definido (expectedPrice=0) e total > 0, também marca como 'paid'.
+ * payment_status é controlado exclusivamente pelo admin.
  */
 export async function syncPaidAmount(registrationId: string): Promise<string | null> {
   const { data, error: fetchError } = await supabase
@@ -29,32 +28,9 @@ export async function syncPaidAmount(registrationId: string): Promise<string | n
 
   const total = data?.reduce((sum, p) => sum + Number(p.amount), 0) ?? 0;
 
-  const { data: reg, error: regError } = await supabase
-    .from('registrations')
-    .select('payment_status, event_lots!lot_id(price), events(price)')
-    .eq('id', registrationId)
-    .single();
-
-  if (regError) {
-    console.error('[syncPaidAmount] Erro ao buscar inscrição:', regError.message);
-    return regError.message;
-  }
-
-  const expectedPrice = Number(reg?.event_lots?.[0]?.price ?? reg?.events?.[0]?.price ?? 0);
-
-  const update: Record<string, any> = { paid_amount: total || null };
-
-  if (total > 0 && expectedPrice > 0 && total >= expectedPrice && reg?.payment_status !== 'paid') {
-    update.payment_status = 'paid';
-  } else if (total > 0 && expectedPrice === 0 && reg?.payment_status !== 'paid') {
-    update.payment_status = 'paid';
-  } else if (total < expectedPrice && expectedPrice > 0 && reg?.payment_status === 'paid') {
-    update.payment_status = 'pending';
-  }
-
   const { error: updateError } = await supabase
     .from('registrations')
-    .update(update)
+    .update({ paid_amount: total || null })
     .eq('id', registrationId);
 
   if (updateError) {

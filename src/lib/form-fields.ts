@@ -181,10 +181,10 @@ export async function fetchFormFields(
 
       const fieldMap = new Map<string, Record<string, unknown>>();
       for (const f of (defaultResult.data || []) as Record<string, unknown>[]) {
-        fieldMap.set(f.field_key as string, f);
+        fieldMap.set(`${f.field_key}::${f.step}`, f);
       }
       for (const f of (overrideResult.data || []) as Record<string, unknown>[]) {
-        fieldMap.set(f.field_key as string, f);
+        fieldMap.set(`${f.field_key}::${f.step}`, f);
       }
 
       fields = parseFormRows(
@@ -323,7 +323,7 @@ export async function copyDefaultFieldsByKeys(eventId: string, keys: string[]): 
 
     const { data: inserted, error: insertError } = await supabase
       .from('event_form_fields')
-      .upsert(copies, { onConflict: 'event_id,field_key', ignoreDuplicates: true })
+      .upsert(copies, { onConflict: 'event_id,field_key,step', ignoreDuplicates: true })
       .select();
     if (insertError) throw insertError;
 

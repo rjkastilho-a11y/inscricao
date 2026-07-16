@@ -588,57 +588,59 @@ export default function FinancialPage() {
                 onChange={(e) => setRegSearch(e.target.value)}
                 className="w-full md:min-w-0 md:flex-1 md:max-w-xs"
               />
-              <Input
-                type="date"
-                value={regDateFrom}
-                onChange={(e) => setRegDateFrom(e.target.value)}
-                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
-                placeholder="De"
-              />
-              <Input
-                type="date"
-                value={regDateTo}
-                onChange={(e) => setRegDateTo(e.target.value)}
-                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
-                placeholder="Até"
-              />
-              <Select value={regStatusFilter} onValueChange={setRegStatusFilter}>
-                <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
-                  <SelectValue>
-                    {(value) => value ? (paymentStatusLabels[value] || value) : "Status"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
-                  {PAYMENT_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>{paymentStatusLabels[s]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={regMethodFilter} onValueChange={setRegMethodFilter}>
-                <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
-                  <SelectValue>
-                    {(value) => value ? (paymentMethodLabels[value] || value) : "Método"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
-                  {PAYMENT_METHODS.map((m) => (
-                    <SelectItem key={m} value={m}>{paymentMethodLabels[m]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={regPercentFilter} onValueChange={setRegPercentFilter}>
-                <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
-                  <SelectValue placeholder="Pagamento %" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
-                  {PERCENT_FILTERS.map((f) => (
-                    <SelectItem key={f} value={f}>{percentFilterLabels[f]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="hidden md:flex md:flex-wrap md:gap-2">
+                <Input
+                  type="date"
+                  value={regDateFrom}
+                  onChange={(e) => setRegDateFrom(e.target.value)}
+                  className="md:min-w-0 md:flex-1 md:max-w-[200px]"
+                  placeholder="De"
+                />
+                <Input
+                  type="date"
+                  value={regDateTo}
+                  onChange={(e) => setRegDateTo(e.target.value)}
+                  className="md:min-w-0 md:flex-1 md:max-w-[200px]"
+                  placeholder="Até"
+                />
+                <Select value={regStatusFilter} onValueChange={setRegStatusFilter}>
+                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+                    <SelectValue>
+                      {(value) => value ? (paymentStatusLabels[value] || value) : "Status"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    {PAYMENT_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>{paymentStatusLabels[s]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={regMethodFilter} onValueChange={setRegMethodFilter}>
+                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+                    <SelectValue>
+                      {(value) => value ? (paymentMethodLabels[value] || value) : "Método"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    {PAYMENT_METHODS.map((m) => (
+                      <SelectItem key={m} value={m}>{paymentMethodLabels[m]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={regPercentFilter} onValueChange={setRegPercentFilter}>
+                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+                    <SelectValue placeholder="Pagamento %" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    {PERCENT_FILTERS.map((f) => (
+                      <SelectItem key={f} value={f}>{percentFilterLabels[f]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {hasRegFilters && (
                 <Button variant="ghost" size="sm" onClick={clearRegFilters} className="text-xs">
                   Limpar filtros
@@ -868,20 +870,22 @@ export default function FinancialPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                type="date"
-                value={incomeDateFrom}
-                onChange={(e) => setIncomeDateFrom(e.target.value)}
-                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
-                placeholder="De"
-              />
-              <Input
-                type="date"
-                value={incomeDateTo}
-                onChange={(e) => setIncomeDateTo(e.target.value)}
-                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
-                placeholder="Até"
-              />
+              <div className="hidden md:flex md:flex-wrap md:gap-2">
+                <Input
+                  type="date"
+                  value={incomeDateFrom}
+                  onChange={(e) => setIncomeDateFrom(e.target.value)}
+                  className="md:min-w-0 md:flex-1 md:max-w-[200px]"
+                  placeholder="De"
+                />
+                <Input
+                  type="date"
+                  value={incomeDateTo}
+                  onChange={(e) => setIncomeDateTo(e.target.value)}
+                  className="md:min-w-0 md:flex-1 md:max-w-[200px]"
+                  placeholder="Até"
+                />
+              </div>
               {hasIncomeFilters && (
                 <Button variant="ghost" size="sm" onClick={clearIncomeFilters} className="text-xs">
                   Limpar filtros
@@ -1008,20 +1012,22 @@ export default function FinancialPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                type="date"
-                value={expenseDateFrom}
-                onChange={(e) => setExpenseDateFrom(e.target.value)}
-                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
-                placeholder="De"
-              />
-              <Input
-                type="date"
-                value={expenseDateTo}
-                onChange={(e) => setExpenseDateTo(e.target.value)}
-                className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
-                placeholder="Até"
-              />
+              <div className="hidden md:flex md:flex-wrap md:gap-2">
+                <Input
+                  type="date"
+                  value={expenseDateFrom}
+                  onChange={(e) => setExpenseDateFrom(e.target.value)}
+                  className="md:min-w-0 md:flex-1 md:max-w-[200px]"
+                  placeholder="De"
+                />
+                <Input
+                  type="date"
+                  value={expenseDateTo}
+                  onChange={(e) => setExpenseDateTo(e.target.value)}
+                  className="md:min-w-0 md:flex-1 md:max-w-[200px]"
+                  placeholder="Até"
+                />
+              </div>
               {hasExpenseFilters && (
                 <Button variant="ghost" size="sm" onClick={clearExpenseFilters} className="text-xs">
                   Limpar filtros

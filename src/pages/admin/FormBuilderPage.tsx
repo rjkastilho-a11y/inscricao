@@ -305,7 +305,7 @@ export default function FormBuilderPage() {
           is_active: f.is_active,
           conditional_logic: f.conditional_logic?.enabled ? f.conditional_logic : null,
           db_column: f.db_column || null,
-        }, { onConflict: 'event_id,field_key' });
+        }, { onConflict: 'event_id,field_key,step' });
       if (error) {
         console.error('Erro ao salvar ordem:', error.message);
       }
@@ -331,8 +331,9 @@ export default function FormBuilderPage() {
       const data = await fetchFormFields(eventId, isCustom, undefined, true);
       const seen = new Set<string>();
       setFields(data.map(toDraft).filter((f) => {
-        if (seen.has(f.field_key)) return false;
-        seen.add(f.field_key);
+        const key = `${f.field_key}::${f.step}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
         return true;
       }));
       setLoading(false);
@@ -373,7 +374,7 @@ export default function FormBuilderPage() {
           is_active: !field.is_active,
           conditional_logic: field.conditional_logic?.enabled ? field.conditional_logic : null,
           db_column: field.db_column || null,
-        }, { onConflict: 'event_id,field_key' });
+        }, { onConflict: 'event_id,field_key,step' });
       if (error) {
         console.error('toggleActiveDefault error:', error);
         return;
@@ -407,7 +408,7 @@ export default function FormBuilderPage() {
           is_active: field.is_active,
           conditional_logic: field.conditional_logic?.enabled ? field.conditional_logic : null,
           db_column: field.db_column || null,
-        }, { onConflict: 'event_id,field_key' });
+        }, { onConflict: 'event_id,field_key,step' });
       if (error) {
         console.error('toggleRequiredDefault error:', error);
         return;
@@ -424,13 +425,7 @@ export default function FormBuilderPage() {
     markDirty(index, { required: !fields[index].required });
   };
 
-  const deleteField = async (index: number) => {
-    const field = fields[index];
-    if (field.is_default) return;
-    if (!eventId) return;
-    if (field.id) {
-      await supabase.from('event_form_fields').delete().eq('id', field.id);
-    }
+  const deleteField = (index: number) => {
     setFields((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -476,8 +471,7 @@ export default function FormBuilderPage() {
     setFields((prev) => {
       const next = [...prev];
       if (editingField._new) {
-        editingField._dirty = true;
-        next.push(editingField);
+        next.push({ ...editingField, _dirty: true });
       } else {
         const idx = next.findIndex((f) => f.id === editingField.id);
         if (idx >= 0) {
@@ -495,7 +489,7 @@ export default function FormBuilderPage() {
     if (!eventId || selectedDefaultKeys.length === 0) return;
     const newFields = await copyDefaultFieldsByKeys(eventId, selectedDefaultKeys);
     if (newFields.length === 0) return;
-    const mapped = newFields.map(toDraft);
+    const mapped = newFields.map(f => ({ ...toDraft(f), _dirty: true }));
     setFields((prev) => {
       const existingKeys = new Set(prev.map((f) => f.field_key));
       const trulyNew = mapped.filter((f) => !existingKeys.has(f.field_key));
