@@ -8,42 +8,86 @@ import HeroSection from '@/components/HeroSection';
 const FEATURES = [
   {
     icon: '📅',
-    title: 'Gestão sem Taxas',
-    description: 'Receba o PIX direto na conta da sua organização. Controle pagamentos manuais sem intermediários mordendo o caixa do evento.',
+    title: 'Gestão completa',
+    description: 'Planeje, organize e acompanhe cada etapa do seu evento com facilidade.',
     color: 'from-amber-500/20 to-amber-600/5',
     borderColor: 'border-amber-500/20',
     items: [
-      'PIX direto na conta da sua organização — taxa zero',
-      'Baixa manual de pagamentos confirmados',
-      'Sem comissão por inscrição (adeus Sympla)',
-      'Controle total de quem pagou e quem não pagou',
+      'Páginas personalizadas',
+      'Equipes e voluntários',
+      'Painel administrativo',
+      'Relatórios em tempo real',
     ],
   },
   {
     icon: '📋',
-    title: 'Inscrição Descomplicada',
-    description: 'Inscrição em etapas com autorização digital e envio automático de recibo via WhatsApp.',
+    title: 'Inscrições e pagamentos',
+    description: 'Crie formulários personalizados, receba inscrições e pagamentos com segurança.',
     color: 'from-indigo-500/20 to-indigo-600/5',
     borderColor: 'border-indigo-500/20',
     items: [
-      'Inscrição em etapas com dados personalizados',
-      'Autorização digital integrada',
-      'Recibo automático via WhatsApp com 1 clique',
-      'Exportação CSV completa',
+      'Múltiplas formas de pagamento',
+      'Lotes e cupons de desconto',
+      'Confirmação automática',
+      'Lista de participantes',
     ],
   },
   {
-    icon: '📱',
-    title: 'Portaria Digital',
-    description: 'Check-in pelo celular na porta do evento. Controle de presença em tempo real. Fim do papel impresso.',
+    icon: '💰',
+    title: 'Financeiro e relatórios',
+    description: 'Tenha clareza total das finanças e tome decisões com base em dados.',
+    color: 'from-emerald-500/20 to-emerald-600/5',
+    borderColor: 'border-emerald-500/20',
+    items: [
+      'Entradas e saídas',
+      'Gráficos e indicadores',
+      'Exportação para Excel',
+      'Prestação de contas',
+    ],
+  },
+  {
+    icon: '🎫',
+    title: 'Check-in e portaria',
+    description: 'Agilize a entrada dos participantes com check-in digital e acompanhe a presença em tempo real.',
     color: 'from-sky-500/20 to-sky-600/5',
     borderColor: 'border-sky-500/20',
     items: [
-      'Check-in digital direto do celular',
-      'Presença em tempo real na portaria',
-      'Aposente a prancheta de papel',
-      'Lista de confirmados atualizada na hora',
+      'Check-in digital',
+      'Controle de presença',
+      'Lista de participantes',
+      'Portaria organizada',
     ],
+  },
+];
+
+const WHY_KAIROS = [
+  {
+    icon: '💸',
+    title: 'Sem taxa por inscrição',
+    description: 'Receba pagamentos via PIX diretamente na conta da sua organização, sem comissões sobre cada inscrição.',
+    color: 'from-amber-500/20 to-amber-600/5',
+    borderColor: 'border-amber-500/20',
+  },
+  {
+    icon: '🧩',
+    title: 'Tudo em um só lugar',
+    description: 'Gerencie inscrições, participantes, pagamentos, check-in e financeiro em uma única plataforma.',
+    color: 'from-indigo-500/20 to-indigo-600/5',
+    borderColor: 'border-indigo-500/20',
+  },
+  {
+    icon: '⛪',
+    title: 'Feito para igrejas',
+    description: 'Desenvolvido para igrejas, ministérios e organizações cristãs que promovem eventos regularmente.',
+    color: 'from-sky-500/20 to-sky-600/5',
+    borderColor: 'border-sky-500/20',
+  },
+  {
+    icon: '🚀',
+    title: 'Evolução contínua',
+    description: 'A plataforma evolui continuamente para oferecer uma experiência cada vez melhor.',
+    color: 'from-emerald-500/20 to-emerald-600/5',
+    borderColor: 'border-emerald-500/20',
   },
 ];
 
@@ -60,16 +104,40 @@ const STEPS = [
   },
   {
     step: '3',
-    title: 'Você dá baixa, envia o recibo pelo WhatsApp e faz o check-in na porta',
+    title: 'Confirme o pagamento e receba os participantes',
     description: 'Com 1 clique você confirma o pagamento, dispara o recibo via WhatsApp e faz o check-in digital na hora do evento.',
   },
 ];
 
-const FINANCIAL_CARDS = [
-  { label: 'Entradas (inscrições)', value: 'R$ 4.200', color: 'text-white' },
-  { label: 'Ofertas recebidas', value: 'R$ 950', color: 'text-white' },
-  { label: 'Saídas', value: 'R$ 2.300', color: 'text-red-400' },
-  { label: 'Saldo do evento', value: 'R$ 2.850', color: 'text-emerald-400' },
+const COMPARISON_CARDS = [
+  {
+    title: '📑 Planilha / Manual',
+    color: 'border-red-500/30',
+    titleColor: 'text-red-400',
+    items: [
+      '❌ Sujeito a erros',
+      '❌ Perda de dados',
+      '❌ Retrabalho',
+      '❌ Sem integração',
+    ],
+  },
+  {
+    title: (
+      <div className="flex items-center gap-2">
+        <img src="/screenshots/Icone.png" alt="" className="h-5 w-auto" />
+        <span className="font-bold text-white" style={{ letterSpacing: '-0.02em' }}>Kairós</span>
+        <span className="text-[9px] font-semibold uppercase text-[#F4B23A]" style={{ letterSpacing: '0.35em' }}>Events</span>
+      </div>
+    ),
+    color: 'border-emerald-500/30',
+    titleColor: 'text-emerald-400',
+    items: [
+      '✅ Automatizado',
+      '✅ Seguro e confiável',
+      '✅ Relatórios inteligentes',
+      '✅ Tudo integrado',
+    ],
+  },
 ];
 
 const AUDIENCE = [
@@ -158,10 +226,19 @@ export default function LandingPage() {
       `}</style>
 
       {/* Navbar */}
-      <header className="fixed top-0 z-50 flex h-14 w-full items-center justify-between border-b border-white/10 bg-slate-900/80 px-4 backdrop-blur-md sm:px-8">
-        <span className="font-serif text-lg font-bold text-white">
-          Kairós <span className="text-amber-500">Events</span>
-        </span>
+      <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-slate-900/80 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-8">
+        <div className="flex items-center gap-3">
+          <img src="/screenshots/Icone.png" alt="" className="h-[36px] w-auto" />
+          <div className="flex flex-col leading-none">
+            <span className="text-xl font-bold text-white" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
+              Kairós
+            </span>
+            <span className="text-[10px] font-semibold uppercase text-[#F4B23A]" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '0.35em' }}>
+              EVENTS
+            </span>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -179,6 +256,7 @@ export default function LandingPage() {
             Testar Grátis <ChevronRight className="size-3.5" />
           </Button>
         </div>
+        </div>
       </header>
 
       <main className="pt-14">
@@ -187,15 +265,17 @@ export default function LandingPage() {
         {/* ======== FEATURES ======== */}
         <section className="bg-white px-4 py-16 sm:px-8 sm:py-24 lg:py-32">
           <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-2xl text-center">
+            <div className="mx-auto max-w-4xl text-center">
               <span className="text-xs font-semibold uppercase tracking-widest text-amber-600">
-                Funcionalidades
+                Tudo em um só lugar
               </span>
               <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
-        Tudo que sua organização precisa para organizar eventos
+        <span className="sm:hidden">Tudo o que você precisa em um só lugar</span>
+        <span className="hidden sm:inline">Tudo que você precisa<br />para organizar eventos incríveis</span>
               </h2>
               <p className="mt-3 text-base text-slate-500">
-                Três módulos integrados que cobrem todo o ciclo do evento — da inscrição ao fechamento financeiro.
+                Mais organização, menos preocupação. Tenha tudo sob controle em uma plataforma feita<br className="hidden sm:inline" />
+                para igrejas, ministérios e organizações cristãs.
               </p>
             </div>
 
@@ -204,12 +284,12 @@ export default function LandingPage() {
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-80px' }}
-              className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+              className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
             >
               {FEATURES.map((f) => (
-                <motion.div key={f.title} variants={staggerItem}>
+                <motion.div key={f.title} variants={staggerItem} className="h-full">
                   <div
-                    className={`group relative overflow-hidden rounded-xl border ${f.borderColor} bg-gradient-to-b ${f.color} p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 lg:p-8`}
+                    className={`group h-full relative overflow-hidden rounded-xl border ${f.borderColor} bg-gradient-to-b ${f.color} p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 lg:p-8`}
                   >
                     <div className="mb-4 text-3xl lg:text-4xl">{f.icon}</div>
                     <h3 className="text-base font-semibold text-slate-900">{f.title}</h3>
@@ -244,7 +324,7 @@ export default function LandingPage() {
               Como funciona
             </span>
             <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
-              Pronto em 3 passos
+              Organize seu evento em 3 passos
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-base text-slate-500">
               Sem treinamento. Sem complicação. Qualquer pessoa consegue usar no primeiro dia.
@@ -270,68 +350,43 @@ export default function LandingPage() {
           </motion.div>
         </section>
 
-        {/* ======== TESTIMONIALS ======== */}
+        {/* ======== POR QUE ESCOLHER O KAIRÓS ======== */}
         <section className="bg-white px-4 py-16 sm:px-8 sm:py-24 lg:py-32">
-          <motion.div
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            className="mx-auto max-w-6xl text-center"
-          >
-            <span className="text-xs font-semibold uppercase tracking-widest text-amber-600">
-              Depoimentos
-            </span>
-            <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
-              Quem usa recomenda
-            </h2>
-            <p className="mx-auto mt-3 max-w-lg text-base text-slate-500">
-              Veja o que líderes e organizadores estão falando sobre o Kairós Events.
-            </p>
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-4xl text-center">
+              <span className="text-xs font-semibold uppercase tracking-widest text-amber-600">
+                Por que escolher o Kairós Events
+              </span>
+              <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
+        Desenvolvido para simplificar a organização de eventos cristãos
+              </h2>
+              <p className="mt-3 text-base text-slate-500">
+                Do planejamento ao check-in, o Kairós Events reúne todas as ferramentas necessárias para organizar eventos com mais segurança, praticidade e controle.
+              </p>
+            </div>
 
             <motion.div
               variants={staggerContainer}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-80px' }}
-              className="mt-14 grid gap-8 md:grid-cols-3 text-left"
+              className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
             >
-              {[
-                {
-                  name: 'Pr. Marcelo Almeida',
-                  role: 'Pastor Titular',
-                  church: 'Igreja Batista Nova Aliança',
-                  quote: 'Deixamos de pagar mais de R$ 3.000 em taxas por evento. O PIX cai direto na conta e conseguimos dar baixa em 1 clique.',
-                },
-                {
-                  name: 'Ana Claudia Santos',
-                  role: 'Secretária Ministerial',
-                  church: 'Comunidade Cristã Videira',
-                  quote: 'Antes eram 5 planilhas diferentes e sempre perdíamos algum pagamento. Agora tudo organizado em um painel. O check-in na portaria salvou nosso congresso.',
-                },
-                {
-                  name: 'Dc. Ricardo Oliveira',
-                  role: 'Diácono e Líder de Eventos',
-                  church: 'Igreja Presbiteriana Esperança',
-                  quote: 'Organizamos um retiro de 200 pessoas sem papelada. O recibo automático no WhatsApp foi o que mais fez diferença — os pais adoraram.',
-                },
-              ].map((t) => (
-                <motion.div key={t.name} variants={staggerItem} className="rounded-xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:border-amber-200 hover:shadow-lg hover:-translate-y-0.5">
-                  <div className="text-amber-400 text-4xl leading-none mb-4 font-serif">"</div>
-                  <p className="text-sm leading-relaxed text-slate-600">{t.quote}</p>
-                  <div className="mt-6 flex items-center gap-3 border-t border-slate-100 pt-4">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-700">
-                      {t.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900">{t.name}</div>
-                      <div className="text-xs text-slate-500">{t.role} · {t.church}</div>
-                    </div>
+              {WHY_KAIROS.map((f) => (
+                <motion.div key={f.title} variants={staggerItem}>
+                  <div
+                    className={`group relative overflow-hidden rounded-xl border ${f.borderColor} bg-gradient-to-b ${f.color} p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 lg:p-8`}
+                  >
+                    <div className="mb-4 text-3xl lg:text-4xl">{f.icon}</div>
+                    <h3 className="text-base font-semibold text-slate-900">{f.title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                      {f.description}
+                    </p>
                   </div>
                 </motion.div>
               ))}
             </motion.div>
-          </motion.div>
+          </div>
         </section>
 
         {/* ======== FINANCIAL HIGHLIGHT ======== */}
@@ -351,20 +406,19 @@ export default function LandingPage() {
               className="flex-1"
             >
               <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
-                O inimigo
+                Chega de planilhas
               </span>
               <h2 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl text-balance">
                 Chega de Excel que quebra no meio do evento.
               </h2>
               <p className="mt-3 max-w-md text-base leading-relaxed text-slate-400">
-                Planilha não avisa quem pagou, não dispara recibo e uma célula errada bagunça tudo. O Kairós resolve o descontrole financeiro do seu retiro ou congresso.
+                Trabalhe com segurança, elimine retrabalho e tenha todas as informações em um único lugar.
               </p>
               <ul className="mt-6 space-y-3">
                 {[
-                  'Saiba exatamente quem pagou e quem não pagou',
-                  'Sem planilha perdida, sem célula apagada sem querer',
-                  'Baixa manual de PIX com confirmação visual',
-                  'Tudo organizado em um painel, não em 5 planilhas diferentes',
+                  'Dados protegidos e sempre disponíveis',
+                  'Acesso de qualquer lugar',
+                  'Adeus a erros e retrabalho',
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-sm text-slate-300">
                     <span className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-[10px] text-amber-400">✓</span>
@@ -379,18 +433,20 @@ export default function LandingPage() {
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-80px' }}
-              className="grid flex-1 grid-cols-2 gap-3"
+              className="grid flex-1 grid-cols-1 sm:grid-cols-2 gap-4"
             >
-              {FINANCIAL_CARDS.map((card) => (
+              {COMPARISON_CARDS.map((card) => (
                 <motion.div
-                  key={card.label}
+                  key={card.title}
                   variants={staggerItem}
-                  className="rounded-xl border border-white/[7%] bg-white/[4%] p-5 backdrop-blur-sm transition-shadow duration-300 hover:shadow-lg hover:shadow-amber-500/5"
+                  className={`rounded-xl border ${card.color} bg-white/[4%] p-8 backdrop-blur-sm transition-shadow duration-300 hover:shadow-lg hover:shadow-amber-500/5`}
                 >
-                  <div className="text-xs uppercase tracking-wide text-slate-500">{card.label}</div>
-                  <div className={`mt-1 font-serif text-2xl font-bold lg:text-3xl ${card.color}`}>
-                    {card.value}
-                  </div>
+                  <h3 className={`text-base font-semibold ${card.titleColor}`}>{card.title}</h3>
+                  <ul className="mt-4 space-y-4">
+                    {card.items.map((item) => (
+                      <li key={item} className="text-sm text-slate-300">{item}</li>
+                    ))}
+                  </ul>
                 </motion.div>
               ))}
             </motion.div>
@@ -448,7 +504,7 @@ export default function LandingPage() {
               Comparativo
             </span>
             <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
-              Kairós vs. Alternativas
+              Compare e veja por que o Kairós Events é diferente
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-base text-slate-500">
               Veja por que organizações estão trocando plataformas tradicionais e planilhas pelo Kairós Events.
@@ -471,7 +527,7 @@ export default function LandingPage() {
                         <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-amber-500 rounded-full px-2 py-0.5">Melhor</span>
                       </span>
                     </th>
-                    <th className="p-4 font-semibold text-slate-500 w-1/6">Sympla</th>
+                    <th className="p-4 font-semibold text-slate-500 w-1/6">Outras Plataformas</th>
                     <th className="p-4 font-semibold text-slate-500 w-1/6">Planilha</th>
                   </tr>
                 </thead>
@@ -712,9 +768,17 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 bg-slate-950 px-4 py-6 sm:px-8">
-        <span className="font-serif text-sm font-bold text-slate-600">
-          Kairós <span className="text-amber-600">Events</span>
-        </span>
+        <div className="flex items-center gap-3">
+          <img src="/screenshots/Icone.png" alt="" className="h-[28px] w-auto" />
+          <div className="flex flex-col leading-none">
+            <span className="text-sm font-bold text-slate-300" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
+              Kairós
+            </span>
+            <span className="text-[8px] font-semibold uppercase text-[#F4B23A]" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '0.35em' }}>
+              EVENTS
+            </span>
+          </div>
+        </div>
         <div className="flex items-center gap-4">
           <a href="/" className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-400 transition-colors">
             Início

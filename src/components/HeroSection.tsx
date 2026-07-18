@@ -7,6 +7,7 @@ const TRUST_ITEMS = [
   { icon: Shield, label: 'LGPD' },
   { icon: Lock, label: 'Criptografia ponta a ponta' },
   { icon: Database, label: 'Backup diário' },
+  { icon: Database, label: 'Acesso em qualquer dispositivo' },
 ];
 
 const heroTextVariants = {
@@ -29,7 +30,7 @@ const mockupVariants = {
 
 function BrowserMockup() {
   return (
-    <div className="relative mx-auto w-full max-w-xl lg:max-w-3xl">
+    <div className="relative mx-auto w-full max-w-3xl lg:max-w-6xl">
       <img
         src="/screenshots/dashboard.png"
         alt="Dashboard do Kairós Events"
@@ -44,11 +45,15 @@ export default function HeroSection() {
   const navigate = useNavigate();
 
   return (
-    <section className="relative overflow-hidden bg-slate-900 px-4 pb-8 pt-12 sm:px-8 sm:pb-12 sm:pt-16 lg:pb-16 lg:pt-28">
+    <section
+      className="relative overflow-hidden bg-slate-900 px-4 pb-8 pt-12 sm:px-8 sm:pb-12 sm:pt-16 lg:pb-16 lg:pt-28"
+      style={{ backgroundImage: 'url(/screenshots/fundo.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+    >
       <div aria-hidden className="pointer-events-none absolute -left-32 top-0 size-[500px] bg-[radial-gradient(circle,rgba(217,119,6,0.1)_0%,transparent_70%)]" />
       <div aria-hidden className="pointer-events-none absolute -right-32 bottom-0 size-[400px] bg-[radial-gradient(circle,rgba(99,102,241,0.06)_0%,transparent_70%)]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-slate-900/75" />
 
-      <div className="mx-auto max-w-7xl flex flex-col gap-0 lg:flex-row lg:gap-10">
+      <div className="relative z-10 mx-auto max-w-7xl flex flex-col gap-0 lg:flex-row lg:gap-10">
         {/* Left column: all text content */}
         <motion.div
           variants={heroTextVariants}
@@ -57,26 +62,30 @@ export default function HeroSection() {
           className="max-w-[560px] flex flex-col gap-0"
         >
           {/* 1. BADGE */}
-          <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-yellow-400">
-            ⚡ Novo · Eventos sem taxa de plataforma
+          <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-yellow-400/30 bg-yellow-400/10 px-2.5 py-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-yellow-400">
+            ⚡ Plataforma completa para eventos Cristãos
           </div>
 
           {/* 2. HEADLINE */}
-          <h1 className="mb-2 text-5xl font-extrabold leading-tight tracking-tight text-white lg:text-6xl">
-            Sua inscrição entregue.<br />
-            <span className="text-[#fbbf24]">Zero taxa. 100% seu.</span>
+          <h1 className="            mb-4 text-5xl font-extrabold leading-tight tracking-tight text-white lg:text-6xl">
+            Organize eventos que <span className="text-[#fbbf24]">impactam vidas</span>
           </h1>
 
           {/* 3. SUBTEXTO */}
           <p className="mb-7 max-w-lg text-base leading-relaxed text-slate-400">
-            Receba o <strong className="font-semibold text-white">PIX direto na conta da sua igreja ou organização</strong>, gerencie lotes, emita recibos e diga adeus à prancheta de papel — tudo em um sistema feito para quem organiza eventos.
+            Diga adeus às planilhas, à prancheta e aos processos manuais. Do planejamento ao check-in, o Kairós Events simplifica toda a organização para que você foque no que realmente importa: <strong className="text-[#fbbf24]">pessoas e propósito.</strong>
           </p>
 
-          {/* 4. CTA */}
+          {/* 4. PROPOSTA DE VALOR */}
+          <p className="mb-4 max-w-lg text-sm leading-relaxed text-slate-500">
+            O Kairós Events é a plataforma completa para gerenciar inscrições, pagamentos, participantes, check-in e financeiro de eventos cristãos.
+          </p>
+
+          {/* 5. CTA */}
           <div className="mb-2">
             <Button
               onClick={() => navigate('/register')}
-              className="rounded-xl bg-[#FACC15] px-8 py-[16px] text-base font-bold text-[#0d1117] shadow-lg shadow-amber-500/25 hover:brightness-110 hover:shadow-xl hover:shadow-amber-500/30"
+              className="rounded-xl bg-[#FACC15] px-12 py-7 text-xl font-bold text-[#0d1117] shadow-lg shadow-amber-500/25 hover:brightness-110 hover:shadow-xl hover:shadow-amber-500/30"
             >
               Criar meu evento grátis →
             </Button>
@@ -100,13 +109,13 @@ export default function HeroSection() {
           {/* 7. STATS */}
           <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-5 py-4">
             <div className="flex-1 text-center">
-              <div className="text-lg font-bold text-[#FACC15] sm:text-xl">+340</div>
-              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">organizações usando</div>
+              <div className="text-lg font-bold text-[#FACC15] sm:text-xl">15 dias</div>
+              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Experimente gratuitamente</div>
             </div>
             <div className="h-10 w-px bg-white/[0.08]" />
             <div className="flex-1 text-center">
-              <div className="text-lg font-bold text-[#FACC15] sm:text-xl">R$4,2M</div>
-              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Processados via PIX</div>
+              <div className="text-lg font-bold text-[#FACC15] sm:text-xl">100%</div>
+              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Focado em ministérios e eventos</div>
             </div>
             <div className="h-10 w-px bg-white/[0.08]" />
             <div className="flex-1 text-center">
@@ -129,7 +138,7 @@ export default function HeroSection() {
           >
             <span className="text-sm">📊</span>
             <span className="text-xs text-slate-400">
-              Chega de Excel. Sua organização merece o máximo controle para seu evento.
+              Do planejamento ao fechamento financeiro, tenha controle total do seu evento em um único painel.
             </span>
           </motion.div>
         </motion.div>
