@@ -437,7 +437,7 @@ export default function LandingPage() {
             >
               {COMPARISON_CARDS.map((card) => (
                 <motion.div
-                  key={card.title}
+                  key={card.color}
                   variants={staggerItem}
                   className={`rounded-xl border ${card.color} bg-white/[4%] p-8 backdrop-blur-sm transition-shadow duration-300 hover:shadow-lg hover:shadow-amber-500/5`}
                 >
