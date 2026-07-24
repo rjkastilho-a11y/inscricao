@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading, needsOnboarding } = useAuth();
 
   if (loading) {
     return (
@@ -20,6 +20,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Usuário OAuth sem onboarding — permitir acesso (vai para /onboarding via router)
+  if (needsOnboarding) {
+    return children;
   }
 
   // Neste MVP focado em controle simples, apenas admins acessam o painel.

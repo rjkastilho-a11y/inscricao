@@ -13,6 +13,8 @@ const RegisterPage = lazy(() => import('@/pages/public/RegisterPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/public/ResetPasswordPage'));
 const UpdatePasswordPage = lazy(() => import('@/pages/public/UpdatePasswordPage'));
 const TermsOfUsePage = lazy(() => import('@/pages/public/TermsOfUsePage'));
+const AuthCallbackPage = lazy(() => import('@/pages/public/AuthCallbackPage'));
+const OnboardingPage = lazy(() => import('@/pages/public/OnboardingPage'));
 
 const EventsPage = lazy(() => import('@/pages/admin/EventsPage'));
 const EventNewPage = lazy(() => import('@/pages/admin/EventNewPage'));
@@ -59,6 +61,8 @@ export const router = createBrowserRouter([
   { path: '/reset-password', element: <SuspensePage><ResetPasswordPage /></SuspensePage> },
   { path: '/update-password', element: <SuspensePage><UpdatePasswordPage /></SuspensePage> },
   { path: '/termos', element: <SuspensePage><TermsOfUsePage /></SuspensePage> },
+  { path: '/auth/callback', element: <SuspensePage><AuthCallbackPage /></SuspensePage> },
+  { path: '/onboarding', element: <SuspensePage><OnboardingPage /></SuspensePage> },
 
   {
     path: '/app',

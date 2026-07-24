@@ -109,6 +109,15 @@ const STEPS = [
   },
 ];
 
+const COMPARISON_DATA = [
+  { feature: 'Taxa por inscrição', kairós: '0%', sympla: '~10%', planilha: '0% (mas...)', best: 'kairós' },
+  { feature: 'PIX direto na sua conta', kairós: '✓ Sim', sympla: '✗ Não', planilha: '✗ Manual', best: 'kairós' },
+  { feature: 'Recibo automático via WhatsApp', kairós: '✓ 1 clique', sympla: '✗', planilha: '✗ Manual', best: 'kairós' },
+  { feature: 'Check-in digital', kairós: '✓ Online', sympla: '✓ Pago', planilha: '✗', best: 'kairós' },
+  { feature: 'Formulário customizável', kairós: '✓ Sim', sympla: '✓ Limitado', planilha: '✗', best: 'kairós' },
+  { feature: 'Controle financeiro', kairós: '✓ Completo', sympla: '✓ Básico', planilha: '✓ Manual', best: 'kairós' },
+];
+
 const COMPARISON_CARDS = [
   {
     title: '📑 Planilha / Manual',
@@ -503,19 +512,49 @@ export default function LandingPage() {
             <span className="text-xs font-semibold uppercase tracking-widest text-amber-600">
               Comparativo
             </span>
-            <h2 className="mt-3 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
+            <h2 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
               Compare e veja por que o Kairós Events é diferente
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-base text-slate-500">
               Veja por que organizações estão trocando plataformas tradicionais e planilhas pelo Kairós Events.
             </p>
 
+            {/* Mobile: Cards empilhados */}
             <motion.div
               variants={staggerContainer}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-80px' }}
-              className="mt-14 overflow-x-auto"
+              className="mt-10 grid gap-4 sm:hidden"
+            >
+              {COMPARISON_DATA.map((row) => (
+                <div key={row.feature} className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm">
+                  <h3 className="mb-3 text-sm font-semibold text-slate-900">{row.feature}</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2">
+                      <span className="text-xs font-medium text-slate-600">Kairós Events</span>
+                      <span className="text-sm font-bold text-amber-700">{row.kairós}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-xs font-medium text-slate-500">Outras Plataformas</span>
+                      <span className="text-sm text-slate-500">{row.sympla}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-xs font-medium text-slate-500">Planilha</span>
+                      <span className="text-sm text-slate-500">{row.planilha}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* Desktop: Tabela */}
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+              className="mt-14 hidden overflow-x-auto sm:block"
             >
               <table className="w-full text-left text-sm">
                 <thead>
@@ -532,14 +571,7 @@ export default function LandingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { feature: 'Taxa por inscrição', kairós: '0%', sympla: '~10%', planilha: '0% (mas...)', best: 'kairós' },
-                    { feature: 'PIX direto na sua conta', kairós: '✓ Sim', sympla: '✗ Não', planilha: '✗ Manual', best: 'kairós' },
-                    { feature: 'Recibo automático via WhatsApp', kairós: '✓ 1 clique', sympla: '✗', planilha: '✗ Manual', best: 'kairós' },
-                    { feature: 'Check-in digital', kairós: '✓ Online', sympla: '✓ Pago', planilha: '✗', best: 'kairós' },
-                    { feature: 'Formulário customizável', kairós: '✓ Sim', sympla: '✓ Limitado', planilha: '✗', best: 'kairós' },
-                    { feature: 'Controle financeiro', kairós: '✓ Completo', sympla: '✓ Básico', planilha: '✓ Manual', best: 'kairós' },
-                  ].map((row, i) => (
+                  {COMPARISON_DATA.map((row, i) => (
                     <tr key={row.feature} className={`border-b border-slate-100 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
                       <td className="p-4 font-medium text-slate-900">{row.feature}</td>
                       {(['kairós', 'sympla', 'planilha'] as const).map((col) => (
@@ -597,7 +629,7 @@ export default function LandingPage() {
                 },
                 {
                   q: 'Meus dados ficam seguros?',
-                  a: 'Sim. Utilizamos criptografia ponta a ponta, backup diário automatizado e seguimos as diretrizes da LGPD. Seus dados e dos participantes estão protegidos.',
+                  a: 'Sim. Utilizamos criptografia ponta a ponta e seguimos as diretrizes da LGPD. Seus dados e dos participantes estão protegidos.',
                 },
               ].map((item, i) => (
                 <motion.div key={i} variants={staggerItem}>
@@ -753,21 +785,17 @@ export default function LandingPage() {
             >
               Começar agora <ArrowRight className="size-4" />
             </Button>
-            <p className="mt-4 text-sm text-slate-500">
-              <span className="inline-flex items-center gap-1.5">
-                <Check className="size-3.5 text-amber-500" /> 15 dias grátis
-                <span className="w-1 h-1 rounded-full bg-slate-600" />
-                Sem cartão
-                <span className="w-1 h-1 rounded-full bg-slate-600" />
-                Cancele quando quiser
-              </span>
-            </p>
+            <div className="mt-4 flex flex-col items-center gap-1.5 text-sm text-slate-500">
+              <span className="flex items-center gap-1.5"><Check className="size-3.5 text-amber-500" /> 15 dias grátis</span>
+              <span className="flex items-center gap-1.5"><Check className="size-3.5 text-amber-500" /> Sem cartão</span>
+              <span className="flex items-center gap-1.5"><Check className="size-3.5 text-amber-500" /> Cancele quando quiser</span>
+            </div>
           </motion.div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 bg-slate-950 px-4 py-6 sm:px-8">
+      <footer className="flex flex-col items-center gap-6 border-t border-slate-800 bg-slate-950 px-4 py-8 sm:flex-row sm:justify-between sm:gap-2 sm:px-8">
         <div className="flex items-center gap-3">
           <img src="/screenshots/Icone.png" alt="" className="h-[28px] w-auto" />
           <div className="flex flex-col leading-none">
@@ -779,7 +807,7 @@ export default function LandingPage() {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
           <a href="/" className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-400 transition-colors">
             Início
           </a>
@@ -792,10 +820,10 @@ export default function LandingPage() {
           <a href="https://mail.google.com/mail/?view=cm&fs=1&to=kairosevents.suporte@gmail.com" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-600 underline underline-offset-2 hover:text-slate-400 transition-colors">
             Suporte
           </a>
-          <span className="text-xs text-slate-600">
-            &copy; {new Date().getFullYear()} Kairós Events &middot; Todos os direitos reservados
-          </span>
         </div>
+        <span className="text-xs text-slate-600">
+          &copy; {new Date().getFullYear()} Kairós Events &middot; Todos os direitos reservados
+        </span>
       </footer>
 
       {showBackToTop && (

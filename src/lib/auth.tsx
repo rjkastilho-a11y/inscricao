@@ -25,6 +25,7 @@ interface AuthState {
   churchId: string | null;
   churchRole: string | null;
   loading: boolean;
+  needsOnboarding: boolean;
 }
 
 interface AuthContextType extends AuthState {
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     churchId: null,
     churchRole: null,
     loading: true,
+    needsOnboarding: false,
   });
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = session?.user ?? null;
 
       if (!user) {
-        setState({ session: null, user: null, isAdmin: false, isSuperAdmin: false, churchId: null, churchRole: null, loading: false });
+        setState({ session: null, user: null, isAdmin: false, isSuperAdmin: false, churchId: null, churchRole: null, loading: false, needsOnboarding: false });
         return;
       }
 
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let churchId = (user.app_metadata?.church_id as string) || null;
       let isSuperAdmin = churchRole === 'super_admin';
       let isAdmin = isSuperAdmin || churchRole === 'admin';
+      let needsOnboarding = false;
 
       // Fallback: se JWT ainda não foi populada (ex: usuário recém-criado),
       // busca de user_roles diretamente
@@ -81,6 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           churchId = (rolesData as any).church_id || null;
           isSuperAdmin = churchRole === 'super_admin';
           isAdmin = isSuperAdmin || churchRole === 'admin';
+        } else {
+          // Sem roles = usuário OAuth que ainda não completou onboarding
+          needsOnboarding = true;
         }
       }
 
@@ -93,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           churchId,
           churchRole,
           loading: false,
+          needsOnboarding,
         });
       }
     };
@@ -113,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     queryClient.clear();
     await supabase.auth.signOut();
-    setState({ session: null, user: null, isAdmin: false, isSuperAdmin: false, churchId: null, churchRole: null, loading: false });
+    setState({ session: null, user: null, isAdmin: false, isSuperAdmin: false, churchId: null, churchRole: null, loading: false, needsOnboarding: false });
   };
 
   return (

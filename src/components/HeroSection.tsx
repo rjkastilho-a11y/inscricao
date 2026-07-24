@@ -6,7 +6,6 @@ import { Shield, Lock, Database, ChevronDown } from 'lucide-react';
 const TRUST_ITEMS = [
   { icon: Shield, label: 'LGPD' },
   { icon: Lock, label: 'Criptografia ponta a ponta' },
-  { icon: Database, label: 'Backup diário' },
   { icon: Database, label: 'Acesso em qualquer dispositivo' },
 ];
 
