@@ -18,7 +18,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDate, paymentStatusLabels, paymentMethodLabels } from '@/lib/utils';
-import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle } from 'lucide-react';
+import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer } from 'lucide-react';
+import { RegistrationComprovante } from '@/components/registration/RegistrationComprovante';
+import { buildCheckinUrl, ensureCheckinToken } from '@/lib/checkin';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PaymentHistory } from '@/components/registration/PaymentHistory';
@@ -87,6 +89,9 @@ interface Registration {
   extra_data: Record<string, any> | null;
   events: {
     title: string;
+    slug: string;
+    price: number;
+    checkin_token: string | null;
     step_personal: boolean;
     step_christian_life: boolean;
     step_health: boolean;
@@ -126,7 +131,7 @@ export default function RegistrationDetailPage() {
     const [{ data }, { data: eventsRes }] = await Promise.all([
       supabase
         .from('registrations')
-        .select('*, events(title, step_personal, step_christian_life, step_health, step_emergency, step_other), event_lots!lot_id(name, price)')
+        .select('*, events(title, slug, price, checkin_token, step_personal, step_christian_life, step_health, step_emergency, step_other), event_lots!lot_id(name, price)')
         .eq('id', id)
         .single(),
       supabase
@@ -136,6 +141,20 @@ export default function RegistrationDetailPage() {
         .single(),
     ]);
     setReg(data as unknown as Registration);
+
+    if (data && !(data as any).events?.checkin_token) {
+      const token = await ensureCheckinToken(eventId || '');
+      if (token) {
+        setReg((prev) =>
+          prev
+            ? {
+                ...prev,
+                events: prev.events ? { ...prev.events, checkin_token: token } : prev.events,
+              }
+            : prev
+        );
+      }
+    }
 
     if (eventsRes && data) {
       const isCustom = eventsRes.is_custom ?? false;
@@ -322,6 +341,35 @@ export default function RegistrationDetailPage() {
       </Button>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-medium">Comprovante</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <RegistrationComprovante
+              data={{
+                fullName: reg.full_name,
+                email: reg.email,
+                whatsapp: reg.whatsapp,
+                eventTitle: reg.events?.title || 'Evento',
+                lotName: reg.event_lots?.name,
+                value: reg.event_lots?.price ?? reg.events?.price ?? 0,
+                paymentMethod: reg.payment_method,
+                paymentStatus: reg.payment_status,
+              }}
+              qrValue={
+                reg.events?.checkin_token
+                  ? buildCheckinUrl(reg.events.slug, reg.events.checkin_token, reg.id)
+                  : null
+              }
+            />
+            <div className="flex flex-col gap-2 print:hidden">
+              <Button size="sm" variant="outline" className="w-full" onClick={() => window.print()}>
+                <Printer className="h-4 w-4 mr-1" /> Imprimir
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">Dados Pessoais</CardTitle>

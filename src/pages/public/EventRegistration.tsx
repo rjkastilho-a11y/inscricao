@@ -1,12 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { toPng } from 'html-to-image';
 import { supabase } from '@/lib/supabase';
 import { RegistrationForm } from '@/components/registration/RegistrationForm';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Printer, Download } from 'lucide-react';
 import { fetchFormFields, splitFieldValues } from '@/lib/form-fields';
 import type { FormField, FormStep } from '@/lib/form-fields';
+import { RegistrationComprovante } from '@/components/registration/RegistrationComprovante';
+import { buildCheckinUrl } from '@/lib/checkin';
 
 async function hashTerms(text: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -64,6 +67,9 @@ export default function EventRegistration() {
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [disabledSteps, setDisabledSteps] = useState<FormStep[]>([]);
   const [lastPaymentMethod, setLastPaymentMethod] = useState<string | null>(null);
+  const [submittedData, setSubmittedData] = useState<Record<string, any> | null>(null);
+  const [submittedRegId, setSubmittedRegId] = useState<string | null>(null);
+  const comprovanteRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -214,12 +220,16 @@ export default function EventRegistration() {
       payload.lot_id = selectedLot.id;
     }
 
-    if (data.accept_terms && event.terms_text) {
+    if (columns.accept_terms && event.terms_text) {
       payload.terms_accepted_at = new Date().toISOString();
       payload.terms_version = await hashTerms(event.terms_text);
     }
 
-    const { error: insertError } = await supabase.from('registrations').insert(payload);
+    const { data: insertedReg, error: insertError } = await supabase
+      .from('registrations')
+      .insert(payload)
+      .select('id')
+      .single();
 
     if (insertError) {
       if (insertError.message.includes('Limite de 15 inscrições')) {
@@ -236,7 +246,28 @@ export default function EventRegistration() {
       return;
     }
 
+    setSubmittedData(data);
+    setSubmittedRegId(insertedReg?.id ?? null);
     setSubmitted(true);
+  };
+
+  const handleSaveComprovante = async () => {
+    const node = comprovanteRef.current;
+    if (!node) return;
+    try {
+      node.classList.add('comprovante-capture');
+      const dataUrl = await toPng(node, { pixelRatio: 2 });
+      node.classList.remove('comprovante-capture');
+      const a = document.createElement('a');
+      const safeName = (submittedData?.full_name || 'inscricao')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-');
+      a.href = dataUrl;
+      a.download = `comprovante-${safeName}.png`;
+      a.click();
+    } catch {
+      node.classList.remove('comprovante-capture');
+    }
   };
 
   if (loading) return <div className="p-8 text-center">Carregando evento...</div>;
@@ -262,27 +293,63 @@ export default function EventRegistration() {
 
   if (submitted) {
     const showPaymentLink = lastPaymentMethod === 'external_link' && event.payment_link;
+    const value = selectedLot?.price ?? event.price ?? 0;
+    const paymentMethod = submittedData?.payment_method ?? 'pix';
+    const paymentStatus = submittedData?.payment_status ?? 'pending';
+    const checkinUrl =
+      event.checkin_token && submittedRegId
+        ? buildCheckinUrl(slug ?? '', event.checkin_token, submittedRegId)
+        : null;
 
     return (
-      <div className="min-h-[60vh] flex items-center justify-center p-8">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold text-primary">Inscrição realizada!</h1>
-          <p className="text-muted-foreground">
-            Você receberá confirmação no e-mail e WhatsApp informados.
-          </p>
-          {showPaymentLink && (
-            <a href={event.payment_link} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="w-full max-w-xs mx-auto">
-                Pagar agora pelo Link
-              </Button>
-            </a>
-          )}
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors max-md:h-11"
-          >
-            Voltar ao início
-          </Link>
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-4">
+          <div className="text-center space-y-2">
+            <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto" />
+            <h1 className="text-2xl font-bold text-foreground">Inscrição realizada!</h1>
+            <p className="text-sm text-muted-foreground">
+              Sua inscrição foi registrada com sucesso. Guarde ou imprima este comprovante.
+            </p>
+          </div>
+
+          <RegistrationComprovante
+            data={{
+              fullName: submittedData?.full_name,
+              email: submittedData?.email,
+              whatsapp: submittedData?.whatsapp,
+              eventTitle: event.title,
+              lotName: selectedLot?.name,
+              value,
+              paymentMethod,
+              paymentStatus,
+            }}
+            qrValue={checkinUrl}
+            comprovanteRef={comprovanteRef}
+          />
+
+          <div className="space-y-2 print:hidden">
+            <Button variant="outline" className="w-full" onClick={handleSaveComprovante}>
+              <Download className="h-4 w-4 mr-2" />
+              Salvar no dispositivo
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir / Salvar comprovante
+            </Button>
+            {showPaymentLink && (
+              <a href={event.payment_link} target="_blank" rel="noopener noreferrer" className="block">
+                <Button variant="default" className="w-full">
+                  Pagar agora pelo Link
+                </Button>
+              </a>
+            )}
+            <Link
+              to="/"
+              className="block w-full text-center rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              Voltar ao início
+            </Link>
+          </div>
         </div>
       </div>
     );

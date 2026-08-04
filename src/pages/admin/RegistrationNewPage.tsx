@@ -145,7 +145,7 @@ export default function RegistrationNewPage() {
       payload.lot_id = selectedLot.id;
     }
 
-    if (data.accept_terms && event?.terms_text) {
+    if (columns.accept_terms && event?.terms_text) {
       payload.terms_accepted_at = new Date().toISOString();
       payload.terms_version = await hashTerms(event.terms_text);
     }
@@ -187,7 +187,8 @@ export default function RegistrationNewPage() {
       setPendingPayment(null);
     }
 
-    navigate(`/app/evento/${eventId}/inscricoes`);
+    toast.success('Inscrição criada com sucesso!');
+    navigate(`/app/evento/${eventId}/inscricoes/${newReg.id}`);
   };
 
   function renderLotCard(lot: EventLot) {

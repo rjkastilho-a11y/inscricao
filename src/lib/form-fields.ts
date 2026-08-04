@@ -399,6 +399,48 @@ export const KNOWN_COLUMNS = new Set([
   'has_special_needs', 'special_needs_description',
 ]);
 
+const BOOLEAN_COLUMNS = new Set([
+  'is_baptized', 'pastoral_authorization',
+  'has_allergies', 'has_special_needs', 'accept_terms',
+]);
+
+const NEGATIVE_BOOLEAN_VALUES = new Set(['não', 'nao', 'no', 'false', '0', 'n', 'not']);
+
+export function coerceBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  const items = Array.isArray(value) ? value : [value];
+  if (items.length === 0) return false;
+  return items.some((v) => {
+    const s = String(v).trim().toLowerCase();
+    if (!s) return false;
+    return !NEGATIVE_BOOLEAN_VALUES.has(s);
+  });
+}
+
+const GENDER_VALUES: Record<string, string> = {
+  masculino: 'M',
+  homem: 'M',
+  male: 'M',
+  man: 'M',
+  m: 'M',
+  feminino: 'F',
+  mulher: 'F',
+  female: 'F',
+  woman: 'F',
+  f: 'F',
+  outro: 'other',
+  outros: 'other',
+  other: 'other',
+  'prefiro não informar': 'other',
+};
+
+export function coerceGender(value: unknown): string {
+  if (Array.isArray(value)) value = value[0];
+  if (typeof value !== 'string') return 'other';
+  const key = value.trim().toLowerCase();
+  return GENDER_VALUES[key] ?? (key === 'm' || key === 'f' || key === 'other' ? key : 'other');
+}
+
 export function splitFieldValues(
   data: Record<string, any>,
   fields: FormField[]
@@ -411,12 +453,20 @@ export function splitFieldValues(
     if (value === undefined) continue;
     if (value === '' && field.field_type === 'date') continue;
 
-    const finalValue =
+    const target = field.db_column ?? (KNOWN_COLUMNS.has(field.field_key) ? field.field_key : null);
+
+    let finalValue =
       typeof value === 'string' && (field.field_type === 'text' || field.field_type === 'textarea')
         ? normalizeText(value)
         : typeof value === 'string' && field.field_type === 'email'
           ? value.trim().toLowerCase()
           : value;
+
+    if (target && BOOLEAN_COLUMNS.has(target)) {
+      finalValue = coerceBoolean(finalValue);
+    } else if (target === 'gender') {
+      finalValue = coerceGender(finalValue);
+    }
 
     if (field.db_column) {
       columns[field.db_column] = finalValue;

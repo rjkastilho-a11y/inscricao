@@ -20,9 +20,11 @@ import {
 } from '@/components/ui/dialog';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Trash2, Pencil, ExternalLink, Copy, Check, ArrowUpDown } from 'lucide-react';
+import { Trash2, Pencil, ExternalLink, Copy, Check, ArrowUpDown, CopyPlus } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useTrial } from '@/components/layout/ChurchGuard';
+import { Input } from '@/components/ui/input';
+import { duplicateEvent } from '@/lib/duplicate-event';
 
 interface Event {
   id: string;
@@ -52,6 +54,9 @@ export default function EventsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('start_date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [filter, setFilter] = useState<EventFilter>('active');
+  const [duplicateTarget, setDuplicateTarget] = useState<Event | null>(null);
+  const [duplicateTitle, setDuplicateTitle] = useState('');
+  const [duplicating, setDuplicating] = useState(false);
   const trial = useTrial();
   const navigate = useNavigate();
 
@@ -80,6 +85,25 @@ export default function EventsPage() {
     setDeleteTarget(null);
     setDeleting(false);
     fetchEvents();
+  };
+
+  const openDuplicateDialog = (event: Event) => {
+    setDuplicateTarget(event);
+    setDuplicateTitle(`${event.title} (cópia)`);
+  };
+
+  const handleDuplicate = async () => {
+    if (!duplicateTarget) return;
+    setDuplicating(true);
+    const result = await duplicateEvent(duplicateTarget.id, duplicateTitle);
+    setDuplicating(false);
+    if (!result.ok || !result.eventId) {
+      toast.error(result.error || 'Erro ao duplicar evento.');
+      return;
+    }
+    setDuplicateTarget(null);
+    toast.success('Evento duplicado com sucesso.');
+    navigate(`/app/eventos/${result.eventId}/editar`);
   };
 
   const toggleSort = (key: SortKey) => {
@@ -251,6 +275,14 @@ export default function EventsPage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="bg-card border-border"
+                onClick={() => openDuplicateDialog(event)}
+              >
+                <CopyPlus className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 className="bg-card border-border text-destructive hover:text-destructive"
                 onClick={() => setDeleteTarget(event)}
               >
@@ -328,6 +360,16 @@ export default function EventsPage() {
                         {copiedId === event.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                       </Button>
                     </Tooltip>
+                    <Tooltip content="Duplicar">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => openDuplicateDialog(event)}
+                      >
+                        <CopyPlus className="size-3.5" />
+                      </Button>
+                    </Tooltip>
                     <Tooltip content="Excluir">
                       <Button
                         variant="ghost"
@@ -365,6 +407,40 @@ export default function EventsPage() {
               disabled={deleting}
             >
               {deleting ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!duplicateTarget}
+        onOpenChange={(open) => { if (!open) setDuplicateTarget(null); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicar evento</DialogTitle>
+            <DialogDescription>
+              O formulário e os lotes de <strong>{duplicateTarget?.title}</strong> serão copiados.
+              As inscrições nascem zeradas e um novo link (slug) será gerado automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground" htmlFor="duplicate-title">
+              Nome do novo evento
+            </label>
+            <Input
+              id="duplicate-title"
+              value={duplicateTitle}
+              onChange={(e) => setDuplicateTitle(e.target.value)}
+              placeholder="Nome do evento (cópia)"
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancelar
+            </DialogClose>
+            <Button onClick={handleDuplicate} disabled={duplicating || duplicateTitle.trim().length < 3}>
+              {duplicating ? 'Duplicando...' : 'Duplicar'}
             </Button>
           </DialogFooter>
         </DialogContent>

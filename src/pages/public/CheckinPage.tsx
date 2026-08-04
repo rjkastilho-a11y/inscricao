@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Check, Search, UserCheck, Loader2, UserX } from 'lucide-react';
+import { Search, UserCheck, Loader2, UserX, CheckCircle2, ListChecks } from 'lucide-react';
 
 interface CheckinReg {
   id: string;
@@ -15,8 +15,9 @@ interface CheckinReg {
 
 export default function CheckinPage() {
   const { slug } = useParams<{ slug: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const regId = searchParams.get('reg');
 
   const [eventTitle, setEventTitle] = useState<string>('');
   const [registrations, setRegistrations] = useState<CheckinReg[]>([]);
@@ -24,6 +25,9 @@ export default function CheckinPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanResult, setScanResult] = useState<{ name: string; checkedIn: boolean } | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug || !token) {
@@ -55,26 +59,79 @@ export default function CheckinPage() {
       }
 
       setRegistrations(data || []);
+
+      if (regId) {
+        const found = (data || []).find((r) => r.id === regId);
+        if (!found) {
+          setScanError('Inscrição não encontrada para este evento.');
+          setLoading(false);
+          return;
+        }
+
+        setScanLoading(true);
+        const { data: newStatus, error: toggleError } = await supabase
+          .rpc('toggle_checkin', {
+            p_registration_id: regId,
+            p_token: token,
+          });
+        setScanLoading(false);
+
+        if (toggleError) {
+          setScanError(toggleError.message === 'Link de check-in inválido ou expirado.'
+            ? 'Link de check-in inválido ou expirado.'
+            : 'Erro ao realizar check-in.');
+        } else {
+          setScanResult({ name: found.full_name, checkedIn: !!newStatus });
+          setRegistrations((prev) =>
+            prev.map((r) => (r.id === regId ? { ...r, checked_in: !!newStatus } : r))
+          );
+        }
+      }
+
       setLoading(false);
     };
 
     fetchRegistrations();
-  }, [slug, token]);
+  }, [slug, token, regId]);
 
-  const handleToggleCheckIn = async (regId: string, currentStatus: boolean) => {
-    setCheckingId(regId);
+  const handleToggleCheckIn = async (regIdToToggle: string) => {
+    setCheckingId(regIdToToggle);
     const { data: newStatus, error: rpcError } = await supabase
       .rpc('toggle_checkin', {
-        p_registration_id: regId,
+        p_registration_id: regIdToToggle,
         p_token: token,
       });
 
     if (!rpcError && newStatus !== null) {
       setRegistrations((prev) =>
-        prev.map((r) => (r.id === regId ? { ...r, checked_in: !!newStatus } : r))
+        prev.map((r) => (r.id === regIdToToggle ? { ...r, checked_in: !!newStatus } : r))
       );
     }
     setCheckingId(null);
+  };
+
+  const handleUndoScan = async () => {
+    if (!regId || !token) return;
+    setScanLoading(true);
+    const { data: newStatus, error: rpcError } = await supabase
+      .rpc('toggle_checkin', {
+        p_registration_id: regId,
+        p_token: token,
+      });
+    setScanLoading(false);
+
+    if (!rpcError && newStatus !== null) {
+      setScanResult((prev) => (prev ? { ...prev, checkedIn: !!newStatus } : prev));
+      setRegistrations((prev) =>
+        prev.map((r) => (r.id === regId ? { ...r, checked_in: !!newStatus } : r))
+      );
+    }
+  };
+
+  const clearScan = () => {
+    setSearchParams({ token: token ?? '' });
+    setScanResult(null);
+    setScanError(null);
   };
 
   const filtered = useMemo(() => {
@@ -102,6 +159,67 @@ export default function CheckinPage() {
           <CardContent className="p-6 text-center space-y-4">
             <UserX className="h-12 w-12 text-destructive mx-auto" />
             <p className="text-foreground font-medium">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (regId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-card backdrop-blur-md border-border shadow-lg">
+          <CardContent className="p-6 text-center space-y-4">
+            {scanLoading ? (
+              <>
+                <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mx-auto" />
+                <p className="text-foreground font-medium">Realizando check-in...</p>
+              </>
+            ) : scanError ? (
+              <>
+                <UserX className="h-12 w-12 text-destructive mx-auto" />
+                <p className="text-foreground font-medium">{scanError}</p>
+                <Button variant="outline" className="w-full" onClick={clearScan}>
+                  <ListChecks className="h-4 w-4 mr-2" />
+                  Ver lista completa
+                </Button>
+              </>
+            ) : scanResult ? (
+              <>
+                {scanResult.checkedIn ? (
+                  <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto" />
+                ) : (
+                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto" />
+                )}
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {scanResult.checkedIn ? 'Check-in realizado!' : 'Check-in desfeito'}
+                  </h2>
+                  <p className="text-muted-foreground mt-1">{scanResult.name}</p>
+                  <div className="flex justify-center mt-3">
+                    <Badge
+                      variant={scanResult.checkedIn ? 'default' : 'outline'}
+                      className={scanResult.checkedIn
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'text-muted-foreground'
+                      }
+                    >
+                      {scanResult.checkedIn ? 'Confirmado' : 'Ausente'}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <Button variant="outline" className="w-full" onClick={handleUndoScan} disabled={scanLoading}>
+                    <UserX className="h-4 w-4 mr-2" />
+                    {scanResult.checkedIn ? 'Desfazer check-in' : 'Refazer check-in'}
+                  </Button>
+                  <Button className="w-full" onClick={clearScan}>
+                    <ListChecks className="h-4 w-4 mr-2" />
+                    Ver lista completa
+                  </Button>
+                </div>
+              </>
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -169,7 +287,7 @@ export default function CheckinPage() {
                       ? 'h-9 px-3 gap-1.5 shrink-0 border-muted-foreground/30'
                       : 'h-9 px-3 gap-1.5 shrink-0'
                   }
-                  onClick={() => handleToggleCheckIn(reg.id, reg.checked_in)}
+                  onClick={() => handleToggleCheckIn(reg.id)}
                   disabled={checkingId === reg.id}
                 >
                   {checkingId === reg.id ? (

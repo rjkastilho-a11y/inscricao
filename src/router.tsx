@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const LandingPage = lazy(() => import('@/pages/public/LandingPage'));
 const EventRegistration = lazy(() => import('@/pages/public/EventRegistration'));
+const ComprovantePage = lazy(() => import('@/pages/public/ComprovantePage'));
 const CheckinPage = lazy(() => import('@/pages/public/CheckinPage'));
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/public/RegisterPage'));
@@ -55,6 +56,7 @@ function SuspensePage({ children }: { children: React.ReactNode }) {
 export const router = createBrowserRouter([
   { path: '/', element: <SuspensePage><LandingPage /></SuspensePage> },
   { path: '/e/:slug', element: <SuspensePage><EventRegistration /></SuspensePage> },
+  { path: '/e/:slug/comprovante', element: <SuspensePage><ComprovantePage /></SuspensePage> },
   { path: '/e/:slug/checkin', element: <SuspensePage><CheckinPage /></SuspensePage> },
   { path: '/login', element: <SuspensePage><LoginPage /></SuspensePage> },
   { path: '/register', element: <SuspensePage><RegisterPage /></SuspensePage> },
