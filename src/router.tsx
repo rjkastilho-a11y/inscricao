@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/layout/protected-route';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { EventLayout } from '@/components/layout/EventLayout';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const LandingPage = lazy(() => import('@/pages/public/LandingPage'));
@@ -50,7 +51,11 @@ function PageLoading() {
 }
 
 function SuspensePage({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<PageLoading />}>{children}</Suspense>;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoading />}>{children}</Suspense>
+    </ErrorBoundary>
+  );
 }
 
 export const router = createBrowserRouter([
