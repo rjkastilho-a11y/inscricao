@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { copyToClipboard } from '@/lib/clipboard';
 import { SkeletonMobileCard } from '@/components/ui/skeleton';
@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -19,6 +20,7 @@ interface Invite {
   used: boolean;
   used_at: string | null;
   created_at: string;
+  recipient_name: string | null;
 }
 
 interface GestaoConvitesProps {
@@ -26,6 +28,57 @@ interface GestaoConvitesProps {
   eventSlug: string;
   eventTitle: string;
   eventIsOpen?: boolean;
+}
+
+interface RecipientNameCellProps {
+  invite: Invite;
+  isEditing: boolean;
+  draftName: string;
+  isSaving: boolean;
+  onStartEdit: (invite: Invite) => void;
+  onDraftChange: (value: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+}
+
+function RecipientNameCell({
+  invite,
+  isEditing,
+  draftName,
+  isSaving,
+  onStartEdit,
+  onDraftChange,
+  onCommit,
+  onCancel,
+}: RecipientNameCellProps) {
+  if (isEditing) {
+    return (
+      <Input
+        value={draftName}
+        onChange={(e) => onDraftChange(e.target.value)}
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onCommit();
+          if (e.key === 'Escape') onCancel();
+        }}
+        className="h-8 w-full max-w-[220px] text-sm"
+        autoFocus
+        disabled={isSaving}
+        placeholder="Nome de quem vai receber"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="w-full max-w-[220px] truncate rounded-lg px-2 py-1 text-left text-sm text-foreground hover:bg-accent"
+      onClick={() => onStartEdit(invite)}
+      title={invite.recipient_name ?? 'Clique para adicionar nome'}
+    >
+      {invite.recipient_name || <span className="text-muted-foreground">—</span>}
+    </button>
+  );
 }
 
 export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIsOpen }: GestaoConvitesProps) {
@@ -41,6 +94,10 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
   const [publicOpen, setPublicOpen] = useState(eventIsOpen ?? true);
   const [togglingPublic, setTogglingPublic] = useState(false);
   const [copiedPublicLink, setCopiedPublicLink] = useState(false);
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const [savingNameId, setSavingNameId] = useState<string | null>(null);
+  const skipCommitRef = useRef(false);
   const MOBILE_LIMIT = 3;
 
   useEffect(() => {
@@ -97,6 +154,43 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
     setDeletingId(null);
   };
 
+  const handleStartEditName = (invite: Invite) => {
+    setDraftName(invite.recipient_name ?? '');
+    setEditingNameId(invite.id);
+  };
+
+  const handleCancelEditName = () => {
+    skipCommitRef.current = true;
+    setEditingNameId(null);
+    setDraftName('');
+  };
+
+  const handleCommitEditName = async () => {
+    if (skipCommitRef.current) {
+      skipCommitRef.current = false;
+      setEditingNameId(null);
+      setDraftName('');
+      return;
+    }
+    if (!editingNameId) return;
+    const id = editingNameId;
+    const name = draftName.trim();
+    setSavingNameId(id);
+    const { error } = await supabase
+      .from('event_invites')
+      .update({ recipient_name: name || null })
+      .eq('id', id);
+    setSavingNameId(null);
+    if (error) {
+      toast.error('Erro ao salvar nome: ' + error.message);
+    } else {
+      setInvites((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, recipient_name: name || null } : i))
+      );
+    }
+    handleCancelEditName();
+  };
+
   const handleExportCsv = () => {
     const unused = invites.filter((i) => !i.used);
     if (unused.length === 0) {
@@ -106,9 +200,9 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
 
     const esc = (v: unknown) => `"${(`${v ?? ''}`).replace(/"/g, '""')}"`;
     const baseUrl = window.location.origin;
-    const header = 'Token,Link de Inscrição';
+    const header = 'Token,Enviado para,Link de Inscrição';
     const rows = unused.map(
-      (i) => `${esc(i.token)},${esc(`${baseUrl}/e/${eventSlug}?token=${i.token}`)}`
+      (i) => `${esc(i.token)},${esc(i.recipient_name ?? '')},${esc(`${baseUrl}/e/${eventSlug}?token=${i.token}`)}`
     );
 
     const csv = [header, ...rows].join('\n');
@@ -312,6 +406,19 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                   <p className="text-xs font-mono text-foreground truncate" title={invite.token}>
                     {invite.token.slice(0, 8)}...{invite.token.slice(-4)}
                   </p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="shrink-0">Enviado para:</span>
+                    <RecipientNameCell
+                      invite={invite}
+                      isEditing={editingNameId === invite.id}
+                      draftName={draftName}
+                      isSaving={savingNameId === invite.id}
+                      onStartEdit={handleStartEditName}
+                      onDraftChange={setDraftName}
+                      onCommit={handleCommitEditName}
+                      onCancel={handleCancelEditName}
+                    />
+                  </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>Criado: {formatDate(invite.created_at)}</span>
                     {invite.used_at && <span>Usado: {formatDate(invite.used_at)}</span>}
@@ -343,6 +450,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                 <thead>
                   <tr className="border-b border-border bg-accent">
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Token</th>
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Enviado para</th>
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Status</th>
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Criado em</th>
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Usado em</th>
@@ -353,6 +461,18 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                   {invites.map((invite) => (
                     <tr key={invite.id} className="border-b border-border hover:bg-accent">
                       <td className="p-3 text-sm font-mono text-foreground">{invite.token}</td>
+                      <td className="p-3 text-sm">
+                        <RecipientNameCell
+                          invite={invite}
+                          isEditing={editingNameId === invite.id}
+                          draftName={draftName}
+                          isSaving={savingNameId === invite.id}
+                          onStartEdit={handleStartEditName}
+                          onDraftChange={setDraftName}
+                          onCommit={handleCommitEditName}
+                          onCancel={handleCancelEditName}
+                        />
+                      </td>
                       <td className="p-3 text-sm">
                         <Badge variant={invite.used ? 'secondary' : 'default'}>
                           {invite.used ? 'Usado' : 'Disponível'}
