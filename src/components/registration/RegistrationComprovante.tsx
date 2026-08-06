@@ -1,6 +1,5 @@
 import type { Ref } from 'react';
 import { RegistrationQR } from '@/components/registration/RegistrationQR';
-import { paymentMethodLabels, paymentStatusLabels } from '@/lib/utils';
 
 export interface ComprovanteData {
   fullName?: string | null;
@@ -50,44 +49,14 @@ export function RegistrationComprovante({ data, qrValue, comprovanteRef }: Props
               <span className="font-medium text-right">{data.fullName}</span>
             </div>
           )}
-          {data.email && (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground shrink-0">E-mail</span>
-              <span className="font-medium text-right break-all">{data.email}</span>
-            </div>
-          )}
-          {data.whatsapp && (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground shrink-0">WhatsApp</span>
-              <span className="font-medium text-right">{data.whatsapp}</span>
-            </div>
-          )}
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground shrink-0">Evento</span>
             <span className="font-medium text-right">{data.eventTitle}</span>
           </div>
-          {data.lotName && (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground shrink-0">Lote</span>
-              <span className="font-medium text-right">{data.lotName}</span>
-            </div>
-          )}
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground shrink-0">Valor</span>
             <span className="font-medium text-right">
               {data.value > 0 ? `R$ ${data.value.toFixed(2)}` : 'Grátis'}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground shrink-0">Pagamento</span>
-            <span className="font-medium text-right">
-              {paymentMethodLabels[data.paymentMethod] ?? data.paymentMethod}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground shrink-0">Status</span>
-            <span className="font-medium text-right">
-              {paymentStatusLabels[data.paymentStatus] ?? data.paymentStatus}
             </span>
           </div>
         </div>

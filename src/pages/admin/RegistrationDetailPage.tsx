@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDate, paymentStatusLabels, paymentMethodLabels } from '@/lib/utils';
-import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer } from 'lucide-react';
+import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer, Link2 } from 'lucide-react';
 import { RegistrationComprovante } from '@/components/registration/RegistrationComprovante';
 import { buildCheckinUrl, ensureCheckinToken } from '@/lib/checkin';
 import { Input } from '@/components/ui/input';
@@ -99,6 +99,8 @@ interface Registration {
     step_other: boolean;
   } | null;
   event_lots: { name: string; price: number } | null;
+  invite_id: string | null;
+  event_invites: { recipient_name: string | null; token: string; created_at: string } | null;
 }
 
 export default function RegistrationDetailPage() {
@@ -131,7 +133,7 @@ export default function RegistrationDetailPage() {
     const [{ data }, { data: eventsRes }] = await Promise.all([
       supabase
         .from('registrations')
-        .select('*, events(title, slug, price, checkin_token, step_personal, step_christian_life, step_health, step_emergency, step_other), event_lots!lot_id(name, price)')
+        .select('*, events(title, slug, price, checkin_token, step_personal, step_christian_life, step_health, step_emergency, step_other), event_lots!lot_id(name, price), event_invites!invite_id(recipient_name, token, created_at)')
         .eq('id', id)
         .single(),
       supabase
@@ -340,36 +342,21 @@ export default function RegistrationDetailPage() {
         <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
       </Button>
 
+      {reg.invite_id && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-3 text-sm">
+          <Link2 className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+          <div>
+            <p className="font-medium text-foreground">Inscrito via link de convite</p>
+            <p className="text-muted-foreground mt-0.5">
+              {reg.event_invites?.recipient_name
+                ? `Enviado para: ${reg.event_invites.recipient_name}`
+                : 'Nome do destinatário não preenchido no convite.'}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-medium">Comprovante</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <RegistrationComprovante
-              data={{
-                fullName: reg.full_name,
-                email: reg.email,
-                whatsapp: reg.whatsapp,
-                eventTitle: reg.events?.title || 'Evento',
-                lotName: reg.event_lots?.name,
-                value: reg.event_lots?.price ?? reg.events?.price ?? 0,
-                paymentMethod: reg.payment_method,
-                paymentStatus: reg.payment_status,
-              }}
-              qrValue={
-                reg.events?.checkin_token
-                  ? buildCheckinUrl(reg.events.slug, reg.events.checkin_token, reg.id)
-                  : null
-              }
-            />
-            <div className="flex flex-col gap-2 print:hidden">
-              <Button size="sm" variant="outline" className="w-full" onClick={() => window.print()}>
-                <Printer className="h-4 w-4 mr-1" /> Imprimir
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">Dados Pessoais</CardTitle>
@@ -378,6 +365,7 @@ export default function RegistrationDetailPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
+            {hasField('full_name') && <Row label="Nome completo" value={getFieldValue('full_name', 'full_name') || '-'} />}
             {hasField('email') && <Row label="E-mail" value={getFieldValue('email', 'email') || '-'} />}
             {hasField('whatsapp') && <Row label="WhatsApp" value={getFieldValue('whatsapp', 'whatsapp') || '-'} />}
             {hasField('birth_date') && <Row label="Nascimento" value={getFieldValue('birth_date', 'birth_date') ? formatDate(String(getFieldValue('birth_date', 'birth_date'))) : '-'} />}
@@ -392,7 +380,7 @@ export default function RegistrationDetailPage() {
             {hasField('marital_status') && <Row label="Estado Civil" value={getFieldValue('marital_status', 'marital_status') || '-'} />}
             {hasField('wedding_date') && <Row label="Data de Casamento" value={getFieldValue('wedding_date', 'wedding_date') ? formatDate(String(getFieldValue('wedding_date', 'wedding_date'))) : '-'} />}
             {(() => {
-              const knownCols = ['email', 'whatsapp', 'birth_date', 'gender', 'cpf', 'rg', 'cep', 'address', 'city', 'state', 'spouse_name', 'marital_status', 'wedding_date'];
+              const knownCols = ['full_name', 'email', 'whatsapp', 'birth_date', 'gender', 'cpf', 'rg', 'cep', 'address', 'city', 'state', 'spouse_name', 'marital_status', 'wedding_date'];
               return formFields
                 .filter(f => f.is_active && f.step === 'personal' && !knownCols.includes(f.field_key) && !knownCols.includes(f.db_column || ''))
                 .filter(f => { const v = getFieldValue(f.field_key, f.db_column); return v != null && v !== '' && v !== false; })
@@ -536,6 +524,36 @@ export default function RegistrationDetailPage() {
               paidAmount={(reg as any).paid_amount}
               paymentMethod={reg.payment_method}
             />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-medium">Comprovante</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <RegistrationComprovante
+              data={{
+                fullName: reg.full_name,
+                email: reg.email,
+                whatsapp: reg.whatsapp,
+                eventTitle: reg.events?.title || 'Evento',
+                lotName: reg.event_lots?.name,
+                value: reg.event_lots?.price ?? reg.events?.price ?? 0,
+                paymentMethod: reg.payment_method,
+                paymentStatus: reg.payment_status,
+              }}
+              qrValue={
+                reg.events?.checkin_token
+                  ? buildCheckinUrl(reg.events.slug, reg.events.checkin_token, reg.id)
+                  : null
+              }
+            />
+            <div className="flex flex-col gap-2 print:hidden">
+              <Button size="sm" variant="outline" className="w-full" onClick={() => window.print()}>
+                <Printer className="h-4 w-4 mr-1" /> Imprimir
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
