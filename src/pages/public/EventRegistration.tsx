@@ -69,6 +69,7 @@ export default function EventRegistration() {
   const [lastPaymentMethod, setLastPaymentMethod] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<Record<string, any> | null>(null);
   const [submittedRegId, setSubmittedRegId] = useState<string | null>(null);
+  const [checkinToken, setCheckinToken] = useState<string | null>(null);
   const comprovanteRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -248,6 +249,24 @@ export default function EventRegistration() {
 
     setSubmittedData(data);
     setSubmittedRegId(insertedReg?.id ?? null);
+
+    let resolvedCheckinToken = event.checkin_token ?? null;
+    if (!resolvedCheckinToken && insertedReg?.id) {
+      try {
+        const { data: compData, error: compError } = await supabase.rpc('get_comprovante', {
+          p_event_slug: slug,
+          p_registration_id: insertedReg.id,
+        });
+        if (compError) {
+          console.error('[Registration] erro ao garantir token de check-in:', compError.message);
+        } else {
+          resolvedCheckinToken = compData?.[0]?.checkin_token ?? null;
+        }
+      } catch (err) {
+        console.error('[Registration] erro ao garantir token de check-in:', err);
+      }
+    }
+    setCheckinToken(resolvedCheckinToken);
     setSubmitted(true);
   };
 
@@ -297,8 +316,8 @@ export default function EventRegistration() {
     const paymentMethod = submittedData?.payment_method ?? 'pix';
     const paymentStatus = submittedData?.payment_status ?? 'pending';
     const checkinUrl =
-      event.checkin_token && submittedRegId
-        ? buildCheckinUrl(slug ?? '', event.checkin_token, submittedRegId)
+      checkinToken && submittedRegId
+        ? buildCheckinUrl(slug ?? '', checkinToken, submittedRegId)
         : null;
 
     return (

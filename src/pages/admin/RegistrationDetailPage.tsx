@@ -342,21 +342,7 @@ export default function RegistrationDetailPage() {
         <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
       </Button>
 
-      {reg.invite_id && (
-        <div className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-3 text-sm">
-          <Link2 className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-          <div>
-            <p className="font-medium text-foreground">Inscrito via link de convite</p>
-            <p className="text-muted-foreground mt-0.5">
-              {reg.event_invites?.recipient_name
-                ? `Enviado para: ${reg.event_invites.recipient_name}`
-                : 'Nome do destinatário não preenchido no convite.'}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={'grid gap-4 ' + (reg.events && (reg.events.step_health !== false || reg.events.step_emergency !== false) ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">Dados Pessoais</CardTitle>
@@ -471,9 +457,10 @@ export default function RegistrationDetailPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-medium">Pagamento</CardTitle>
+        <div className={'grid gap-4 ' + (reg.events && (reg.events.step_health !== false || reg.events.step_emergency !== false) ? 'md:col-span-2' : 'md:col-span-3') + ' ' + (reg.invite_id ? 'md:grid-cols-3' : 'md:grid-cols-2')}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg font-medium">Pagamento</CardTitle>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=5`)}>
               <Pencil className="h-3 w-3" />
             </Button>
@@ -556,6 +543,21 @@ export default function RegistrationDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        {reg.invite_id && (
+          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-3 text-sm">
+            <Link2 className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="font-medium text-foreground">Inscrito via link de convite</p>
+              <p className="text-muted-foreground mt-0.5">
+                {reg.event_invites?.recipient_name
+                  ? `Enviado para: ${reg.event_invites.recipient_name}`
+                  : 'Nome do destinatário não preenchido no convite.'}
+              </p>
+            </div>
+          </div>
+        )}
+        </div>
       </div>
 
       {reg.private_notes && (

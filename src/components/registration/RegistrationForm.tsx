@@ -507,41 +507,55 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
 
   const isLastStep = step === activeSteps.length - 1;
 
-  const getFieldsToValidate = useCallback(() => {
+  const getVisibleRequiredDynamicKeys = useCallback((currentStepKey?: FormStep) => {
+    return fields
+      ?.filter((f) => {
+        if (currentStepKey !== undefined && f.step !== currentStepKey) return false;
+        const fieldState = fieldStates.get(f.field_key);
+        const isVisible = fieldState?.visible ?? true;
+        const isRequired = fieldState?.required ?? f.required;
+        return isVisible && isRequired;
+      })
+      .map((f) => f.field_key) ?? [];
+  }, [fields, fieldStates]);
+
+  const getStepFieldsToValidate = useCallback((stepIdx: number) => {
+    const currentStepKey = activeSteps[stepIdx]?.stepKey;
+
     if (customMode) {
-      const currentStepKey = activeSteps[step]?.stepKey;
-      return fields
-        ?.filter((f) => {
-          if (f.step !== currentStepKey) return false;
-          const fieldState = fieldStates.get(f.field_key);
-          const isVisible = fieldState?.visible ?? true;
-          const isRequired = fieldState?.required ?? f.required;
-          return isVisible && isRequired;
-        })
-        .map((f) => f.field_key) ?? [];
+      return getVisibleRequiredDynamicKeys(currentStepKey);
     }
 
-    const currentStepKey = activeSteps[step]?.stepKey;
     let result: string[] = [];
 
-    if (step === 0) {
+    if (currentStepKey === 'personal') {
       result = ['full_name', 'email', 'whatsapp'].filter((k) => activeKeys.has(k) && fieldRequired(k));
-    } else if (step === 1) {
+    } else if (currentStepKey === 'christian_life') {
       if (form.getValues('perfil_fe') === 'Já sou cristão(ã)') {
-        result = ['church', 'pastor', 'church_role', 'pastoral_authorization'].filter((k) => activeKeys.has(k) && fieldRequired(k));
+        result = ['church', 'pastor', 'is_pastor', 'church_role', 'pastoral_authorization']
+          .filter((k) => activeKeys.has(k) && (fieldStates.get(k)?.visible ?? true));
         if (form.getValues('church_role') === 'Outro') {
           if (activeKeys.has('church_role_other')) result.push('church_role_other');
         }
       }
     }
 
-    const dynamicKeys = fields
-      ?.filter((f) => f.step === currentStepKey && f.required)
-      .map((f) => f.field_key) ?? [];
-
-    result.push(...dynamicKeys);
+    result.push(...getVisibleRequiredDynamicKeys(currentStepKey));
     return result;
-  }, [step, activeSteps, customMode, fields, fieldStates, activeKeys, form, fieldRequired]);
+  }, [activeSteps, customMode, getVisibleRequiredDynamicKeys, activeKeys, form, fieldRequired, fieldStates]);
+
+  const getFieldsToValidate = useCallback(() => {
+    return getStepFieldsToValidate(step);
+  }, [getStepFieldsToValidate, step]);
+
+  const getAllFieldsToValidate = useCallback(() => {
+    const keys = new Set<string>();
+    activeSteps.forEach((_, i) => {
+      for (const key of getStepFieldsToValidate(i)) keys.add(key);
+    });
+    if (activeSteps.some((s) => s.stepKey === 'payment')) keys.add('payment_method');
+    return Array.from(keys);
+  }, [activeSteps, getStepFieldsToValidate]);
 
   const handleNext = async () => {
     const fieldsToValidate = getFieldsToValidate();
@@ -733,7 +747,8 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
             <Button
               onClick={async () => {
                 form.setValue('lot_id', lotId);
-                const valid = await form.trigger();
+                const fieldsToValidate = getAllFieldsToValidate();
+                const valid = fieldsToValidate.length ? await form.trigger(fieldsToValidate as any) : true;
                 if (!valid) {
                   const firstKey = Object.keys(form.formState.errors)[0];
                   if (firstKey) {
