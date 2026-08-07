@@ -226,14 +226,14 @@ export default function EventRegistration() {
       payload.terms_version = await hashTerms(event.terms_text);
     }
 
-    const { data: insertedReg, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from('registrations')
-      .insert(payload)
-      .select('id')
-      .single();
+      .insert(payload);
 
     if (insertError) {
-      if (insertError.message.includes('Limite de 15 inscrições')) {
+      if (insertError.message.includes('Limite de 5 inscrições')) {
+        setFormError('Limite de inscrições atingido para este e-mail. Tente novamente em alguns minutos.');
+      } else if (insertError.message.includes('Limite de 15 inscrições')) {
         setFormError('As inscrições online para este evento estão temporariamente pausadas. Por favor, procure a organização ou a liderança da igreja para mais informações.');
       } else if (insertError.message.includes('Período de trial expirado')) {
         setFormError('As inscrições online estão temporariamente indisponíveis devido à expiração do período de trial. Procure a liderança da igreja.');
@@ -247,15 +247,24 @@ export default function EventRegistration() {
       return;
     }
 
+    let insertedRegId: string | null = null;
+    if (payload.email) {
+      const { data: fetchedRegId } = await supabase.rpc('get_registration_id_by_email', {
+        p_event_id: event.id,
+        p_email: payload.email,
+      });
+      insertedRegId = fetchedRegId ?? null;
+    }
+
     setSubmittedData(data);
-    setSubmittedRegId(insertedReg?.id ?? null);
+    setSubmittedRegId(insertedRegId);
 
     let resolvedCheckinToken = event.checkin_token ?? null;
-    if (!resolvedCheckinToken && insertedReg?.id) {
+    if (!resolvedCheckinToken && insertedRegId) {
       try {
         const { data: compData, error: compError } = await supabase.rpc('get_comprovante', {
           p_event_slug: slug,
-          p_registration_id: insertedReg.id,
+          p_registration_id: insertedRegId,
         });
         if (compError) {
           console.error('[Registration] erro ao garantir token de check-in:', compError.message);
