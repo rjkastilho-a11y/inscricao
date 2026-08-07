@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
+import * as Sentry from '@sentry/react';
 import { supabase } from '@/lib/supabase';
 import { RegistrationForm } from '@/components/registration/RegistrationForm';
 import { Card, CardContent } from '@/components/ui/card';
@@ -58,6 +59,7 @@ export default function EventRegistration() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDuplicateEmail, setIsDuplicateEmail] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -185,98 +187,148 @@ export default function EventRegistration() {
 
   const handleSubmit = async (data: Record<string, any>) => {
     setFormError(null);
+    setIsSubmitting(true);
     setLastPaymentMethod(data.payment_method || null);
 
-    let inviteId: string | null = null;
+    try {
+      let inviteId: string | null = null;
 
-    if (token) {
-      const { data: rpcResult, error: rpcError } = await supabase
-        .rpc('use_event_invite', { p_token: token });
+      if (token) {
+        const { data: rpcResult, error: rpcError } = await supabase
+          .rpc('use_event_invite', { p_token: token });
 
-      if (rpcError || !rpcResult?.[0]?.p_valid) {
-        setFormError('Este link de convite é inválido ou já foi utilizado. Entre em contato com o organizador do evento para receber um novo convite.');
+        if (rpcError || !rpcResult?.[0]?.p_valid) {
+          setFormError('Este link de convite é inválido ou já foi utilizado. Entre em contato com o organizador do evento para receber um novo convite.');
+          return;
+        }
+
+        inviteId = rpcResult[0].p_invite_id;
+      }
+
+      const { columns, extra } = splitFieldValues(data, formFields);
+
+      const payload: any = {
+        ...columns,
+        event_id: event.id,
+        invite_id: inviteId,
+        extra_fields: Object.keys(extra).length > 0 ? extra : null,
+      };
+
+      if (data.payment_method) {
+        payload.payment_method = data.payment_method;
+      }
+      if (data.payment_status) {
+        payload.payment_status = data.payment_status;
+      }
+
+      if (selectedLot) {
+        payload.lot_id = selectedLot.id;
+      }
+
+      if (columns.accept_terms && event.terms_text) {
+        payload.terms_accepted_at = new Date().toISOString();
+        try {
+          payload.terms_version = await hashTerms(event.terms_text);
+        } catch (err) {
+          console.warn('[Registration] falha ao gerar hash dos termos:', err);
+        }
+      }
+
+      const isTransientError = (e: { code?: string; message?: string; status?: number } | null): boolean => {
+        if (!e) return false;
+        if (!e.code || e.code === 'PGRST301') return true;
+        if (e.status && e.status >= 500) return true;
+        const msg = (e.message || '').toLowerCase();
+        return msg.includes('fetch failed') || msg.includes('network') || msg.includes('failed to fetch') || msg.includes('aborted');
+      };
+
+      const attemptInsert = async () => {
+        const { error: insertError } = await supabase
+          .from('registrations')
+          .insert(payload);
+        return insertError;
+      };
+
+      let insertError = await attemptInsert();
+
+      if (insertError && isTransientError(insertError)) {
+        console.warn('[Registration] falha transiente no insert, tentando novamente...', insertError.message);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        insertError = await attemptInsert();
+      }
+
+      if (insertError) {
+        Sentry.captureMessage('Inscrição pública falhou', {
+          extra: {
+            code: insertError.code,
+            message: insertError.message,
+            details: insertError.details,
+            slug,
+            eventId: event.id,
+          },
+        });
+
+        if (insertError.message.includes('Limite de 5 inscrições')) {
+          setFormError('Limite de inscrições atingido para este e-mail. Tente novamente em alguns minutos.');
+        } else if (insertError.message.includes('Limite de 15 inscrições')) {
+          setFormError('As inscrições online para este evento estão temporariamente pausadas. Por favor, procure a organização ou a liderança da igreja para mais informações.');
+        } else if (insertError.message.includes('Período de trial expirado')) {
+          setFormError('As inscrições online estão temporariamente indisponíveis devido à expiração do período de trial. Procure a liderança da igreja.');
+        } else if (insertError.code === '23505') {
+          setFormError('Este e-mail já está inscrito neste evento.');
+          setIsDuplicateEmail(true);
+        } else {
+          console.error('[Registration] insert error:', insertError.code, insertError.message, insertError.details);
+          setFormError(
+            insertError.message
+              ? `Erro ao realizar inscrição. Tente novamente. (${insertError.code || 'erro'}: ${insertError.message})`
+              : 'Erro ao realizar inscrição. Tente novamente.'
+          );
+        }
         return;
       }
 
-      inviteId = rpcResult[0].p_invite_id;
-    }
-
-    const { columns, extra } = splitFieldValues(data, formFields);
-
-    const payload: any = {
-      ...columns,
-      event_id: event.id,
-      invite_id: inviteId,
-      extra_fields: Object.keys(extra).length > 0 ? extra : null,
-    };
-
-    if (data.payment_method) {
-      payload.payment_method = data.payment_method;
-    }
-    if (data.payment_status) {
-      payload.payment_status = data.payment_status;
-    }
-
-    if (selectedLot) {
-      payload.lot_id = selectedLot.id;
-    }
-
-    if (columns.accept_terms && event.terms_text) {
-      payload.terms_accepted_at = new Date().toISOString();
-      payload.terms_version = await hashTerms(event.terms_text);
-    }
-
-    const { error: insertError } = await supabase
-      .from('registrations')
-      .insert(payload);
-
-    if (insertError) {
-      if (insertError.message.includes('Limite de 5 inscrições')) {
-        setFormError('Limite de inscrições atingido para este e-mail. Tente novamente em alguns minutos.');
-      } else if (insertError.message.includes('Limite de 15 inscrições')) {
-        setFormError('As inscrições online para este evento estão temporariamente pausadas. Por favor, procure a organização ou a liderança da igreja para mais informações.');
-      } else if (insertError.message.includes('Período de trial expirado')) {
-        setFormError('As inscrições online estão temporariamente indisponíveis devido à expiração do período de trial. Procure a liderança da igreja.');
-      } else if (insertError.code === '23505') {
-        setFormError('Este e-mail já está inscrito neste evento.');
-        setIsDuplicateEmail(true);
-      } else {
-        console.error('[Registration] insert error:', insertError.code, insertError.message, insertError.details);
-        setFormError('Erro ao realizar inscrição. Tente novamente.');
-      }
-      return;
-    }
-
-    let insertedRegId: string | null = null;
-    if (payload.email) {
-      const { data: fetchedRegId } = await supabase.rpc('get_registration_id_by_email', {
-        p_event_id: event.id,
-        p_email: payload.email,
-      });
-      insertedRegId = fetchedRegId ?? null;
-    }
-
-    setSubmittedData(data);
-    setSubmittedRegId(insertedRegId);
-
-    let resolvedCheckinToken = event.checkin_token ?? null;
-    if (!resolvedCheckinToken && insertedRegId) {
-      try {
-        const { data: compData, error: compError } = await supabase.rpc('get_comprovante', {
-          p_event_slug: slug,
-          p_registration_id: insertedRegId,
-        });
-        if (compError) {
-          console.error('[Registration] erro ao garantir token de check-in:', compError.message);
-        } else {
-          resolvedCheckinToken = compData?.[0]?.checkin_token ?? null;
+      let insertedRegId: string | null = null;
+      if (payload.email) {
+        try {
+          const { data: fetchedRegId } = await supabase.rpc('get_registration_id_by_email', {
+            p_event_id: event.id,
+            p_email: payload.email,
+          });
+          insertedRegId = fetchedRegId ?? null;
+        } catch (err) {
+          console.warn('[Registration] falha ao recuperar id da inscrição:', err);
         }
-      } catch (err) {
-        console.error('[Registration] erro ao garantir token de check-in:', err);
       }
+
+      setSubmittedData(data);
+      setSubmittedRegId(insertedRegId);
+
+      let resolvedCheckinToken = event.checkin_token ?? null;
+      if (!resolvedCheckinToken && insertedRegId) {
+        try {
+          const { data: compData, error: compError } = await supabase.rpc('get_comprovante', {
+            p_event_slug: slug,
+            p_registration_id: insertedRegId,
+          });
+          if (compError) {
+            console.error('[Registration] erro ao garantir token de check-in:', compError.message);
+          } else {
+            resolvedCheckinToken = compData?.[0]?.checkin_token ?? null;
+          }
+        } catch (err) {
+          console.error('[Registration] erro ao garantir token de check-in:', err);
+        }
+      }
+      setCheckinToken(resolvedCheckinToken);
+      setSubmitted(true);
+    } catch (err) {
+      console.error('[Registration] erro inesperado na submissão:', err);
+      Sentry.captureException(err);
+      setFormError('Erro ao realizar inscrição. Tente novamente.');
+    } finally {
+      setIsSubmitting(false);
     }
-    setCheckinToken(resolvedCheckinToken);
-    setSubmitted(true);
   };
 
   const handleSaveComprovante = async () => {
@@ -544,6 +596,7 @@ export default function EventRegistration() {
       )}
       <RegistrationForm
         onSubmit={handleSubmit}
+        isLoading={isSubmitting}
         lotId={selectedLot?.id}
         lotPrice={selectedLot?.price ?? event.price ?? 0}
         paymentLink={event.payment_link}
