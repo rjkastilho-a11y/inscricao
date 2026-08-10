@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { useEvent } from '@/contexts/EventContext';
+import { useEvent } from '@/contexts/useEvent';
 import { CheckCircle, Loader2, ClipboardEdit } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchFormFields, splitFieldValues } from '@/lib/form-fields';
@@ -139,6 +139,7 @@ export default function RegistrationNewPage() {
       extra_fields: Object.keys(extra).length > 0 ? extra : null,
       payment_status: data.payment_status ?? 'pending',
       payment_method: data.payment_method ?? 'pix',
+      payment_method_details: data.payment_method_details ?? null,
       private_notes: data.private_notes ?? null,
     };
     if (selectedLot) {

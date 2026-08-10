@@ -1,4 +1,4 @@
-import { useEvent } from '@/contexts/EventContext';
+import { useEvent } from '@/contexts/useEvent';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { copyToClipboard } from '@/lib/clipboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

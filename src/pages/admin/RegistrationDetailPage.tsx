@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDate, paymentStatusLabels, paymentMethodLabels } from '@/lib/utils';
-import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer, Link2 } from 'lucide-react';
+import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer, Link2, Globe } from 'lucide-react';
 import { RegistrationComprovante } from '@/components/registration/RegistrationComprovante';
 import { buildCheckinUrl, ensureCheckinToken } from '@/lib/checkin';
 import { Input } from '@/components/ui/input';
@@ -82,6 +82,7 @@ interface Registration {
   emergency_contact: string;
   emergency_phone: string;
   payment_method: string;
+  payment_method_details: string | null;
   payment_status: string;
   private_notes: string;
   created_at: string;
@@ -92,6 +93,9 @@ interface Registration {
     slug: string;
     price: number;
     checkin_token: string | null;
+    pix_key: string | null;
+    bank_details: string | null;
+    payment_link: string | null;
     step_personal: boolean;
     step_christian_life: boolean;
     step_health: boolean;
@@ -133,7 +137,7 @@ export default function RegistrationDetailPage() {
     const [{ data }, { data: eventsRes }] = await Promise.all([
       supabase
         .from('registrations')
-        .select('*, events(title, slug, price, checkin_token, step_personal, step_christian_life, step_health, step_emergency, step_other), event_lots!lot_id(name, price), event_invites!invite_id(recipient_name, token, created_at)')
+        .select('*, events(title, slug, price, checkin_token, pix_key, bank_details, payment_link, step_personal, step_christian_life, step_health, step_emergency, step_other), event_lots!lot_id(name, price), event_invites!invite_id(recipient_name, token, created_at)')
         .eq('id', id)
         .single(),
       supabase
@@ -342,7 +346,7 @@ export default function RegistrationDetailPage() {
         <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
       </Button>
 
-      <div className={'grid gap-4 ' + (reg.events && (reg.events.step_health !== false || reg.events.step_emergency !== false) ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
+      <div className={`grid gap-4 ${reg.events && (reg.events.step_health !== false || reg.events.step_emergency !== false) ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">Dados Pessoais</CardTitle>
@@ -457,7 +461,7 @@ export default function RegistrationDetailPage() {
           </CardContent>
         </Card>
 
-        <div className={'grid gap-4 ' + (reg.events && (reg.events.step_health !== false || reg.events.step_emergency !== false) ? 'md:col-span-2' : 'md:col-span-3') + ' ' + (reg.invite_id ? 'md:grid-cols-3' : 'md:grid-cols-2')}>
+        <div className={`grid gap-4 ${reg.events && (reg.events.step_health !== false || reg.events.step_emergency !== false) ? 'md:col-span-2' : 'md:col-span-3'} md:grid-cols-3`}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-medium">Pagamento</CardTitle>
@@ -529,12 +533,14 @@ export default function RegistrationDetailPage() {
                 value: reg.event_lots?.price ?? reg.events?.price ?? 0,
                 paymentMethod: reg.payment_method,
                 paymentStatus: reg.payment_status,
+                paymentMethodDetails: reg.payment_method_details,
               }}
               qrValue={
                 reg.events?.checkin_token
                   ? buildCheckinUrl(reg.events.slug, reg.events.checkin_token, reg.id)
                   : null
               }
+              event={reg.events}
             />
             <div className="flex flex-col gap-2 print:hidden">
               <Button size="sm" variant="outline" className="w-full" onClick={() => window.print()}>
@@ -544,7 +550,7 @@ export default function RegistrationDetailPage() {
           </CardContent>
         </Card>
 
-        {reg.invite_id && (
+        {reg.invite_id ? (
           <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-3 text-sm">
             <Link2 className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
             <div>
@@ -554,6 +560,14 @@ export default function RegistrationDetailPage() {
                   ? `Enviado para: ${reg.event_invites.recipient_name}`
                   : 'Nome do destinatário não preenchido no convite.'}
               </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
+            <Globe className="h-4 w-4 mt-0.5 shrink-0 text-slate-500 dark:text-slate-400" />
+            <div>
+              <p className="font-medium">Inscrição Pública</p>
+              <p className="mt-0.5 text-slate-500 dark:text-slate-400">Inscrito via link público do evento</p>
             </div>
           </div>
         )}

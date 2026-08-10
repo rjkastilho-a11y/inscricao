@@ -10,18 +10,14 @@ import { Navigate } from 'react-router-dom';
 import { Building2, Plus, AlertCircle, Loader2, Lock, Unlock, Clock, MoreHorizontal, Trash2, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import type { Church, PlanType } from '@/types/database';
 
-interface Church {
-  id: string;
-  name: string;
-  created_at: string;
-  is_active: boolean;
-  status: string;
-  trial_ends_at: string | null;
-}
+const MASTER_EMAIL = 'rj.kastilho@gmail.com';
 
 export default function MasterDashboardPage() {
   const { isSuperAdmin, loading: authLoading } = useAuth();
@@ -40,6 +36,7 @@ export default function MasterDashboardPage() {
   const [serviceKey, setServiceKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [deletingAuth, setDeletingAuth] = useState(false);
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -47,18 +44,17 @@ export default function MasterDashboardPage() {
     }
   }, [isSuperAdmin]);
 
-  const loadChurches = async () => {
+  async function loadChurches() {
     setLoading(true);
     const { data, error: fetchError } = await supabase
       .from('churches')
-      .select('id, name, created_at, is_active, status, trial_ends_at')
+      .select('id, name, created_at, is_active, status, trial_ends_at, plan_type, is_vip')
       .order('created_at', { ascending: false });
 
     if (fetchError) {
       console.error('Erro ao carregar igrejas:', fetchError.message);
     }
-    const churchesData = (data as Church[]) || [];
-    setChurches(churchesData);
+    let churchesData = (data as Church[]) || [];
 
     const results = await Promise.all(
       churchesData.map((c) =>
@@ -71,8 +67,15 @@ export default function MasterDashboardPage() {
     }
     setAdminEmails(emailMap);
 
+    // Ocultar a conta Master (rj.kastilho@gmail.com) para evitar exclusão acidental
+    churchesData = churchesData.filter((c) => {
+      const email = emailMap[c.id];
+      return !email || email.toLowerCase() !== MASTER_EMAIL.toLowerCase();
+    });
+    setChurches(churchesData);
+
     setLoading(false);
-  };
+  }
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -109,6 +112,95 @@ export default function MasterDashboardPage() {
     setChurches(prev =>
       prev.map(c => c.id === church.id ? { ...c, is_active: !c.is_active } : c)
     );
+  };
+
+  // ============================================================
+  // Atualização Otimista — Plano (Mensal/Anual)
+  // UI responde imediatamente; reconcilia com a resposta da RPC;
+  // faz rollback para o snapshot em caso de erro.
+  // ============================================================
+  const handleChangePlan = async (church: Church, newPlan: PlanType) => {
+    const snapshot = church;
+
+    setUpdatingIds(prev => new Set(prev).add(church.id));
+
+    setChurches(prev =>
+      prev.map(c =>
+        c.id === church.id
+          ? newPlan === 'annual'
+            ? { ...c, plan_type: newPlan, status: 'active', is_active: true, trial_ends_at: null }
+            : { ...c, plan_type: newPlan }
+          : c
+      )
+    );
+
+    const { data, error } = await supabase.rpc('admin_update_church_plan', {
+      target_church_id: church.id,
+      new_plan: newPlan,
+      set_vip: church.is_vip,
+    });
+
+    setUpdatingIds(prev => {
+      const next = new Set(prev);
+      next.delete(church.id);
+      return next;
+    });
+
+    if (error) {
+      setChurches(prev => prev.map(c => (c.id === church.id ? snapshot : c)));
+      toast.error(error.message);
+      return;
+    }
+
+    if (data) {
+      setChurches(prev => prev.map(c => (c.id === church.id ? (data as Church) : c)));
+    }
+
+    toast.success(`Plano alterado para ${newPlan === 'annual' ? 'Anual' : 'Mensal'}`);
+  };
+
+  // ============================================================
+  // Atualização Otimista — Chancela VIP
+  // ============================================================
+  const handleToggleVip = async (church: Church) => {
+    const snapshot = church;
+    const nextVip = !church.is_vip;
+
+    setUpdatingIds(prev => new Set(prev).add(church.id));
+
+    setChurches(prev =>
+      prev.map(c =>
+        c.id === church.id
+          ? nextVip
+            ? { ...c, is_vip: nextVip, status: 'active', is_active: true, trial_ends_at: null }
+            : { ...c, is_vip: nextVip }
+          : c
+      )
+    );
+
+    const { data, error } = await supabase.rpc('admin_update_church_plan', {
+      target_church_id: church.id,
+      new_plan: church.plan_type,
+      set_vip: nextVip,
+    });
+
+    setUpdatingIds(prev => {
+      const next = new Set(prev);
+      next.delete(church.id);
+      return next;
+    });
+
+    if (error) {
+      setChurches(prev => prev.map(c => (c.id === church.id ? snapshot : c)));
+      toast.error(error.message);
+      return;
+    }
+
+    if (data) {
+      setChurches(prev => prev.map(c => (c.id === church.id ? (data as Church) : c)));
+    }
+
+    toast.success(nextVip ? 'Chancela VIP concedida' : 'Chancela VIP revogada');
   };
 
   const handleLiberarAcesso = async () => {
@@ -321,6 +413,9 @@ export default function MasterDashboardPage() {
                           Plano
                         </th>
                         <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+                          VIP
+                        </th>
+                        <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                           E-mail
                         </th>
                         <th className="text-left p-4 text-sm font-medium text-muted-foreground">
@@ -340,22 +435,25 @@ export default function MasterDashboardPage() {
                           <td className="p-4 text-sm font-medium text-foreground">
                             {church.name}
                           </td>
-                          <td className="p-4 text-sm">
-                            <Badge variant={church.is_active ? 'default' : 'destructive'}>
-                              {church.is_active ? 'Ativo' : 'Bloqueado'}
-                            </Badge>
-                          </td>
+
+                          {/* Status: Ativa / Suspensa / Trial + Bloqueada */}
                           <td className="p-4 text-sm">
                             <div className="flex flex-col gap-1">
                               <Badge variant={
-                                church.status === 'trial' ? 'secondary' :
                                 church.status === 'suspended' ? 'destructive' :
+                                church.status === 'trial' ? 'secondary' :
                                 'default'
                               }>
-                                {church.status === 'trial' ? 'Trial' :
-                                 church.status === 'suspended' ? 'Suspenso' :
-                                 'Ativo'}
+                                {church.status === 'suspended' ? 'Suspensa' :
+                                 church.status === 'trial' ? 'Trial' :
+                                 'Ativa'}
                               </Badge>
+                              {!church.is_active && (
+                                <Badge variant="destructive">
+                                  <Lock className="size-3" />
+                                  Bloqueada
+                                </Badge>
+                              )}
                               {church.status === 'trial' && church.trial_ends_at && (
                                 <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                                   <Clock className="size-3" />
@@ -366,6 +464,42 @@ export default function MasterDashboardPage() {
                               )}
                             </div>
                           </td>
+
+                          {/* Plano: seletor Mensal/Anual */}
+                          <td className="p-4 text-sm">
+                            <Select
+                              value={church.plan_type}
+                              onValueChange={(v) => handleChangePlan(church, v as PlanType)}
+                              disabled={updatingIds.has(church.id)}
+                            >
+                              <SelectTrigger size="sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="monthly">Mensal</SelectItem>
+                                <SelectItem value="annual">Anual</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+
+                          {/* VIP: toggle de chancela */}
+                          <td className="p-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={church.is_vip}
+                                onCheckedChange={() => handleToggleVip(church)}
+                                disabled={updatingIds.has(church.id)}
+                              />
+                              <Badge
+                                variant={church.is_vip ? 'default' : 'outline'}
+                                className={church.is_vip ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'text-muted-foreground'}
+                              >
+                                <Sparkles className="size-3" />
+                                {church.is_vip ? 'VIP' : 'Padrão'}
+                              </Badge>
+                            </div>
+                          </td>
+
                           <td className="p-4 text-sm text-muted-foreground">
                             {adminEmails[church.id] || '-'}
                           </td>

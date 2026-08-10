@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import { Lock, X } from 'lucide-react';
 
 interface TrialData {
@@ -44,7 +42,7 @@ export function ChurchGuard({ children }: { children: ReactNode }) {
 
       const { data: church } = await supabase
         .from('churches')
-        .select('is_active, status, trial_ends_at, trial_suspended_at')
+        .select('is_active, status, trial_ends_at, trial_suspended_at, plan_type, is_vip')
         .eq('id', churchId)
         .maybeSingle();
 
@@ -52,6 +50,13 @@ export function ChurchGuard({ children }: { children: ReactNode }) {
 
       const isBlocked = church ? !church.is_active || church.status === 'suspended' : false;
       setBlocked(isBlocked);
+
+      // PASSE LIVRE: igreja VIP ou Anual não sofre gating de trial
+      if (church?.is_vip === true || church?.plan_type === 'annual') {
+        setTrialData(null);
+        setChecking(false);
+        return;
+      }
 
       if (church?.status === 'trial' && !isBlocked) {
         const { count } = await supabase

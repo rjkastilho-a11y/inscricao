@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { copyToClipboard } from '@/lib/clipboard';
@@ -20,11 +20,13 @@ import {
 } from '@/components/ui/dialog';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Trash2, Pencil, ExternalLink, Copy, Check, ArrowUpDown, CopyPlus } from 'lucide-react';
+import { Trash2, Pencil, ExternalLink, Copy, Check, ArrowUpDown, CopyPlus, Lock } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useTrial } from '@/components/layout/ChurchGuard';
 import { Input } from '@/components/ui/input';
 import { duplicateEvent } from '@/lib/duplicate-event';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { UpgradeModal } from '@/components/shared/UpgradeModal';
 
 interface Event {
   id: string;
@@ -45,6 +47,23 @@ type SortKey = 'title' | 'start_date' | 'price';
 type SortDir = 'asc' | 'desc';
 type EventFilter = 'all' | 'active' | 'closed';
 
+function SortHeader({ field, label, sortKey, toggleSort }: { field: SortKey; label: string; sortKey: SortKey; toggleSort: (key: SortKey) => void }) {
+  return (
+    <th
+      className="p-4 text-left text-sm font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors"
+      onClick={() => toggleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <ArrowUpDown className={cn(
+          'size-3 transition-opacity',
+          sortKey === field ? 'opacity-100' : 'opacity-30'
+        )} />
+      </div>
+    </th>
+  );
+}
+
 export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,19 +78,29 @@ export default function EventsPage() {
   const [duplicating, setDuplicating] = useState(false);
   const trial = useTrial();
   const navigate = useNavigate();
+  const { hasAccess } = useFeatureGate();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const activeEventsCount = events.filter((e) => e.is_open).length;
+  const limitReached = !hasAccess && activeEventsCount >= 1;
+  const isNewEventBlocked = !!trial?.isTrialExceeded || limitReached;
+  const handleNewEventBlocked = () => {
+    if (trial?.isTrialExceeded) trial.openUpgrade();
+    else setUpgradeOpen(true);
+  };
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
     if (error) {
       console.error('Erro ao buscar eventos:', error);
     }
     setEvents(data || []);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    const timer = setTimeout(() => fetchEvents(), 300);
+    return () => clearTimeout(timer);
+  }, [fetchEvents]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -153,21 +182,6 @@ export default function EventsPage() {
     );
   }
 
-  const SortHeader = ({ field, label }: { field: SortKey; label: string }) => (
-    <th
-      className="p-4 text-left text-sm font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors"
-      onClick={() => toggleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        <ArrowUpDown className={cn(
-          'size-3 transition-opacity',
-          sortKey === field ? 'opacity-100' : 'opacity-30'
-        )} />
-      </div>
-    </th>
-  );
-
   return (
     <div>
       <PageHeader
@@ -179,7 +193,8 @@ export default function EventsPage() {
         action={{
           label: 'Novo evento',
           to: '/app/eventos/novo',
-          onClick: trial?.isTrialExceeded ? () => trial.openUpgrade() : undefined,
+          onClick: isNewEventBlocked ? handleNewEventBlocked : undefined,
+          icon: limitReached ? <Lock className="size-4 text-amber-500" /> : undefined,
         }}
       />
 
@@ -190,7 +205,8 @@ export default function EventsPage() {
           action={{
             label: 'Criar primeiro evento',
             to: '/app/eventos/novo',
-            onClick: trial?.isTrialExceeded ? () => trial.openUpgrade() : undefined,
+            onClick: isNewEventBlocked ? handleNewEventBlocked : undefined,
+            icon: limitReached ? <Lock className="size-4 text-amber-500" /> : undefined,
           }}
         />
       )}
@@ -298,11 +314,11 @@ export default function EventsPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-accent">
-              <SortHeader field="title" label="Evento" />
+              <SortHeader field="title" label="Evento" sortKey={sortKey} toggleSort={toggleSort} />
               <th className="p-4 text-left text-sm font-medium text-muted-foreground">Status</th>
-              <SortHeader field="start_date" label="Início" />
+              <SortHeader field="start_date" label="Início" sortKey={sortKey} toggleSort={toggleSort} />
               <th className="p-4 text-left text-sm font-medium text-muted-foreground">Fim</th>
-              <SortHeader field="price" label="Valor" />
+              <SortHeader field="price" label="Valor" sortKey={sortKey} toggleSort={toggleSort} />
               <th className="p-4 text-left text-sm font-medium text-muted-foreground">Vagas</th>
               <th className="p-4 text-right text-sm font-medium text-muted-foreground">Ações</th>
             </tr>
@@ -445,6 +461,12 @@ export default function EventsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        featureName="Eventos Ilimitados"
+      />
     </div>
   );
 }

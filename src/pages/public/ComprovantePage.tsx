@@ -13,10 +13,14 @@ interface ComprovanteData {
   whatsapp: string;
   payment_method: string;
   payment_status: string;
+  payment_method_details: string | null;
   paid_amount: number | null;
   event_title: string;
   event_slug: string;
   event_price: number;
+  event_pix_key: string | null;
+  event_bank_details: string | null;
+  event_payment_link: string | null;
   checkin_token: string | null;
   lot_name: string | null;
   lot_price: number | null;
@@ -89,8 +93,14 @@ export default function ComprovantePage() {
             value: data.lot_price ?? data.event_price ?? 0,
             paymentMethod: data.payment_method,
             paymentStatus: data.payment_status,
+            paymentMethodDetails: data.payment_method_details,
           }}
           qrValue={checkinUrl}
+          event={{
+            pix_key: data.event_pix_key,
+            bank_details: data.event_bank_details,
+            payment_link: data.event_payment_link,
+          }}
         />
         <Button variant="outline" className="w-full" onClick={() => window.print()}>
           <Printer className="h-4 w-4 mr-2" />

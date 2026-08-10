@@ -9,6 +9,7 @@ interface Props {
     label: string;
     to: string;
     onClick?: () => void;
+    icon?: React.ReactNode;
   };
 }
 
@@ -34,6 +35,7 @@ function PageHeaderInner({ title, badge, description, action }: Props) {
             onClick={action.onClick}
             className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 max-md:min-h-[44px]"
           >
+            {action.icon}
             {action.label}
           </button>
         ) : (
@@ -41,6 +43,7 @@ function PageHeaderInner({ title, badge, description, action }: Props) {
             to={action.to}
             className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 max-md:min-h-[44px]"
           >
+            {action.icon}
             {action.label}
           </Link>
         )

@@ -50,7 +50,34 @@ const STATUS_CONFIG: Record<LotStatus, { label: string; className: string }> = {
 export default function EventRegistration() {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const urlToken = searchParams.get('token');
+
+  const readInviteToken = (): string | null => {
+    if (urlToken) return urlToken;
+    try {
+      if (typeof window !== 'undefined') {
+        return window.sessionStorage.getItem(`invite_token_${slug}`) || null;
+      }
+    } catch (e) {
+      console.warn('[DIAGNÓSTICO] Session storage não acessível:', e);
+    }
+    return null;
+  };
+
+  const [inviteToken] = useState<string | null>(readInviteToken);
+
+  useEffect(() => {
+    if (!urlToken) return;
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(`invite_token_${slug}`, urlToken);
+      }
+    } catch (e) {
+      console.warn('[DIAGNÓSTICO] Session storage não acessível (set):', e);
+    }
+  }, [urlToken, slug]);
+
+  console.log('[DIAGNÓSTICO] URL:', window.location.href, '| Token da URL:', urlToken, '| Persistido:', inviteToken);
 
   const [event, setEvent] = useState<any>(null);
   const [lots, setLots] = useState<EventLot[]>([]);
@@ -64,11 +91,10 @@ export default function EventRegistration() {
   const [submitted, setSubmitted] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [blockReason, setBlockReason] = useState<'trial_expired' | 'trial_limit' | 'inactive' | null>(null);
-  const [tokenValid, setTokenValid] = useState<boolean | null>(token ? null : true);
+  const [tokenValid, setTokenValid] = useState<boolean | null>(inviteToken ? null : true);
   const [showForm, setShowForm] = useState(false);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [disabledSteps, setDisabledSteps] = useState<FormStep[]>([]);
-  const [lastPaymentMethod, setLastPaymentMethod] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<Record<string, any> | null>(null);
   const [submittedRegId, setSubmittedRegId] = useState<string | null>(null);
   const [checkinToken, setCheckinToken] = useState<string | null>(null);
@@ -159,13 +185,13 @@ export default function EventRegistration() {
   }, [slug]);
 
   useEffect(() => {
-    if (!token || !event) return;
+    if (!inviteToken || !event) return;
 
     const validateToken = async () => {
       const { data, error } = await supabase
         .from('event_invites')
         .select('id, used')
-        .eq('token', token)
+        .eq('token', inviteToken)
         .eq('event_id', event.id)
         .maybeSingle();
 
@@ -178,7 +204,7 @@ export default function EventRegistration() {
     };
 
     validateToken();
-  }, [token, event]);
+  }, [inviteToken, event]);
 
   const clearFormError = useCallback(() => {
     setFormError(null);
@@ -188,14 +214,13 @@ export default function EventRegistration() {
   const handleSubmit = async (data: Record<string, any>) => {
     setFormError(null);
     setIsSubmitting(true);
-    setLastPaymentMethod(data.payment_method || null);
 
     try {
       let inviteId: string | null = null;
 
-      if (token) {
+      if (inviteToken) {
         const { data: rpcResult, error: rpcError } = await supabase
-          .rpc('use_event_invite', { p_token: token });
+          .rpc('use_event_invite', { p_token: inviteToken });
 
         if (rpcError || !rpcResult?.[0]?.p_valid) {
           setFormError('Este link de convite é inválido ou já foi utilizado. Entre em contato com o organizador do evento para receber um novo convite.');
@@ -203,6 +228,7 @@ export default function EventRegistration() {
         }
 
         inviteId = rpcResult[0].p_invite_id;
+        console.log('[DIAGNÓSTICO] Invite ID obtido:', inviteId);
       }
 
       const { columns, extra } = splitFieldValues(data, formFields);
@@ -213,9 +239,13 @@ export default function EventRegistration() {
         invite_id: inviteId,
         extra_fields: Object.keys(extra).length > 0 ? extra : null,
       };
+      console.log('[DIAGNÓSTICO] Payload final de inscrição:', payload);
 
       if (data.payment_method) {
         payload.payment_method = data.payment_method;
+      }
+      if (data.payment_method === 'other' && data.payment_method_details) {
+        payload.payment_method_details = data.payment_method_details;
       }
       if (data.payment_status) {
         payload.payment_status = data.payment_status;
@@ -321,6 +351,13 @@ export default function EventRegistration() {
         }
       }
       setCheckinToken(resolvedCheckinToken);
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem(`invite_token_${slug}`);
+        }
+      } catch (e) {
+        console.warn('[DIAGNÓSTICO] Session storage não acessível (remove):', e);
+      }
       setSubmitted(true);
     } catch (err) {
       console.error('[Registration] erro inesperado na submissão:', err);
@@ -352,11 +389,11 @@ export default function EventRegistration() {
 
   if (loading) return <div className="p-8 text-center">Carregando evento...</div>;
 
-  if (token && tokenValid === null) {
+  if (inviteToken && tokenValid === null) {
     return <div className="p-8 text-center">Validando convite...</div>;
   }
 
-  if (token && tokenValid === false) {
+  if (inviteToken && tokenValid === false) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-8">
         <div className="text-center space-y-2">
@@ -372,7 +409,6 @@ export default function EventRegistration() {
   if (error) return <div className="p-8 text-center text-muted-foreground">{error}</div>;
 
   if (submitted) {
-    const showPaymentLink = lastPaymentMethod === 'external_link' && event.payment_link;
     const value = selectedLot?.price ?? event.price ?? 0;
     const paymentMethod = submittedData?.payment_method ?? 'pix';
     const paymentStatus = submittedData?.payment_status ?? 'pending';
@@ -402,9 +438,11 @@ export default function EventRegistration() {
               value,
               paymentMethod,
               paymentStatus,
+              paymentMethodDetails: submittedData?.payment_method_details,
             }}
             qrValue={checkinUrl}
             comprovanteRef={comprovanteRef}
+            event={event}
           />
 
           <div className="space-y-2 print:hidden">
@@ -416,13 +454,6 @@ export default function EventRegistration() {
               <Printer className="h-4 w-4 mr-2" />
               Imprimir / Salvar comprovante
             </Button>
-            {showPaymentLink && (
-              <a href={event.payment_link} target="_blank" rel="noopener noreferrer" className="block">
-                <Button variant="default" className="w-full">
-                  Pagar agora pelo Link
-                </Button>
-              </a>
-            )}
             <Link
               to="/"
               className="block w-full text-center rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
@@ -600,6 +631,7 @@ export default function EventRegistration() {
         lotId={selectedLot?.id}
         lotPrice={selectedLot?.price ?? event.price ?? 0}
         paymentLink={event.payment_link}
+        allowedPaymentMethods={event.allowed_payment_methods}
         errorMessage={formError}
         onClearError={clearFormError}
         errorActionLabel={isDuplicateEmail ? 'Corrigir e-mail' : undefined}

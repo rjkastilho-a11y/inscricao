@@ -11,10 +11,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 
-import { useEvent } from '@/contexts/EventContext';
-import { Loader2, Plus, Pencil, Trash2, GripVertical } from 'lucide-react';
+import { useEvent } from '@/contexts/useEvent';
+import { Loader2, Plus, Pencil, Trash2, GripVertical, Lock, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { UpgradeModal } from '@/components/shared/UpgradeModal';
 import type { FormField, FieldType, FormStep, ConditionalLogic } from '@/lib/form-fields';
 import { STEP_LABELS, STEP_ORDER, fetchFormFields, copyDefaultFields, fetchDefaultFieldsByStep, copyDefaultFieldsByKeys } from '@/lib/form-fields';
 import { useTrial } from '@/components/layout/ChurchGuard';
@@ -202,14 +205,16 @@ function FieldCard({
 }
 
 export default function FormBuilderPage() {
-  const { eventId, event } = useEvent();
+  const { eventId, event, refreshEvent } = useEvent();
   const trial = useTrial();
+  const { hasAccess } = useFeatureGate();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [savingCustomToggle, setSavingCustomToggle] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingStep, setSavingStep] = useState<FormStep | null>(null);
   const [fields, setFields] = useState<FieldDraft[]>([]);
   const [editingField, setEditingField] = useState<FieldDraft | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editStep, setEditStep] = useState<FormStep>('personal');
   const [dialogMode, setDialogMode] = useState<'default' | 'custom'>('default');
   const [defaultFields, setDefaultFields] = useState<FormField[]>([]);
   const [selectedDefaultKeys, setSelectedDefaultKeys] = useState<string[]>([]);
@@ -224,6 +229,20 @@ export default function FormBuilderPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const isCustom = event?.is_custom ?? false;
+
+  const handleCustomToggle = async () => {
+    if (!hasAccess) { setUpgradeOpen(true); return; }
+    if (!eventId) return;
+    setSavingCustomToggle(true);
+    const next = !isCustom;
+    const { error } = await supabase.from('events').update({ is_custom: next }).eq('id', eventId);
+    if (error) {
+      toast.error('Erro ao salvar: ' + error.message);
+    } else {
+      await refreshEvent();
+    }
+    setSavingCustomToggle(false);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -315,7 +334,9 @@ export default function FormBuilderPage() {
     setFields(data.map(toDraft));
   }, [fields, eventId]);
 
-  useEffect(() => {
+  const [prevEvent, setPrevEvent] = useState(event);
+  if (event !== prevEvent) {
+    setPrevEvent(event);
     if (event) {
       setStepPersonal(event.step_personal ?? true);
       setStepChristianLife(event.step_christian_life ?? true);
@@ -323,7 +344,7 @@ export default function FormBuilderPage() {
       setStepEmergency(event.step_emergency ?? true);
       setStepOther(event.step_other ?? true);
     }
-  }, [event]);
+  }
 
   useEffect(() => {
     if (!eventId) return;
@@ -433,7 +454,6 @@ export default function FormBuilderPage() {
     const stepFields = fields.filter((f) => f.step === step);
     const maxOrder = stepFields.reduce((max, f) => Math.max(max, f.sort_order), 0);
     const draft = EMPTY_FIELD(step, maxOrder + 1);
-    setEditStep(step);
     setEditingField(draft);
     lastAutoPlaceholder.current = '';
 
@@ -449,7 +469,6 @@ export default function FormBuilderPage() {
   };
 
   const openEditField = (field: FieldDraft) => {
-    setEditStep(field.step);
     setEditingField({ ...field });
     lastAutoPlaceholder.current = getPlaceholderSuggestion(field.label, field.field_type);
     setDialogOpen(true);
@@ -464,18 +483,18 @@ export default function FormBuilderPage() {
       if (f.db_column) dynamicDbColumns[f.field_key] = f.db_column;
     }
 
-    if (!editingField.db_column) {
-      editingField.db_column = dynamicDbColumns[editingField.field_key] || null;
-    }
+    const draft: FieldDraft = editingField.db_column
+      ? editingField
+      : { ...editingField, db_column: dynamicDbColumns[editingField.field_key] || null };
 
     setFields((prev) => {
       const next = [...prev];
-      if (editingField._new) {
-        next.push({ ...editingField, _dirty: true });
+      if (draft._new) {
+        next.push({ ...draft, _dirty: true });
       } else {
-        const idx = next.findIndex((f) => f.id === editingField.id);
+        const idx = next.findIndex((f) => f.id === draft.id);
         if (idx >= 0) {
-          next[idx] = { ...editingField, _dirty: true };
+          next[idx] = { ...draft, _dirty: true };
         }
       }
       return next;
@@ -636,6 +655,25 @@ export default function FormBuilderPage() {
         description={isCustom ? 'Personalize os campos do formulário de inscrição.' : 'O evento usa o formulário padrão. Altere para "Personalizado" nas configurações para editar os campos.'}
       />
 
+      <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-lg">
+        <div className="flex items-center gap-3">
+          {hasAccess ? (
+            <Sparkles className="size-5 text-primary" />
+          ) : (
+            <Lock className="size-5 text-amber-500" />
+          )}
+          <div>
+            <p className="text-sm font-medium">Formulário Personalizado</p>
+            <p className="text-xs text-muted-foreground">
+              {hasAccess
+                ? 'Ative para editar os campos do formulário de inscrição.'
+                : 'Recurso exclusivo do Plano Anual.'}
+            </p>
+          </div>
+        </div>
+        <Switch checked={isCustom} disabled={savingCustomToggle} onCheckedChange={handleCustomToggle} />
+      </div>
+
       {!isCustom ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEndDefault}>
         <div className="space-y-6">
@@ -702,6 +740,7 @@ export default function FormBuilderPage() {
                 <Button
                   variant="outline"
                   onClick={async () => {
+                    if (!hasAccess) { setUpgradeOpen(true); return; }
                     if (!eventId) return;
                     await copyDefaultFields(eventId);
                     const data = await fetchFormFields(eventId, true, undefined, true);
@@ -713,7 +752,7 @@ export default function FormBuilderPage() {
               </CardContent>
             </Card>
           )}
-          {groupedFields.map((group, gi) => {
+          {groupedFields.map((group) => {
             const enabled = isStepEnabled(group.step);
             const activeCount = group.fields.filter(f => f.is_active).length;
             return (
@@ -749,9 +788,16 @@ export default function FormBuilderPage() {
                       ({activeCount}/{group.fields.length})
                     </span>
                   </div>
-                   <Button variant="outline" onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => openNewField(group.step)}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Novo campo
-                  </Button>
+                   <Button
+                     variant="outline"
+                     onClick={() => {
+                       if (!hasAccess) { setUpgradeOpen(true); return; }
+                       if (trial?.isTrialExceeded) { trial.openUpgrade(); return; }
+                       openNewField(group.step);
+                     }}
+                   >
+                     {hasAccess ? <Plus className="h-3.5 w-3.5 mr-1" /> : <Lock className="h-3.5 w-3.5 mr-1 text-amber-500" />} Novo campo
+                   </Button>
                 </div>
                 {group.fields.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">Nenhum campo neste passo.</p>
@@ -1010,6 +1056,12 @@ export default function FormBuilderPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <UpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        featureName="Formulários Customizados"
+      />
     </div>
   );
 }

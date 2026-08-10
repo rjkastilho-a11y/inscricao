@@ -10,8 +10,10 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Printer } from 'lucide-react';
-import { useEvent } from '@/contexts/EventContext';
+import { Printer, Lock } from 'lucide-react';
+import { useEvent } from '@/contexts/useEvent';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { UpgradeModal } from '@/components/shared/UpgradeModal';
 
 interface LabelConfig {
   name: string;
@@ -112,6 +114,8 @@ function abbreviateName(name: string): string {
 
 export default function EtiquetasPage() {
   const { event, eventId } = useEvent();
+  const { hasAccess } = useFeatureGate();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState('6081/6181/6281');
   const [fontSize, setFontSize] = useState('14pt');
   const [fontFamily, setFontFamily] = useState('Arial, sans-serif');
@@ -123,6 +127,11 @@ export default function EtiquetasPage() {
   const [labels, setLabels] = useState<string[]>([]);
   const config = PIMACO_CONFIGS[selectedModel] || PIMACO_CONFIGS['6081/6181/6281'];
 
+  const handleFormatLock = () => {
+    if (!hasAccess) { setUpgradeOpen(true); return true; }
+    return false;
+  };
+
   useEffect(() => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -133,11 +142,20 @@ export default function EtiquetasPage() {
     };
   }, []);
 
+  const [prevEventId, setPrevEventId] = useState(eventId);
+  if (eventId !== prevEventId) {
+    setPrevEventId(eventId);
+    setLabels([]);
+  }
+
+  const [prevLabels, setPrevLabels] = useState(labels);
+  if (labels !== prevLabels) {
+    setPrevLabels(labels);
+    setSelectedIndices(new Set(labels.map((_, i) => i)));
+  }
+
   useEffect(() => {
-    if (!eventId) {
-      setLabels([]);
-      return;
-    }
+    if (!eventId) return;
     supabase
       .from('registrations')
       .select('full_name')
@@ -145,13 +163,9 @@ export default function EtiquetasPage() {
       .neq('payment_status', 'canceled')
       .order('full_name')
       .then(({ data }) => {
-        setLabels((data || []).map((r: any) => r.full_name));
+        setLabels((data || []).map((r: { full_name: string | null }) => r.full_name ?? ''));
       });
   }, [eventId]);
-
-  useEffect(() => {
-    setSelectedIndices(new Set(labels.map((_, i) => i)));
-  }, [labels]);
 
   const toggleSelection = (index: number) => {
     setSelectedIndices((prev) => {
@@ -187,7 +201,11 @@ export default function EtiquetasPage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Modelo:</span>
-              <Select value={selectedModel} onValueChange={setSelectedModel}>
+              {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
+              <Select
+                value={selectedModel}
+                onValueChange={(v) => { if (handleFormatLock()) return; setSelectedModel(v); }}
+              >
                 <SelectTrigger className="w-full sm:max-w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -202,7 +220,11 @@ export default function EtiquetasPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Tamanho da Fonte:</span>
-              <Select value={fontSize} onValueChange={setFontSize}>
+              {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
+              <Select
+                value={fontSize}
+                onValueChange={(v) => { if (handleFormatLock()) return; setFontSize(v); }}
+              >
                 <SelectTrigger className="w-full sm:max-w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -217,7 +239,11 @@ export default function EtiquetasPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Fonte:</span>
-              <Select value={fontFamily} onValueChange={setFontFamily}>
+              {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
+              <Select
+                value={fontFamily}
+                onValueChange={(v) => { if (handleFormatLock()) return; setFontFamily(v); }}
+              >
                 <SelectTrigger className="w-full sm:max-w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -234,10 +260,11 @@ export default function EtiquetasPage() {
               <Checkbox
                 id="bold"
                 checked={isBold}
-                onCheckedChange={(checked) => setIsBold(checked === true)}
+                onCheckedChange={(checked) => { if (handleFormatLock()) return; setIsBold(checked === true); }}
               />
-              <label htmlFor="bold" className="text-sm text-muted-foreground cursor-pointer">
+              <label htmlFor="bold" className="text-sm text-muted-foreground cursor-pointer flex items-center">
                 Negrito
+                {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
               </label>
             </div>
             <div className="flex items-center gap-2">
@@ -254,20 +281,22 @@ export default function EtiquetasPage() {
               <Checkbox
                 id="abbreviateNames"
                 checked={abbreviateNames}
-                onCheckedChange={(checked) => setAbbreviateNames(checked === true)}
+                onCheckedChange={(checked) => { if (handleFormatLock()) return; setAbbreviateNames(checked === true); }}
               />
-              <label htmlFor="abbreviateNames" className="text-sm text-muted-foreground cursor-pointer">
+              <label htmlFor="abbreviateNames" className="text-sm text-muted-foreground cursor-pointer flex items-center">
                 Abreviar nomes
+                {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
               </label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
                 id="breakLines"
                 checked={breakLines}
-                onCheckedChange={(checked) => setBreakLines(checked === true)}
+                onCheckedChange={(checked) => { if (handleFormatLock()) return; setBreakLines(checked === true); }}
               />
-              <label htmlFor="breakLines" className="text-sm text-muted-foreground cursor-pointer">
+              <label htmlFor="breakLines" className="text-sm text-muted-foreground cursor-pointer flex items-center">
                 Quebrar linha
+                {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
               </label>
             </div>
           </div>
@@ -457,6 +486,12 @@ export default function EtiquetasPage() {
           }
         }
       `}</style>
+
+      <UpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        featureName="Personalização de Etiquetas"
+      />
     </div>
   );
 }

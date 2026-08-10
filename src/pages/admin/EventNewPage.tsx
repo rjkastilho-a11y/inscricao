@@ -65,7 +65,16 @@ export default function EventNewPage() {
 
   const form = useForm({
     resolver: zodResolver(eventSchema),
-    defaultValues: { is_open: false, price: 0, terms_text: DEFAULT_TERMS, terms_enabled: true, payment_link: '' },
+    defaultValues: {
+      is_open: false,
+      price: 0,
+      terms_text: DEFAULT_TERMS,
+      terms_enabled: true,
+      payment_link: '',
+      allowed_payment_methods: ['pix', 'credit_card', 'cash', 'bank_transfer', 'other'],
+      pix_key: '',
+      bank_details: '',
+    },
   });
 
   const title = form.watch('title');
@@ -245,10 +254,66 @@ export default function EventNewPage() {
                 <Input id="max_capacity" type="number" {...form.register('max_capacity')} />
               </div>
             </div>
-            <div>
-              <Label htmlFor="payment_link" className="text-foreground">Link de pagamento (opcional)</Label>
-              <Input id="payment_link" type="url" placeholder="https://..." {...form.register('payment_link')} />
-              <p className="text-xs text-muted-foreground mt-1">URL para página de pagamento externa (MercadoPago, Stripe, etc.)</p>
+            <div className="border-t border-border pt-4 mt-6">
+              <Label className="text-foreground font-semibold">Métodos de pagamento aceitos</Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Selecione quais formas de pagamento os participantes poderão escolher na inscrição.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { value: 'pix', label: 'PIX' },
+                  { value: 'credit_card', label: 'Cartão de crédito' },
+                  { value: 'cash', label: 'Dinheiro' },
+                  { value: 'bank_transfer', label: 'Transferência' },
+                  { value: 'external_link', label: 'Link de pagamento' },
+                  { value: 'other', label: 'Outro' },
+                ].map((method) => (
+                  <label
+                    key={method.value}
+                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary"
+                  >
+                    <Checkbox
+                      value={method.value}
+                      checked={(form.watch('allowed_payment_methods') || []).includes(method.value)}
+                      onCheckedChange={(checked) => {
+                        const current = form.watch('allowed_payment_methods') || [];
+                        form.setValue(
+                          'allowed_payment_methods',
+                          checked
+                            ? [...current, method.value]
+                            : current.filter((v) => v !== method.value),
+                          { shouldDirty: true }
+                        );
+                      }}
+                    />
+                    <span className="text-sm text-foreground cursor-pointer">{method.label}</span>
+                  </label>
+                ))}
+              </div>
+
+              {(form.watch('allowed_payment_methods') || []).includes('pix') && (
+                <div className="mt-4">
+                  <Label htmlFor="pix_key" className="text-foreground">Chave PIX</Label>
+                  <Input id="pix_key" placeholder="CPF, e-mail, telefone ou chave aleatória" {...form.register('pix_key')} />
+                  <p className="text-xs text-muted-foreground mt-1">Exibida na tela de sucesso para pagamento via PIX.</p>
+                </div>
+              )}
+
+              {(form.watch('allowed_payment_methods') || []).includes('bank_transfer') && (
+                <div className="mt-4">
+                  <Label htmlFor="bank_details" className="text-foreground">Dados para transferência</Label>
+                  <Textarea id="bank_details" rows={3} placeholder="Banco, agência, conta, titular..." {...form.register('bank_details')} />
+                  <p className="text-xs text-muted-foreground mt-1">Exibidos na tela de sucesso para pagamento por transferência.</p>
+                </div>
+              )}
+
+              {(form.watch('allowed_payment_methods') || []).includes('external_link') && (
+                <div className="mt-4">
+                  <Label htmlFor="payment_link" className="text-foreground">Link de pagamento</Label>
+                  <Input id="payment_link" type="url" placeholder="https://..." {...form.register('payment_link')} />
+                  <p className="text-xs text-muted-foreground mt-1">URL para página de pagamento externa (MercadoPago, Stripe, etc.)</p>
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox

@@ -1,5 +1,5 @@
 import { useEffect, useState, Fragment } from 'react';
-import { useEvent } from '@/contexts/EventContext';
+import { useEvent } from '@/contexts/useEvent';
 import { Button } from '@/components/ui/button';
 import { fetchFormFields, type FormField, type FormStep, STEP_LABELS, STEP_ORDER } from '@/lib/form-fields';
 import { formatDate } from '@/lib/utils';

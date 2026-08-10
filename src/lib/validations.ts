@@ -35,6 +35,7 @@ export const registrationSchema = z
     accept_terms:          z.boolean().optional(),
 
     payment_method:  z.enum(['pix', 'credit_card', 'cash', 'bank_transfer', 'other', 'external_link']),
+    payment_method_details: z.string().optional(),
     payment_status:  z.enum(['pending', 'paid', 'overdue', 'refunded', 'canceled']).optional(),
     paid_amount:     z.preprocess(
       (v) => (v === '' || v === undefined || v === null || (typeof v === 'number' && isNaN(v))) ? undefined : v,
@@ -97,6 +98,9 @@ export const eventSchema = z.object({
   terms_text: z.string().optional(),
   terms_enabled: z.boolean().optional(),
   payment_link: z.string().url('URL inválida').optional().or(z.literal('')),
+  allowed_payment_methods: z.array(z.string()).default(['pix', 'credit_card', 'cash', 'bank_transfer', 'other']),
+  pix_key: z.string().optional().or(z.literal('')),
+  bank_details: z.string().optional().or(z.literal('')),
 });
 
 export const lotSchema = z.object({

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonCard, SkeletonMobileCard } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { useEvent } from '@/contexts/EventContext';
+import { useEvent } from '@/contexts/useEvent';
 import { Printer, Loader2, CalendarDays, Users } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 

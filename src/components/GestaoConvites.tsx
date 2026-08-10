@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Plus, Download, Loader2, Trash2, MessageCircle, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { Plus, Download, Loader2, Trash2, MessageCircle, ChevronDown, ChevronUp, Copy, Check, Link2, Globe } from 'lucide-react';
 import { useTrial } from '@/components/layout/ChurchGuard';
 
 interface Invite {
@@ -294,12 +294,18 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
         <div className="rounded-lg border border-border bg-muted/50 p-3 md:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="min-w-0">
-              <h4 className="text-sm font-medium text-foreground">Link Público de Inscrição</h4>
+              <h4 className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                Link Público do Evento
+              </h4>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Qualquer pessoa com este link pode se inscrever no evento
+                Divulgação geral — qualquer pessoa com este link pode se inscrever (sem convite)
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="secondary" className="text-xs">
+                Público
+              </Badge>
               <Badge variant={publicOpen ? 'default' : 'secondary'} className="text-xs">
                 {publicOpen ? 'Ativo' : 'Bloqueado'}
               </Badge>
@@ -332,7 +338,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
               ) : (
                 <Copy className="h-3 w-3 mr-1" />
               )}
-              {copiedPublicLink ? 'Copiado' : 'Copiar'}
+              {copiedPublicLink ? 'Copiado' : 'Copiar link público'}
             </Button>
           </div>
         </div>
@@ -366,7 +372,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                     <div className="flex items-center gap-1">
                       {!invite.used && (
                         <>
-                          <Tooltip content="Copiar link">
+                          <Tooltip content="Copiar link exclusivo deste convite">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -376,7 +382,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                               {copiedInviteId === invite.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                             </Button>
                           </Tooltip>
-                          <Tooltip content="Compartilhar no WhatsApp">
+                          <Tooltip content="Compartilhar link exclusivo no WhatsApp">
                             <a
                               href={whatsappUrl(invite)}
                               target="_blank"
@@ -403,9 +409,13 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs font-mono text-foreground truncate" title={invite.token}>
-                    {invite.token.slice(0, 8)}...{invite.token.slice(-4)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <Link2 className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-xs font-mono text-foreground truncate" title={invite.token}>
+                      {invite.token.slice(0, 8)}...{invite.token.slice(-4)}
+                    </p>
+                    <Badge variant="default" className="text-[10px]">Exclusivo</Badge>
+                  </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="shrink-0">Enviado para:</span>
                     <RecipientNameCell
@@ -460,7 +470,13 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                 <tbody>
                   {invites.map((invite) => (
                     <tr key={invite.id} className="border-b border-border hover:bg-accent">
-                      <td className="p-3 text-sm font-mono text-foreground">{invite.token}</td>
+                      <td className="p-3 text-sm">
+                        <div className="flex items-center gap-1.5">
+                          <Link2 className="h-3.5 w-3.5 text-primary" />
+                          <span className="font-mono">{invite.token}</span>
+                          <Badge variant="default" className="text-[10px]">Exclusivo</Badge>
+                        </div>
+                      </td>
                       <td className="p-3 text-sm">
                         <RecipientNameCell
                           invite={invite}
@@ -486,7 +502,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                         <div className="flex items-center justify-end gap-1">
                           {!invite.used && (
                             <>
-                              <Tooltip content="Copiar link">
+                              <Tooltip content="Copiar link exclusivo deste convite">
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -496,7 +512,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                                   {copiedInviteId === invite.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                                 </Button>
                               </Tooltip>
-                              <Tooltip content="Compartilhar no WhatsApp">
+                              <Tooltip content="Compartilhar link exclusivo no WhatsApp">
                                 <a
                                   href={whatsappUrl(invite)}
                                   target="_blank"

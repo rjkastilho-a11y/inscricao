@@ -50,6 +50,7 @@ interface RegistrationRow {
   emergency_contact: string | null;
   emergency_phone: string | null;
   payment_method: string;
+  payment_method_details: string | null;
   payment_status: string | null;
   private_notes: string | null;
   lot_id: string | null;
@@ -240,6 +241,7 @@ export default function RegistrationEditPage() {
         emergency_contact: reg.emergency_contact || undefined,
         emergency_phone: reg.emergency_phone || undefined,
         payment_method: reg.payment_method || 'pix',
+        payment_method_details: reg.payment_method_details || undefined,
         payment_status: reg.payment_status || undefined,
         paid_amount: (reg as any).paid_amount || undefined,
         lot_id: reg.lot_id || undefined,
@@ -275,6 +277,7 @@ export default function RegistrationEditPage() {
       payment_status: data.payment_status ?? null,
       private_notes: data.private_notes ?? null,
       payment_method: data.payment_method ?? 'pix',
+      payment_method_details: data.payment_method_details ?? null,
     };
 
     if (data.payment_status === 'canceled') {

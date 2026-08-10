@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { useEvent } from '@/contexts/EventContext';
+import { useEvent } from '@/contexts/useEvent';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonTable, SkeletonMobileCard } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -11,14 +11,16 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { formatDate, formatCurrency, normalizeText, paymentStatusLabels, paymentMethodLabels } from '@/lib/utils';
+import { formatDate, formatCurrency, normalizeText, paymentStatusLabels } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Trash2, Search, X, Download, Upload, FileDown, UserCheck, Loader2, Check, MoreHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, Search, X, Download, Upload, FileDown, UserCheck, Loader2, Check, ArrowDownUp, ChevronUp, ChevronDown, Lock } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import Papa from 'papaparse';
 import { useTrial } from '@/components/layout/ChurchGuard';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { UpgradeModal } from '@/components/shared/UpgradeModal';
 import { fetchFormFields } from '@/lib/form-fields';
 import type { FormField, FieldType, FormStep } from '@/lib/form-fields';
 
@@ -48,9 +50,18 @@ interface Registration {
   checked_in: boolean;
   created_at: string;
   event_id: string;
+  invite_id?: string | null;
   events: { title: string; price: number } | null;
   event_lots: { name: string; price: number } | null;
   extra_fields: Record<string, unknown> | null;
+  paid_amount?: number | null;
+  refunded_amount?: number | null;
+}
+
+interface WorksheetWithDataValidations {
+  dataValidations: {
+    add: (range: string, options: { type: string; formulae: string[] }) => void;
+  };
 }
 
 interface FormMapping {
@@ -111,12 +122,18 @@ export default function RegistrationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { event, eventId } = useEvent();
   const trial = useTrial();
+  const { hasAccess } = useFeatureGate();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState('Importação de Dados em Lote');
+  const [formFields, setFormFields] = useState<FormField[]>([]);
+  const churchCollected = formFields.some((f) => f.field_key === 'church');
 
   const [data, setData] = useState<Registration[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('payment_status') || '');
+  const [originFilter, setOriginFilter] = useState(searchParams.get('origin') || '');
   const [churchFilter, setChurchFilter] = useState(searchParams.get('church') || '');
   const [checkinFilter, setCheckinFilter] = useState(searchParams.get('checkin') || '');
   const [dateFrom, setDateFrom] = useState(searchParams.get('date_from') || '');
@@ -129,7 +146,6 @@ export default function RegistrationsPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<Record<string, string>[] | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; errors: string[] } | null>(null);
@@ -144,6 +160,7 @@ export default function RegistrationsPage() {
     const params = new URLSearchParams();
     if (search) params.set('q', search);
     if (statusFilter) params.set('payment_status', statusFilter);
+    if (originFilter) params.set('origin', originFilter);
     if (churchFilter) params.set('church', churchFilter);
     if (checkinFilter) params.set('checkin', checkinFilter);
     if (dateFrom) params.set('date_from', dateFrom);
@@ -151,7 +168,7 @@ export default function RegistrationsPage() {
     if (sortField !== 'full_name') params.set('sort', sortField);
     if (sortDirection !== 'asc') params.set('dir', sortDirection);
     setSearchParams(params, { replace: true });
-  }, [search, statusFilter, churchFilter, checkinFilter, dateFrom, dateTo, sortField, sortDirection, setSearchParams]);
+  }, [search, statusFilter, originFilter, churchFilter, checkinFilter, dateFrom, dateTo, sortField, sortDirection, setSearchParams]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -167,6 +184,17 @@ export default function RegistrationsPage() {
         setChurches(unique);
       });
   }, [eventId]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    const disabled: FormStep[] = [];
+    if (event?.step_personal === false) disabled.push('personal');
+    if (event?.step_christian_life === false) disabled.push('christian_life');
+    if (event?.step_health === false) disabled.push('health');
+    if (event?.step_emergency === false) disabled.push('emergency');
+    if (event?.step_other === false) disabled.push('other');
+    fetchFormFields(eventId, event?.is_custom ?? false, disabled).then(setFormFields);
+  }, [eventId, event?.is_custom, event?.step_personal, event?.step_christian_life, event?.step_health, event?.step_emergency, event?.step_other]);
 
   const pageSize = 20;
 
@@ -190,13 +218,18 @@ export default function RegistrationsPage() {
         `full_name.ilike.%${search}%,email.ilike.%${search}%,whatsapp.ilike.%${search}%`
       );
     }
-    if (churchFilter) {
+    if (churchFilter && churchCollected) {
       query = query.eq('church', churchFilter);
     }
     if (checkinFilter === 'checked') {
       query = query.eq('checked_in', true);
     } else if (checkinFilter === 'pending') {
       query = query.eq('checked_in', false);
+    }
+    if (originFilter === 'invite') {
+      query = query.not('invite_id', 'is', null);
+    } else if (originFilter === 'public') {
+      query = query.is('invite_id', null);
     }
     if (dateFrom) {
       query = query.gte('created_at::date', dateFrom);
@@ -233,8 +266,8 @@ export default function RegistrationsPage() {
         rows = [...rows].sort((a, b) => {
           const priceA = a.event_lots?.price ?? a.events?.price ?? 0;
           const priceB = b.event_lots?.price ?? b.events?.price ?? 0;
-          const pctA = priceA ? Math.min(100, Math.round(((a as any).paid_amount || 0) / priceA * 100)) : 0;
-          const pctB = priceB ? Math.min(100, Math.round(((b as any).paid_amount || 0) / priceB * 100)) : 0;
+          const pctA = priceA ? Math.min(100, Math.round((a.paid_amount || 0) / priceA * 100)) : 0;
+          const pctB = priceB ? Math.min(100, Math.round((b.paid_amount || 0) / priceB * 100)) : 0;
           return ascending ? pctA - pctB : pctB - pctA;
         });
       }
@@ -243,7 +276,7 @@ export default function RegistrationsPage() {
       setTotalCount(count || 0);
     }
     setLoading(false);
-  }, [search, eventId, statusFilter, page, sortField, sortDirection, churchFilter, checkinFilter, dateFrom, dateTo]);
+  }, [search, eventId, statusFilter, originFilter, page, sortField, sortDirection, churchFilter, checkinFilter, dateFrom, dateTo, churchCollected]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchData(), 300);
@@ -327,6 +360,7 @@ export default function RegistrationsPage() {
   const clearFilters = () => {
     setSearch('');
     setStatusFilter('');
+    setOriginFilter('');
     setChurchFilter('');
     setCheckinFilter('');
     setDateFrom('');
@@ -337,7 +371,7 @@ export default function RegistrationsPage() {
     setSearchParams({});
   };
 
-  const hasFilters = search || statusFilter || churchFilter || checkinFilter || dateFrom || dateTo || sortField !== 'full_name';
+  const hasFilters = search || statusFilter || originFilter || churchFilter || checkinFilter || dateFrom || dateTo || sortField !== 'full_name';
 
   const getDisabledSteps = (): FormStep[] => {
     const disabled: FormStep[] = [];
@@ -348,6 +382,8 @@ export default function RegistrationsPage() {
     if (event?.step_other === false) disabled.push('other');
     return disabled;
   };
+
+  const openUpgrade = (feature: string) => { setUpgradeFeature(feature); setUpgradeOpen(true); };
 
   const META_HEADERS = ['payment_method', 'payment_status', 'paid_amount', 'private_notes', 'event_title'];
 
@@ -401,20 +437,20 @@ export default function RegistrationsPage() {
       const range = `${colLetter}2:${colLetter}1000`;
 
       if (field.field_type === 'gender') {
-        (ws as any).dataValidations.add(range, { type: 'list', formulae: ['"M,F,other"'] });
+        (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae: ['"M,F,other"'] });
       } else if (field.field_type === 'checkbox' && (!field.options || field.options.length === 0)) {
-        (ws as any).dataValidations.add(range, { type: 'list', formulae: ['"Sim,Não"'] });
+        (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae: ['"Sim,Não"'] });
       } else if (field.options && field.options.length > 0) {
         const formulae = ['"' + field.options.join(',') + '"'];
-        (ws as any).dataValidations.add(range, { type: 'list', formulae });
+        (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae });
       }
     }
 
     const metaStartCol = fieldHeaders.length + 1;
     const paymentMethodCol = String.fromCharCode(64 + metaStartCol);
     const paymentStatusCol = String.fromCharCode(64 + metaStartCol + 1);
-    (ws as any).dataValidations.add(`${paymentMethodCol}2:${paymentMethodCol}1000`, { type: 'list', formulae: ['"pix,credit_card,cash,bank_transfer,other,external_link"'] });
-    (ws as any).dataValidations.add(`${paymentStatusCol}2:${paymentStatusCol}1000`, { type: 'list', formulae: ['"pending,paid,cortesia,refunded,canceled"'] });
+    (ws as unknown as WorksheetWithDataValidations).dataValidations.add(`${paymentMethodCol}2:${paymentMethodCol}1000`, { type: 'list', formulae: ['"pix,credit_card,cash,bank_transfer,other,external_link"'] });
+    (ws as unknown as WorksheetWithDataValidations).dataValidations.add(`${paymentStatusCol}2:${paymentStatusCol}1000`, { type: 'list', formulae: ['"pending,paid,cortesia,refunded,canceled"'] });
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -429,7 +465,6 @@ export default function RegistrationsPage() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImportFile(file);
     setImportResult(null);
 
     const isXlsx = file.name.toLowerCase().endsWith('.xlsx');
@@ -459,9 +494,9 @@ export default function RegistrationsPage() {
             const cell = row.getCell(idx + 1);
             let val: string;
             if (cell.value && typeof cell.value === 'object' && 'result' in cell.value) {
-              val = String((cell.value as any).result ?? '');
+              val = String(cell.value.result ?? '');
             } else if (cell.value && typeof cell.value === 'object' && 'text' in cell.value) {
-              val = String((cell.value as any).text ?? '');
+              val = String(cell.value.text ?? '');
             } else if (cell.value instanceof Date) {
               const d = cell.value;
               val = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -501,13 +536,13 @@ export default function RegistrationsPage() {
     if (!importPreview || importPreview.length === 0 || !eventId) return;
     setImporting(true);
 
-    for (const row of importPreview) {
+    const normalizedPreview = importPreview.map((row) => {
+      const next: Record<string, string> = {};
       for (const key of Object.keys(row)) {
-        if (typeof row[key] !== 'string') {
-          row[key] = String(row[key] ?? '');
-        }
+        next[key] = typeof row[key] === 'string' ? row[key] : String(row[key] ?? '');
       }
-    }
+      return next;
+    });
 
     const errors: string[] = [];
     let success = 0;
@@ -517,39 +552,6 @@ export default function RegistrationsPage() {
     const headerToField: Record<string, { field_key: string; db_column: string | null; field_type: FieldType; options: string[] | null; label: string }> = {};
     const normalizedMap = new Map<string, string>();
     const normalizeHeader = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ');
-
-    const KNOWN_FIELD_KEY_TO_DB_COLUMN: Record<string, string> = {
-      'full_name': 'full_name',
-      'email': 'email',
-      'whatsapp': 'whatsapp',
-      'birth_date': 'birth_date',
-      'gender': 'gender',
-      'cpf': 'cpf',
-      'rg': 'rg',
-      'cep': 'cep',
-      'address': 'address',
-      'city': 'city',
-      'state': 'state',
-      'perfil_fe': 'perfil_fe',
-      'is_baptized': 'is_baptized',
-      'church': 'church',
-      'pastor': 'pastor',
-      'church_role': 'church_role',
-      'church_role_other': 'church_role_other',
-      'godparent': 'godparent',
-      'godparent_contact': 'godparent_contact',
-      'pastoral_authorization': 'pastoral_authorization',
-      'health_info': 'health_info',
-      'has_allergies': 'has_allergies',
-      'allergy_description': 'allergy_description',
-      'dietary_restrictions': 'dietary_restrictions',
-      'emergency_contact': 'emergency_contact',
-      'emergency_phone': 'emergency_phone',
-      'accept_terms': 'accept_terms',
-      'payment_method': 'payment_method',
-      'payment_status': 'payment_status',
-      'private_notes': 'private_notes',
-    };
 
     const LABEL_TO_DB_COLUMN: Record<string, string> = {
       'nome': 'full_name',
@@ -675,8 +677,8 @@ export default function RegistrationsPage() {
 
     const validRecords: Record<string, unknown>[] = [];
 
-    for (let i = 0; i < importPreview.length; i++) {
-      const row = importPreview[i];
+    for (let i = 0; i < normalizedPreview.length; i++) {
+      const row = normalizedPreview[i];
       const record: Record<string, unknown> = {};
       const extraData: Record<string, unknown> = {};
 
@@ -965,7 +967,7 @@ export default function RegistrationsPage() {
           for (const field of mapping.fields) {
             let val = '';
             if (field.db_column) {
-              val = String((r as any)[field.db_column] ?? '');
+              val = String((r as unknown as Record<string, unknown>)[field.db_column] ?? '');
             } else if (r.extra_fields && typeof r.extra_fields === 'object') {
               val = String((r.extra_fields as Record<string, unknown>)[field.field_key] ?? '');
             }
@@ -982,14 +984,14 @@ export default function RegistrationsPage() {
           }
 
           const effectivePrice = r.event_lots?.price ?? r.events?.price;
-          const paidAmount = (r as any).paid_amount ? Number((r as any).paid_amount) : 0;
+          const paidAmount = r.paid_amount ? Number(r.paid_amount) : 0;
           const pctPaid = effectivePrice ? Math.min(100, Math.round((paidAmount / effectivePrice) * 100)) + '%' : '';
 
           const metaValues = [
             esc(r.events?.title || ''),
             r.payment_method || '',
             r.payment_status || '',
-            (r as any).paid_amount ? paidAmount.toFixed(2) : '',
+            r.paid_amount ? paidAmount.toFixed(2) : '',
             esc(r.private_notes),
             pctPaid,
             effectivePrice ? Number(effectivePrice).toFixed(2) : '',
@@ -1006,8 +1008,8 @@ export default function RegistrationsPage() {
       a.download = `inscricoes_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err: any) {
-      toast.error('Erro ao exportar: ' + (err?.message || 'erro desconhecido'));
+    } catch (err: unknown) {
+      toast.error('Erro ao exportar: ' + (err instanceof Error ? err.message : 'erro desconhecido'));
       console.error('Export error:', err);
     } finally {
       setExporting(false);
@@ -1029,58 +1031,61 @@ export default function RegistrationsPage() {
       <div className="bg-card border border-border rounded-xl p-4 mb-6 space-y-4 shadow-lg">
       <div className="flex flex-wrap gap-2">
         <div className="flex flex-1 gap-2 min-w-[200px]">
-          <div className="relative flex-1">
+          <div className="relative flex-1 md:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nome, e-mail ou WhatsApp..."
-              className="pl-10"
+              className="pl-10 w-full md:max-w-xs"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             />
           </div>
-          <Button variant="outline" onClick={downloadTemplate} className="hidden md:inline-flex shrink-0 rounded-lg">
-            <FileDown className="h-4 w-4 md:mr-1" />
-            <span className="hidden md:inline">Modelo</span>
-          </Button>
-          <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="hidden md:inline-flex shrink-0 rounded-lg">
-            <Upload className="h-4 w-4 md:mr-1" />
-            <span className="hidden md:inline">Importar CSV</span>
-          </Button>
-          <Button variant="outline" onClick={handleExport} disabled={exporting} className="hidden md:inline-flex shrink-0 rounded-lg">
-            <Download className="h-4 w-4 md:mr-1" />
-            <span className="hidden md:inline">{exporting ? 'Exportando...' : 'Exportar'}</span>
-          </Button>
-          <div className="md:hidden shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-lg border border-border bg-card backdrop-blur-md hover:bg-accent text-foreground transition-colors size-9 max-md:h-11 max-md:w-11 md:h-10 md:w-10">
-                <MoreHorizontal className="h-4 w-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={downloadTemplate}>
-                  <FileDown className="h-4 w-4" /> Modelo
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
-                  <Upload className="h-4 w-4" /> Importar CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExport} disabled={exporting}>
-                  <Download className="h-4 w-4" /> {exporting ? 'Exportando...' : 'Exportar'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center gap-1 rounded-lg border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground dark:bg-input/50 dark:hover:bg-input/70 transition-colors h-10 px-5 max-md:h-11 max-md:w-11 max-md:px-0 shrink-0">
+              <ArrowDownUp className="h-4 w-4" />
+              <span className="hidden md:inline text-sm font-medium">Exportar/Importar</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={downloadTemplate}>
+                <FileDown className="h-4 w-4" /> Modelo
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={hasAccess ? () => setImportDialogOpen(true) : () => openUpgrade('Importação de Dados em Lote')}>
+                <Upload className="h-4 w-4" /> {hasAccess ? 'Importar CSV' : 'Importar Lote'}
+                {!hasAccess && <Lock className="size-3.5 text-amber-500" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport} disabled={exporting}>
+                <Download className="h-4 w-4" /> {exporting ? 'Exportando...' : 'Exportar'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <Select value={churchFilter} onValueChange={(v: string) => { setChurchFilter(v); setPage(0); }}>
-          <SelectTrigger className="hidden md:flex w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
-            <SelectValue placeholder="Igreja" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todas</SelectItem>
-            {churches.map((church) => (
-              <SelectItem key={church} value={church}>{church}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {churchCollected && (
+          <Select
+            value={churchFilter}
+            onValueChange={(v: string) => { setChurchFilter(v); setPage(0); }}
+          >
+            <SelectTrigger className="hidden md:flex w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+              <SelectValue placeholder="Igreja" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todas</SelectItem>
+              {churches.map((church) => (
+                <SelectItem key={church} value={church}>{church}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <div className="hidden md:flex flex-wrap gap-2">
+          <Select value={originFilter} onValueChange={(v: string) => { setOriginFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+              <SelectValue placeholder="Origem" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todas as Origens</SelectItem>
+              <SelectItem value="public">Link Público</SelectItem>
+              <SelectItem value="invite">Link de Convite</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={(v: string) => { setStatusFilter(v); setPage(0); }}>
             <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
               <SelectValue>
@@ -1111,21 +1116,29 @@ export default function RegistrationsPage() {
             </SelectContent>
           </Select>
           <div className="flex items-center gap-1">
-            <Input
-              type="date"
-              placeholder="De..."
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
-              className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
-            />
+            <div className="relative md:w-[200px]">
+              <Input
+                type="date"
+                placeholder="De..."
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+                onPointerDown={hasAccess ? undefined : (e) => { e.preventDefault(); openUpgrade('Filtros Avançados de Relatório'); }}
+                className="w-full pr-8"
+              />
+              {!hasAccess && <Lock className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-amber-500" />}
+            </div>
             <span className="text-muted-foreground text-sm">até</span>
-            <Input
-              type="date"
-              placeholder="Até..."
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
-              className="w-full md:min-w-0 md:flex-1 md:max-w-[200px]"
-            />
+            <div className="relative md:w-[200px]">
+              <Input
+                type="date"
+                placeholder="Até..."
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+                onPointerDown={hasAccess ? undefined : (e) => { e.preventDefault(); openUpgrade('Filtros Avançados de Relatório'); }}
+                className="w-full pr-8"
+              />
+              {!hasAccess && <Lock className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-amber-500" />}
+            </div>
           </div>
           {hasFilters && (
             <Button variant="ghost" size="icon" className="inline-flex max-md:h-11 max-md:w-11 md:h-10 md:w-10" onClick={clearFilters}>
@@ -1136,7 +1149,7 @@ export default function RegistrationsPage() {
       </div>
       </div>
 
-      {(search || statusFilter || churchFilter || checkinFilter || dateFrom || dateTo) && (
+      {(search || statusFilter || originFilter || churchFilter || checkinFilter || dateFrom || dateTo) && (
         <div className="flex items-center gap-2 flex-wrap mb-4">
           <span className="text-sm text-muted-foreground">
             {loading ? 'Buscando...' : `Mostrando ${data.length} de ${totalCount}`}
@@ -1151,6 +1164,12 @@ export default function RegistrationsPage() {
             <Badge variant="secondary" className="gap-1">
               Status: {paymentStatusLabels[statusFilter]}
               <X className="h-3 w-3 cursor-pointer" onClick={() => { setStatusFilter(''); setPage(0); }} />
+            </Badge>
+          )}
+          {originFilter && (
+            <Badge variant="secondary" className="gap-1">
+              Origem: {originFilter === 'invite' ? 'Link de Convite' : 'Link Público'}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => { setOriginFilter(''); setPage(0); }} />
             </Badge>
           )}
           {churchFilter && (
@@ -1301,22 +1320,22 @@ export default function RegistrationsPage() {
                       <p className="text-xs text-muted-foreground mt-1.5">
                         Valor: {formatCurrency(reg.event_lots?.price ?? reg.events?.price ?? 0)} — {reg.event_lots?.name ?? 'Inscrição Normal'}
                       </p>
-                      {(reg as any).paid_amount != null && (
+                      {reg.paid_amount != null && (
                         <p className="text-sm font-semibold text-emerald-500 dark:text-emerald-400 mt-1">
-                          Pago: {formatCurrency(Number((reg as any).paid_amount))}
+                          Pago: {formatCurrency(Number(reg.paid_amount))}
                           {(() => {
                             const effectivePrice = reg.event_lots?.price ?? reg.events?.price;
-                            if (effectivePrice && Number((reg as any).paid_amount) > 0) {
-                              const pct = Math.min(100, Math.round((Number((reg as any).paid_amount) / effectivePrice) * 100));
+                            if (effectivePrice && Number(reg.paid_amount) > 0) {
+                              const pct = Math.min(100, Math.round((Number(reg.paid_amount) / effectivePrice) * 100));
                               return <span className="text-xs text-muted-foreground ml-1">({pct}%)</span>;
                             }
                             return null;
                           })()}
                         </p>
                       )}
-                      {(reg as any).refunded_amount != null && Number((reg as any).refunded_amount) > 0 && (
+                      {reg.refunded_amount != null && Number(reg.refunded_amount) > 0 && (
                         <p className="text-sm font-semibold text-rose-500 mt-0.5">
-                          Reembolsado: -{formatCurrency(Number((reg as any).refunded_amount))}
+                          Reembolsado: -{formatCurrency(Number(reg.refunded_amount))}
                         </p>
                       )}
                     </div>
@@ -1426,14 +1445,14 @@ export default function RegistrationsPage() {
                       <span className="text-[10px] text-muted-foreground">{reg.event_lots?.name ?? 'Inscrição Normal'}</span>
                     </td>
                     <td className="p-4 text-base font-medium">
-                      {(reg as any).paid_amount != null
-                        ? formatCurrency(Number((reg as any).paid_amount))
+                      {reg.paid_amount != null
+                        ? formatCurrency(Number(reg.paid_amount))
                         : '-'}
                     </td>
                     <td className="p-4 text-base font-medium">
                       {(() => {
                         const effectivePrice = reg.event_lots?.price ?? reg.events?.price;
-                        const paid = (reg as any).paid_amount;
+                        const paid = reg.paid_amount;
                         if (effectivePrice && paid != null) {
                           const pct = Math.min(100, Math.round((Number(paid) / effectivePrice) * 100));
                           return (
@@ -1541,7 +1560,7 @@ export default function RegistrationsPage() {
         </Card>
       )}
 
-      <Dialog open={importDialogOpen} onOpenChange={(open) => { if (!open) { setImportDialogOpen(false); setImportFile(null); setImportPreview(null); setImportResult(null); } }}>
+      <Dialog open={importDialogOpen} onOpenChange={(open) => { if (!open) { setImportDialogOpen(false); setImportPreview(null); setImportResult(null); } }}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Importar Inscrições via CSV</DialogTitle>
@@ -1613,7 +1632,7 @@ export default function RegistrationsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={() => { setImportDialogOpen(false); setImportFile(null); setImportPreview(null); setImportResult(null); }}>
+            <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={() => { setImportDialogOpen(false); setImportPreview(null); setImportResult(null); }}>
               Cancelar
             </Button>
             <Button
@@ -1665,6 +1684,12 @@ export default function RegistrationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        featureName={upgradeFeature}
+      />
     </div>
   );
 }

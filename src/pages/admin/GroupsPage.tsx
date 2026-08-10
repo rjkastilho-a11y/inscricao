@@ -13,16 +13,20 @@ import {
   DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Loader2, Printer, RefreshCw, Plus, FileText, Grid3X3 } from 'lucide-react';
+import { Loader2, Printer, RefreshCw, Plus, FileText, Grid3X3, Lock } from 'lucide-react';
 import GrupoCard, { type GrupoRow, type Integrante } from '@/components/groups/GrupoCard';
-import { useEvent } from '@/contexts/EventContext';
+import { useEvent } from '@/contexts/useEvent';
 import { useTrial } from '@/components/layout/ChurchGuard';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { UpgradeModal } from '@/components/shared/UpgradeModal';
 
 export default function GroupsPage() {
   const { loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { eventId, event } = useEvent();
   const trial = useTrial();
+  const { hasAccess } = useFeatureGate();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [grupos, setGrupos] = useState<GrupoRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -643,10 +647,14 @@ export default function GroupsPage() {
               Imprimir PDF
             </button>
             <button
-              onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => { setNewGroupName(''); setNewGroupGenero('misto'); setCreateDialogOpen(true); }}
-              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
+              onClick={() => {
+                if (trial?.isTrialExceeded) { trial.openUpgrade(); return; }
+                if (!hasAccess) { setUpgradeOpen(true); return; }
+                setNewGroupName(''); setNewGroupGenero('misto'); setCreateDialogOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
             >
-              <Plus className="size-4" />
+              {hasAccess ? <Plus className="size-4" /> : <Lock className="size-4 text-amber-500" />}
               Criar Grupo Avulso
             </button>
           </div>
@@ -886,6 +894,12 @@ export default function GroupsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        featureName="Criação Manual de Grupos"
+      />
     </div>
   );
 }

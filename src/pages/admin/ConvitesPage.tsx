@@ -1,4 +1,4 @@
-import { useEvent } from '@/contexts/EventContext';
+import { useEvent } from '@/contexts/useEvent';
 import GestaoConvites from '@/components/GestaoConvites';
 
 export default function ConvitesPage() {

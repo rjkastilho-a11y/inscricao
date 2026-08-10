@@ -1,45 +1,7 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-
-export interface EventData {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  start_date: string;
-  end_date: string;
-  location: string;
-  is_open: boolean;
-  is_custom: boolean;
-  max_capacity: number;
-  price: number;
-  cover_url: string;
-  watermark_url: string | null;
-  terms_text: string | null;
-  terms_enabled: boolean;
-  step_personal: boolean;
-  step_christian_life: boolean;
-  step_health: boolean;
-  step_emergency: boolean;
-  step_other: boolean;
-  payment_link: string | null;
-  created_at: string;
-}
-
-interface EventContextValue {
-  event: EventData | null;
-  eventId: string | null;
-  loading: boolean;
-  error: string | null;
-}
-
-const EventContext = createContext<EventContextValue>({
-  event: null,
-  eventId: null,
-  loading: true,
-  error: null,
-});
+import { EventContext, type EventData } from '@/contexts/useEvent';
 
 export function EventProvider({ children }: { children: ReactNode }) {
   const { eventId } = useParams<{ eventId: string }>();
@@ -47,17 +9,18 @@ export function EventProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [prevEventId, setPrevEventId] = useState<string | null>(eventId ?? null);
+  if (eventId !== prevEventId) {
+    setPrevEventId(eventId ?? null);
+    setEvent(null);
+    setError(null);
+    setLoading(eventId != null);
+  }
+
   useEffect(() => {
-    if (!eventId) {
-      setEvent(null);
-      setLoading(false);
-      setError(null);
-      return;
-    }
+    if (!eventId) return;
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     supabase
       .from('events')
@@ -79,13 +42,19 @@ export function EventProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [eventId]);
 
+  const refreshEvent = useCallback(async () => {
+    if (!eventId) return;
+    const { data } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', eventId)
+      .maybeSingle();
+    if (data) setEvent(data as EventData);
+  }, [eventId]);
+
   return (
-    <EventContext.Provider value={{ event, eventId: eventId ?? null, loading, error }}>
+    <EventContext.Provider value={{ event, eventId: eventId ?? null, loading, error, refreshEvent }}>
       {children}
     </EventContext.Provider>
   );
-}
-
-export function useEvent() {
-  return useContext(EventContext);
 }

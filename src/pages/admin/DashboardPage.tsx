@@ -9,13 +9,17 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonStatCard, SkeletonTable, SkeletonMobileCard } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, paymentStatusLabels, paymentMethodLabels } from '@/lib/utils';
-import { useEvent } from '@/contexts/EventContext';
+import { useEvent } from '@/contexts/useEvent';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts';
-import { Building2 } from 'lucide-react';
+import { Building2, Lock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTrial } from '@/components/layout/ChurchGuard';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { UpgradeModal } from '@/components/shared/UpgradeModal';
+import { fetchFormFields } from '@/lib/form-fields';
+import type { FormStep } from '@/lib/form-fields';
 
 interface EventStat {
   eventId: string;
@@ -31,7 +35,24 @@ interface EventStat {
   actualRevenue: number;
 }
 
+interface EventRow {
+  id: string;
+  title: string;
+  is_open: boolean;
+  start_date: string | null;
+}
+
+interface FinEntry {
+  type: string | null;
+  amount: number | null;
+  category: string | null;
+  event_id: string | null;
+}
+
 interface Registration {
+  id?: string;
+  full_name?: string;
+  created_at?: string;
   gender: string | null;
   birth_date: string | null;
   church: string | null;
@@ -44,6 +65,9 @@ interface Registration {
   city: string | null;
   event_id?: string;
   checked_in?: boolean;
+  paid_amount?: number | null;
+  event_lots?: { price: number | null } | null;
+  events?: { price: number | null } | null;
   [key: string]: unknown;
 }
 
@@ -82,15 +106,21 @@ const CHART_COLORS = {
 const CHURCH_COLORS = ['#f59e0b', '#0ea5e9', '#8b5cf6', '#10b981', '#f43f5e', '#eab308', '#06b6d4', '#a855f7', '#ec4899', '#14b8a6'];
 const TOP_N = 5;
 const AGE_RANGES = ['0-17', '18-25', '26-35', '36-50', '51+'];
+const SLOT1_OPTIONS: MetricKey[] = ['gender', 'perfil_fe', 'marital_status', 'is_baptized'];
+const SLOT2_OPTIONS: MetricKey[] = ['age', 'church_role', 'payment_status'];
+const SLOT3_OPTIONS: MetricKey[] = ['church', 'payment_method', 'city'];
+
+const PREMIUM_METRICS = new Set<MetricKey>(['perfil_fe', 'marital_status', 'is_baptized', 'church_role', 'payment_status', 'payment_method', 'city']);
 
 export default function DashboardPage() {
   const { event, eventId } = useEvent();
   const { isSuperAdmin, churchId } = useAuth();
   const trial = useTrial();
+  const { hasAccess } = useFeatureGate();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [stats, setStats] = useState({ events: 0, registrations: 0 });
   const [eventStats, setEventStats] = useState<EventStat[]>([]);
   const [finStats, setFinStats] = useState({ offerings: 0, expenses: 0 });
-  const [showAllEvents, setShowAllEvents] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isMobile, setIsMobile] = useState(false);
@@ -98,6 +128,7 @@ export default function DashboardPage() {
   const [metric1, setMetric1] = useState<MetricKey>('gender');
   const [metric2, setMetric2] = useState<MetricKey>('age');
   const [metric3, setMetric3] = useState<MetricKey>('church');
+  const [activeMetricKeys, setActiveMetricKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -108,15 +139,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetch = async () => {
-      const [eventsCountResult, regsCountResult, eventsDataResult, regsDataResult] = await Promise.all([
+      const [eventsCountResult, eventsDataResult, regsDataResult] = await Promise.all([
         supabase.from('events').select('*', { count: 'exact', head: true }),
-        supabase.from('registrations').select('*', { count: 'exact', head: true }).neq('payment_status', 'canceled'),
         supabase.from('events').select('*'),
         supabase.from('registrations').select('*, events(price), event_lots!lot_id(price)').neq('payment_status', 'canceled'),
       ]);
 
       const totalEvents = eventsCountResult.count;
-      const totalRegistrations = regsCountResult.count;
       const eventsData = eventsDataResult.data;
       const regsData = regsDataResult.data;
 
@@ -133,40 +162,42 @@ export default function DashboardPage() {
         registrations: filteredRegs.length,
       });
 
-      let fins: any[] = [];
+      let fins: FinEntry[] = [];
       try {
         let finQuery = supabase.from('financial_entries').select('type, amount, category, event_id');
         if (eventId) {
           finQuery = finQuery.eq('event_id', eventId);
         }
         const { data, error: finErr } = await finQuery;
-        if (!finErr && data) fins = data;
+        if (!finErr && data) fins = data as FinEntry[];
       } catch (e) {
         console.warn('financial_entries table may not exist yet:', e);
       }
 
       if (eventsData && regsData) {
         const filteredEvents = eventId
-          ? eventsData.filter((ev: any) => ev.id === eventId)
+          ? eventsData.filter((ev: EventRow) => ev.id === eventId)
           : eventsData;
 
-        const perEvent = filteredEvents.map((ev: any) => {
+        const perEvent = filteredEvents.map((ev: EventRow) => {
           const evRegs = regs.filter((r) => r.event_id === ev.id);
-          const paid = evRegs.filter((r) => r.payment_status === 'paid' || (r.paid_amount != null && Number(r.paid_amount) > 0));
-          const confirmed = evRegs.filter((r) => r.checked_in).length;
+          const paid = evRegs.filter((r) => r.payment_status === 'paid');
+          const confirmed = evRegs.filter((r) =>
+            r.payment_status === 'paid' || r.payment_status === 'cortesia'
+          ).length;
           const pending = evRegs.filter((r) =>
             r.payment_status === 'pending'
           );
           const refundedCount = evRegs.filter((r) => r.payment_status === 'refunded').length;
           const expectedRevenue = evRegs
-            .filter((r) => r.payment_status !== 'cortesia')
-            .reduce((acc, r) => acc + Number((r as any).event_lots?.price ?? (r as any).events?.price ?? 0), 0);
+            .filter((r) => r.payment_status === 'paid' || r.payment_status === 'pending')
+            .reduce((acc, r) => acc + Number(r.event_lots?.price ?? r.events?.price ?? 0), 0);
           const actualRevenue = paid
-            .reduce((acc: number, r: any) => {
+            .reduce((acc: number, r: Registration) => {
               const paidAmt = r.paid_amount != null ? Number(r.paid_amount) : 0;
               if (paidAmt > 0) return acc + paidAmt;
-              const lotPrice = (r as any).event_lots?.price;
-              const eventPrice = (r as any).events?.price;
+              const lotPrice = r.event_lots?.price;
+              const eventPrice = r.events?.price;
               return acc + Number(lotPrice ?? eventPrice ?? 0);
             }, 0);
           return {
@@ -188,35 +219,33 @@ export default function DashboardPage() {
 
       setFinStats({
         offerings: fins
-          .filter((f: any) => f.type === 'income' && f.category !== 'registration')
-          .reduce((s: number, f: any) => s + Number(f.amount), 0),
+          .filter((f: FinEntry) => f.type === 'income' && f.category !== 'registration')
+          .reduce((s: number, f: FinEntry) => s + Number(f.amount), 0),
         expenses: fins
-          .filter((f: any) => f.type === 'expense')
-          .reduce((s: number, f: any) => s + Number(f.amount), 0),
+          .filter((f: FinEntry) => f.type === 'expense')
+          .reduce((s: number, f: FinEntry) => s + Number(f.amount), 0),
       });
       setInitialLoading(false);
     };
     fetch();
   }, [eventId]);
 
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const activeEvents = eventStats.filter((ev) => {
-    if (ev.is_open) return true;
-    if (ev.start_date) {
-      const d = new Date(ev.start_date);
-      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) return true;
-    }
-    return false;
-  });
-  const displayedEvents = showAllEvents ? eventStats : activeEvents;
-  const hasMore = activeEvents.length < eventStats.length;
+  useEffect(() => {
+    if (!eventId) return;
+    const disabled: FormStep[] = [];
+    if (event?.step_personal === false) disabled.push('personal');
+    if (event?.step_christian_life === false) disabled.push('christian_life');
+    if (event?.step_health === false) disabled.push('health');
+    if (event?.step_emergency === false) disabled.push('emergency');
+    if (event?.step_other === false) disabled.push('other');
+    fetchFormFields(eventId, event?.is_custom ?? false, disabled).then((fields) => {
+      const keys = fields.map((f) => (f.field_key === 'birth_date' ? 'age' : f.field_key));
+      setActiveMetricKeys(new Set(['payment_status', 'payment_method', ...keys]));
+    });
+  }, [eventId, event?.is_custom, event?.step_personal, event?.step_christian_life, event?.step_health, event?.step_emergency, event?.step_other]);
 
-  const totalRegs = eventStats.reduce((a, b) => a + b.total, 0);
   const totalPaid = eventStats.reduce((a, b) => a + b.paid, 0);
   const totalConfirmed = eventStats.reduce((a, b) => a + b.confirmed, 0);
-  const totalRefundedCount = eventStats.reduce((a, b) => a + b.refunded, 0);
   const totalExpected = eventStats.reduce((a, b) => a + b.expectedRevenue, 0);
   const totalActual = eventStats.reduce((a, b) => a + b.actualRevenue, 0);
   const netActual = totalActual;
@@ -228,6 +257,12 @@ export default function DashboardPage() {
       : registrations,
     [registrations, eventId]
   );
+
+  const recentRegistrations = useMemo(() => {
+    return [...filteredRegistrations]
+      .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
+      .slice(0, 5);
+  }, [filteredRegistrations]);
 
   // ── helpers ──────────────────────────────────────────────────────────
 
@@ -281,7 +316,7 @@ export default function DashboardPage() {
 
     if (key === 'church' || key === 'city') {
       const top = sorted.slice(0, TOP_N);
-      const othersCount = sorted.slice(TOP_N).reduce((s, [_, v]) => s + v, 0);
+      const othersCount = sorted.slice(TOP_N).reduce((s, [, v]) => s + v, 0);
       const result = top.map(([name, value], i) => ({
         name, value,
         fill: CHURCH_COLORS[i % CHURCH_COLORS.length],
@@ -317,41 +352,61 @@ export default function DashboardPage() {
     return AGE_RANGES.map((label, i) => ({ faixa: label, total: ranges[i] }));
   }, [filteredRegistrations]);
 
-  const metric1Data = useMemo(() => computeMetricData(metric1), [computeMetricData, metric1]);
   const metric2AgeData = useMemo(() => computeAgeData(), [computeAgeData]);
-  const metric2Data = useMemo(() => metric2 === 'age' ? [] : computeMetricData(metric2), [computeMetricData, metric2]);
-  const metric3Data = useMemo(() => computeMetricData(metric3), [computeMetricData, metric3]);
+
+  // fallback: se a métrica atual estiver vazia, usa a primeira opção do slot com dados
+  const effectiveMetric1 = useMemo(() => {
+    if (!hasAccess && PREMIUM_METRICS.has(metric1)) return 'gender';
+    if (computeMetricData(metric1).some(d => d.value > 0)) return metric1;
+
+    const firstValid = SLOT1_OPTIONS.find(k =>
+      k !== metric1 &&
+      activeMetricKeys.has(k) &&
+      (!PREMIUM_METRICS.has(k) || hasAccess) &&
+      computeMetricData(k).some(d => d.value > 0)
+    );
+    const defaultMetric = SLOT1_OPTIONS.find(k => activeMetricKeys.has(k) && (!PREMIUM_METRICS.has(k) || hasAccess));
+
+    return firstValid ?? defaultMetric ?? 'gender';
+  }, [metric1, computeMetricData, hasAccess, activeMetricKeys]);
+  const metric1Data = useMemo(() => computeMetricData(effectiveMetric1), [effectiveMetric1, computeMetricData]);
+
+  const effectiveMetric2 = useMemo(() => {
+    if (!hasAccess && PREMIUM_METRICS.has(metric2)) return 'age';
+    const hasData = metric2 === 'age'
+      ? computeAgeData().some(d => d.total > 0)
+      : computeMetricData(metric2).some(d => d.value > 0);
+    if (hasData) return metric2;
+
+    const firstValid = SLOT2_OPTIONS.find(k =>
+      k !== metric2 &&
+      activeMetricKeys.has(k) &&
+      (!PREMIUM_METRICS.has(k) || hasAccess) &&
+      (k === 'age' ? computeAgeData().some(d => d.total > 0) : computeMetricData(k).some(d => d.value > 0))
+    );
+    const defaultMetric = SLOT2_OPTIONS.find(k => activeMetricKeys.has(k) && (!PREMIUM_METRICS.has(k) || hasAccess));
+
+    return firstValid ?? defaultMetric ?? 'age';
+  }, [metric2, computeMetricData, computeAgeData, hasAccess, activeMetricKeys]);
+  const metric2Data = useMemo(() => effectiveMetric2 === 'age' ? [] : computeMetricData(effectiveMetric2), [effectiveMetric2, computeMetricData]);
+
+  const effectiveMetric3 = useMemo(() => {
+    if (!hasAccess && PREMIUM_METRICS.has(metric3)) return 'church';
+    if (computeMetricData(metric3).some(d => d.value > 0)) return metric3;
+
+    const firstValid = SLOT3_OPTIONS.find(k =>
+      k !== metric3 &&
+      activeMetricKeys.has(k) &&
+      (!PREMIUM_METRICS.has(k) || hasAccess) &&
+      computeMetricData(k).some(d => d.value > 0)
+    );
+    const defaultMetric = SLOT3_OPTIONS.find(k => activeMetricKeys.has(k) && (!PREMIUM_METRICS.has(k) || hasAccess));
+
+    return firstValid ?? defaultMetric ?? 'church';
+  }, [metric3, computeMetricData, hasAccess, activeMetricKeys]);
+  const metric3Data = useMemo(() => computeMetricData(effectiveMetric3), [effectiveMetric3, computeMetricData]);
 
   const hasMetric2AgeData = useMemo(() => metric2AgeData.some(d => d.total > 0), [metric2AgeData]);
-  const hasMetric2NonAgeData = useMemo(() => metric2Data.some(d => d.value > 0), [metric2Data]);
-  const hasMetric2Data = metric2 === 'age' ? hasMetric2AgeData : hasMetric2NonAgeData;
-
-  // fallback auto: se a métrica atual estiver vazia, troca pra primeira com dados
-  useEffect(() => {
-    const slot1Options: MetricKey[] = ['gender', 'perfil_fe', 'marital_status', 'is_baptized'];
-    if (!metric1Data.some(d => d.value > 0)) {
-      const next = slot1Options.find(k => k !== metric1 && computeMetricData(k).some(d => d.value > 0));
-      if (next) setMetric1(next);
-    }
-  }, [filteredRegistrations, metric1, metric1Data, computeMetricData]);
-
-  useEffect(() => {
-    const slot2Options: MetricKey[] = ['age', 'church_role', 'payment_status'];
-    if (!hasMetric2Data) {
-      const next = slot2Options.find(k => k !== metric2 && (
-        k === 'age' ? computeAgeData().some(d => d.total > 0) : computeMetricData(k).some(d => d.value > 0)
-      ));
-      if (next) setMetric2(next);
-    }
-  }, [filteredRegistrations, metric2, hasMetric2Data, computeMetricData, computeAgeData]);
-
-  useEffect(() => {
-    const slot3Options: MetricKey[] = ['church', 'payment_method', 'city'];
-    if (!metric3Data.some(d => d.value > 0)) {
-      const next = slot3Options.find(k => k !== metric3 && computeMetricData(k).some(d => d.value > 0));
-      if (next) setMetric3(next);
-    }
-  }, [filteredRegistrations, metric3, metric3Data, computeMetricData]);
 
   // ── render helpers ───────────────────────────────────────────────────
 
@@ -369,7 +424,7 @@ export default function DashboardPage() {
             dataKey="value"
             stroke="none"
             {...(!isMobile && {
-              label: ({ value, percent }: any) =>
+              label: ({ value = 0, percent = 0 }: { value?: number; percent?: number }) =>
                 `${value} (${(percent * 100).toFixed(0)}%)`,
               labelLine: { stroke: 'hsl(215 16% 47%)', strokeWidth: 1 },
             })}
@@ -447,19 +502,63 @@ export default function DashboardPage() {
   };
 
   const renderSlotSelector = (slot: 1 | 2 | 3, current: MetricKey, onChange: (k: MetricKey) => void) => (
-    <Select value={current} onValueChange={(v) => onChange(v as MetricKey)}>
+    <Select
+      value={current}
+      onValueChange={(v) => {
+        if (PREMIUM_METRICS.has(v as MetricKey) && !hasAccess) { setUpgradeOpen(true); return; }
+        onChange(v as MetricKey);
+      }}
+    >
       <SelectTrigger className="text-sm font-medium w-fit gap-1">
         <SelectValue>{METRICS[current]?.label || current}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {Object.entries(METRICS)
-          .filter(([_, cfg]) => cfg.slot === slot)
+          .filter(([key, cfg]) => cfg.slot === slot && activeMetricKeys.has(key as MetricKey))
           .map(([key, cfg]) => (
-            <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+            <SelectItem key={key} value={key}>
+              <div className="flex items-center gap-2">
+                <span>{cfg.label}</span>
+                {PREMIUM_METRICS.has(key as MetricKey) && !hasAccess && (
+                  <Lock className="size-3.5 text-amber-500" />
+                )}
+              </div>
+            </SelectItem>
           ))}
       </SelectContent>
     </Select>
   );
+
+  const renderEmptyMetric = () => (
+    <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
+      Sem dados suficientes para esta métrica
+    </div>
+  );
+
+  const formatRelativeTime = (iso?: string) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+
+    const diffInSeconds = Math.floor((new Date().getTime() - d.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Agora mesmo';
+    if (diffInSeconds < 3600) return `Há ${Math.floor(diffInSeconds / 60)} min`;
+    if (diffInSeconds < 86400) return `Há ${Math.floor(diffInSeconds / 3600)} h`;
+    if (diffInSeconds < 172800) return 'Ontem';
+
+    return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(d);
+  };
+
+  const statusBadgeClass = (status?: string | null) => {
+    switch (status) {
+      case 'paid':     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200';
+      case 'pending':  return 'bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200';
+      case 'cortesia': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-200';
+      case 'refunded': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-200';
+      default:         return 'bg-muted text-muted-foreground';
+    }
+  };
 
   const totalInscritos = filteredRegistrations.length;
 
@@ -558,8 +657,8 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 md:gap-4 md:grid-cols-6 mb-6">
-        <Card className="hidden md:block bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Inscrições</CardTitle>
           </CardHeader>
@@ -567,7 +666,7 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-foreground">{stats.registrations}</p>
           </CardContent>
         </Card>
-        <Card className="hidden md:block bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Confirmados</CardTitle>
           </CardHeader>
@@ -575,7 +674,7 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-violet-400">{totalConfirmed}</p>
           </CardContent>
         </Card>
-        <Card className="hidden md:block bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Pagos</CardTitle>
           </CardHeader>
@@ -583,7 +682,7 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-primary">{totalPaid}</p>
           </CardContent>
         </Card>
-        <Card className="hidden md:block bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Pendentes</CardTitle>
           </CardHeader>
@@ -591,7 +690,15 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-muted-foreground">{eventStats.reduce((a, b) => a + b.pending, 0)}</p>
           </CardContent>
         </Card>
-        <Card className="col-span-2 md:col-span-1 bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
+          <CardHeader className="pb-1 md:pb-2">
+            <CardTitle className="text-xs md:text-sm text-muted-foreground">Reembolsados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-serif text-xl md:text-3xl font-bold text-orange-400">{eventStats.reduce((a, b) => a + b.refunded, 0)}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Previsto</CardTitle>
           </CardHeader>
@@ -599,7 +706,7 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-blue-400">{formatCurrency(totalExpected)}</p>
           </CardContent>
         </Card>
-        <Card className="col-span-2 md:col-span-1 bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="col-span-2 sm:col-span-1 bg-card backdrop-blur-md border-border shadow-lg">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Real</CardTitle>
           </CardHeader>
@@ -657,194 +764,129 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {(showCharts || !isMobile) && (
+      {(showCharts || !isMobile) && eventId && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {/* ─── Slot 1 – Pie ─── */}
-          {metric1Data.length > 0 && (
-            <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  {renderSlotSelector(1, metric1, setMetric1)}
-                  <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {renderPieChart(metric1Data)}
-              </CardContent>
-            </Card>
-          )}
+          <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                {renderSlotSelector(1, effectiveMetric1, setMetric1)}
+                <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {metric1Data.some(d => d.value > 0) ? renderPieChart(metric1Data) : renderEmptyMetric()}
+            </CardContent>
+          </Card>
 
           {/* ─── Slot 2 – Bar / Age ─── */}
-          {hasMetric2Data && (
-            <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  {renderSlotSelector(2, metric2, setMetric2)}
-                  <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {metric2 === 'age'
-                  ? renderBarChart(metric2AgeData)
-                  : renderPieChart(metric2Data)
-                }
-              </CardContent>
-            </Card>
-          )}
+          <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                {renderSlotSelector(2, effectiveMetric2, setMetric2)}
+                <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {effectiveMetric2 === 'age'
+                ? (hasMetric2AgeData ? renderBarChart(metric2AgeData) : renderEmptyMetric())
+                : (metric2Data.some(d => d.value > 0) ? renderPieChart(metric2Data) : renderEmptyMetric())
+              }
+            </CardContent>
+          </Card>
 
           {/* ─── Slot 3 – Horizontal bars ─── */}
-          {metric3Data.length > 0 && (
-            <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  {renderSlotSelector(3, metric3, setMetric3)}
-                  <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {renderHorizontalBars(metric3Data)}
-              </CardContent>
-            </Card>
-          )}
+          <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                {renderSlotSelector(3, effectiveMetric3, setMetric3)}
+                <span className="text-xs text-muted-foreground">{totalInscritos} inscritos</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {metric3Data.some(d => d.value > 0) ? renderHorizontalBars(metric3Data) : renderEmptyMetric()}
+            </CardContent>
+          </Card>
         </div>
       )}
 
       <Card className="mt-6 bg-card backdrop-blur-xl border-border shadow-2xl">
         <CardHeader>
-          <CardTitle className="text-lg text-foreground">
-            {eventId ? 'Detalhes do Evento' : 'Inscrições por Evento'}
-          </CardTitle>
+          <CardTitle className="text-lg text-foreground">Últimas Inscrições</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Mobile: summary */}
-          <div className="rounded-lg border border-border bg-card p-3 mb-3 md:hidden">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Resumo Geral</p>
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <div>
-                <p className="text-lg font-bold text-foreground">{stats.registrations}</p>
-                <p className="text-[10px] text-muted-foreground">Inscrições</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-primary">{totalPaid}</p>
-                <p className="text-[10px] text-muted-foreground">Pagos</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-violet-400">{totalConfirmed}</p>
-                <p className="text-[10px] text-muted-foreground">Confirmados</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-muted-foreground">{eventStats.reduce((a, b) => a + b.pending, 0)}</p>
-                <p className="text-[10px] text-muted-foreground">Pendentes</p>
-              </div>
-            </div>
-          </div>
-          {/* Mobile: cards */}
-          <div className="space-y-3 md:hidden">
-            {displayedEvents.map((ev) => (
-              <div key={ev.title} className="rounded-lg border border-border bg-muted p-4 space-y-2 min-h-[260px]">
-                <p className="font-medium text-foreground">{ev.title}</p>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Inscrições</span>
-                  <span>{ev.total}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Pagos</span>
-                  <Badge variant="default">{ev.paid}</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Confirmados</span>
-                  <Badge variant="default" className="bg-violet-100 text-violet-700">{ev.confirmed}</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Pendentes</span>
-                  <Badge variant="secondary">{ev.pending}</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Reembolsados</span>
-                  <Badge variant="outline">{ev.refunded}</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Previsto</span>
-                  <span className="text-blue-400">{formatCurrency(ev.expectedRevenue)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Real</span>
-                  <span className="text-emerald-400">{formatCurrency(ev.actualRevenue)}</span>
-                </div>
-              </div>
-            ))}
-            {displayedEvents.length === 0 && (
-              <EmptyState title="Nenhum evento com dados" description="Os dados aparecerão assim que houver inscrições registradas." />
-            )}
-            {hasMore && !showAllEvents && (
-              <Button className="w-full bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11 md:h-10" onClick={() => setShowAllEvents(true)}>
-                Ver mais
-              </Button>
-            )}
-            {hasMore && showAllEvents && (
-              <Button className="w-full bg-card backdrop-blur-md border-border hover:bg-accent text-foreground max-md:h-11 md:h-10" onClick={() => setShowAllEvents(false)}>
-                Ver menos
-              </Button>
-            )}
-          </div>
-          {/* Desktop: table */}
-          <div className="hidden md:block rounded-lg border border-border">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-accent">
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Evento</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Inscrições</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Pagos</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Confirmados</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Pendentes</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Reembolsados</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Previsto</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Real</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayedEvents.map((ev) => (
-                  <tr key={ev.title} className="border-b border-border hover:bg-accent">
-                    <td className="p-4 text-base font-medium text-foreground">{ev.title}</td>
-                    <td className="p-4 text-base">{ev.total}</td>
-                    <td className="p-4 text-base">
-                      <Badge variant="default">{ev.paid}</Badge>
-                    </td>
-                    <td className="p-4 text-base">
-                      <Badge variant="default" className="bg-violet-100 text-violet-700">{ev.confirmed}</Badge>
-                    </td>
-                    <td className="p-4 text-base">
-                      <Badge variant="secondary">{ev.pending}</Badge>
-                    </td>
-                    <td className="p-4 text-base">
-                      <Badge variant="outline">{ev.refunded}</Badge>
-                    </td>
-                    <td className="p-4 text-base text-blue-400">{formatCurrency(ev.expectedRevenue)}</td>
-                    <td className="p-4 text-base text-emerald-400">{formatCurrency(ev.actualRevenue)}</td>
-                  </tr>
+          {recentRegistrations.length === 0 ? (
+            <EmptyState title="Nenhuma inscrição recente" description="As inscrições aparecerão aqui assim que os participantes se registrarem." />
+          ) : (
+            <>
+              {/* Mobile: lista */}
+              <div className="space-y-3 md:hidden">
+                {recentRegistrations.map((reg) => (
+                  <div key={reg.id} className="rounded-lg border border-border bg-card p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-foreground truncate">{reg.full_name ?? (reg.name as string | undefined) ?? '—'}</p>
+                      <Badge
+                        variant="secondary"
+                        className={statusBadgeClass(reg.payment_status)}
+                      >
+                        {paymentStatusLabels[String(reg.payment_status ?? '')] ?? reg.payment_status ?? '—'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-xs text-muted-foreground">{formatRelativeTime(reg.created_at)}</span>
+                      <span className="font-medium text-foreground">{formatCurrency(Number(reg.paid_amount ?? reg.event_lots?.price ?? reg.events?.price ?? 0))}</span>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-            {displayedEvents.length === 0 && (
-              <EmptyState title="Nenhum evento com dados" description="Os dados aparecerão assim que houver inscrições registradas." />
-            )}
-            {hasMore && !showAllEvents && (
-              <div className="p-3 border-t border-border">
-                <Button className="w-full bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={() => setShowAllEvents(true)}>
-                  Ver mais
-                </Button>
               </div>
-            )}
-            {hasMore && showAllEvents && (
-              <div className="p-3 border-t border-border">
-                <Button className="w-full bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={() => setShowAllEvents(false)}>
-                  Ver menos
-                </Button>
+              {/* Desktop: tabela */}
+              <div className="hidden md:block rounded-lg border border-border">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border bg-accent">
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Inscrito</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Data da Inscrição</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status do Pagamento</th>
+                      <th className="text-left p-4 text-sm font-medium text-muted-foreground">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentRegistrations.map((reg) => (
+                      <tr key={reg.id} className="border-b border-border hover:bg-accent">
+                        <td className="p-4 text-base font-medium text-foreground">{reg.full_name ?? (reg.name as string | undefined) ?? '—'}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{formatRelativeTime(reg.created_at)}</td>
+                        <td className="p-4 text-base">
+                          <Badge
+                            variant="secondary"
+                            className={statusBadgeClass(reg.payment_status)}
+                          >
+                            {paymentStatusLabels[String(reg.payment_status ?? '')] ?? reg.payment_status ?? '—'}
+                          </Badge>
+                        </td>
+                        <td className="p-4 text-base">{formatCurrency(Number(reg.paid_amount ?? reg.event_lots?.price ?? reg.events?.price ?? 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+              <div className="mt-4 border-t border-border pt-3">
+                <Link
+                  to={`/app/evento/${eventId}/inscricoes`}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  Ver todas as inscrições
+                </Link>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
+
+      <UpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        featureName="Métricas Avançadas"
+      />
     </div>
   );
 }

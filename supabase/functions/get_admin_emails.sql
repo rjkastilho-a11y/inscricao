@@ -10,6 +10,6 @@ AS $$
   FROM auth.users u
   JOIN public.user_roles ur ON ur.user_id = u.id
   WHERE ur.church_id = p_church_id
-    AND ur.role = 'admin'
+    AND ur.role IN ('admin', 'super_admin')
   LIMIT 1;
 $$;

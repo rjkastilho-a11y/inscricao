@@ -10,6 +10,7 @@ interface EmptyStateProps {
     label: string;
     to: string;
     onClick?: () => void;
+    icon?: React.ReactNode;
   };
 }
 
@@ -31,6 +32,7 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
             onClick={action.onClick}
             className={cn(buttonVariants({ variant: 'default' }), 'mt-6')}
           >
+            {action.icon}
             {action.label}
           </button>
         ) : (
@@ -38,6 +40,7 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
             to={action.to}
             className={cn(buttonVariants({ variant: 'default' }), 'mt-6')}
           >
+            {action.icon}
             {action.label}
           </Link>
         )

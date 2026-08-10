@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { AlertCircle, X, Loader2, CheckCircle, QrCode, CreditCard, Banknote, Building, ExternalLink, Ellipsis, Clock, CheckCircle2, Gift, Undo2, XCircle } from 'lucide-react';
 import { PaymentHistory } from '@/components/registration/PaymentHistory';
 import { CardSelector } from '@/components/ui/card-selector';
+import type { CardOption } from '@/components/ui/card-selector';
 import type { PaymentRecord } from '@/lib/payments';
 
 interface Props {
@@ -33,6 +34,7 @@ interface Props {
   lotId?: string;
   lotPrice?: number;
   paymentLink?: string | null;
+  allowedPaymentMethods?: string[];
   errorMessage?: string;
   onClearError?: () => void;
   errorActionLabel?: string;
@@ -61,7 +63,15 @@ const STATIC_FIELD_KEYS = new Set([
   'health_info', 'emergency_contact', 'emergency_phone',
 ]);
 
-export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isLoading, initialStep, editing, lotId, lotPrice, paymentLink, errorMessage, onClearError, errorActionLabel, eventId, fields, customMode, termsText, payments, onRefreshPayments, registrationId, onAddPayment, onPaymentMethodChange, disabledSteps }: Props) {
+const PAYMENT_METHOD_OPTIONS: CardOption[] = [
+  { value: 'pix', label: 'PIX', icon: QrCode },
+  { value: 'credit_card', label: 'Cartão de crédito', icon: CreditCard },
+  { value: 'cash', label: 'Dinheiro', icon: Banknote },
+  { value: 'bank_transfer', label: 'Transferência', icon: Building },
+  { value: 'other', label: 'Outro', icon: Ellipsis },
+];
+
+export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isLoading, initialStep, editing, lotId, lotPrice, paymentLink, allowedPaymentMethods, errorMessage, onClearError, errorActionLabel, eventId, fields, customMode, termsText, payments, onRefreshPayments, registrationId, onAddPayment, onPaymentMethodChange, disabledSteps }: Props) {
   const activeSteps = useMemo(() => {
     const allSteps = [
       { key: 0, label: 'Dados Pessoais', stepKey: 'personal' as FormStep },
@@ -145,6 +155,7 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
     mode: 'onBlur',
     defaultValues: {
       payment_method: 'pix',
+      payment_method_details: '',
       perfil_fe: '',
       pastoral_authorization: false,
       lot_id: lotId,
@@ -415,7 +426,14 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
           </div>
         );
 
-      case 'payment':
+      case 'payment': {
+        const allowed = allowedPaymentMethods;
+        const paymentOptions: CardOption[] = [
+          ...PAYMENT_METHOD_OPTIONS.filter((o) => !allowed || allowed.includes(o.value)),
+          ...(paymentLink && (!allowed || allowed.includes('external_link'))
+            ? [{ value: 'external_link', label: 'Pagar online (Link externo)', icon: ExternalLink }]
+            : []),
+        ];
         return (
           <div className="space-y-4">
             {effectivePrice > 0 && (
@@ -429,14 +447,7 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
               <Label>Forma de pagamento *</Label>
               <CardSelector
                 columns={5}
-                options={[
-                  { value: 'pix', label: 'PIX', icon: QrCode },
-                  { value: 'credit_card', label: 'Cartão de crédito', icon: CreditCard },
-                  { value: 'cash', label: 'Dinheiro', icon: Banknote },
-                  { value: 'bank_transfer', label: 'Transferência', icon: Building },
-                  { value: 'other', label: 'Outro', icon: Ellipsis },
-                  ...(paymentLink ? [{ value: 'external_link', label: 'Pagar online (Link externo)', icon: ExternalLink }] : []),
-                ]}
+                options={paymentOptions}
                 value={form.watch('payment_method') || 'pix'}
                 onChange={(v) => {
                   form.setValue('payment_method', v as any);
@@ -444,6 +455,17 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
                 }}
               />
             </div>
+
+            {form.watch('payment_method') === 'other' && (
+              <div className="space-y-2">
+                <Label htmlFor="payment_method_details">Descreva como realizará o pagamento</Label>
+                <Input
+                  id="payment_method_details"
+                  placeholder="Ex: pagamento com o organizador, depósito identificado, etc."
+                  {...form.register('payment_method_details')}
+                />
+              </div>
+            )}
 
             {form.watch('payment_method') === 'external_link' && paymentLink && (
               <p className="text-xs text-muted-foreground">
@@ -502,6 +524,7 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
             )}
           </div>
         );
+      }
     }
   };
 

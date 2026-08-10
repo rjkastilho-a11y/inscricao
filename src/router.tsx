@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/layout/protected-route';
@@ -38,6 +39,7 @@ const FrequenciaPage = lazy(() => import('@/pages/admin/FrequenciaPage'));
 const FormBuilderPage = lazy(() => import('@/pages/admin/FormBuilderPage'));
 const FichaImpressaPage = lazy(() => import('@/pages/admin/FichaImpressaPage'));
 const CheckinLinkPage = lazy(() => import('@/pages/admin/CheckinLinkPage'));
+const PlanPage = lazy(() => import('@/pages/admin/PlanPage'));
 
 function PageLoading() {
   return (
@@ -81,6 +83,7 @@ export const router = createBrowserRouter([
       { path: 'eventos/:id', element: <SuspensePage><EventDetailPage /></SuspensePage> },
       { path: 'eventos/:id/editar', element: <SuspensePage><EventEditPage /></SuspensePage> },
       { path: 'configuracoes', element: <Navigate to="/app/eventos" replace /> },
+      { path: 'configuracoes/plano', element: <SuspensePage><PlanPage /></SuspensePage> },
       { path: 'master', element: <SuspensePage><MasterDashboardPage /></SuspensePage> },
     ],
   },

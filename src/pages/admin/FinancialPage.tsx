@@ -12,9 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatCurrency, paymentStatusLabels, paymentMethodLabels, formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Plus, Trash2, FileText, FileSpreadsheet, ChevronDown, ChevronUp, MoreHorizontal, ArrowUpDown, X } from 'lucide-react';
-import { useEvent } from '@/contexts/EventContext';
+import { Plus, Trash2, FileText, FileSpreadsheet, ChevronDown, ChevronUp, MoreHorizontal, ArrowUpDown, X, Lock } from 'lucide-react';
+import { useEvent } from '@/contexts/useEvent';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { UpgradeModal } from '@/components/shared/UpgradeModal';
 
 interface RegistrationPayment {
   id: string;
@@ -52,6 +54,8 @@ const percentFilterLabels: Record<string, string> = { 'paid': 'Pago (100%)', 'pa
 export default function FinancialPage() {
   const navigate = useNavigate();
   const { eventId, event } = useEvent();
+  const { hasAccess } = useFeatureGate();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [regPayments, setRegPayments] = useState<RegistrationPayment[]>([]);
   const [finEntries, setFinEntries] = useState<FinEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -510,8 +514,8 @@ export default function FinancialPage() {
       <PageHeader title="Financeiro" badge={event?.title} />
 
       <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <Button className="hidden md:inline-flex bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={handleExportExcel}>
-          <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+        <Button className="hidden md:inline-flex bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={() => { if (!hasAccess) { setUpgradeOpen(true); return; } handleExportExcel(); }}>
+          {hasAccess ? <FileSpreadsheet className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1 text-amber-500" />} Excel
         </Button>
         <Button className="hidden md:inline-flex bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={handleExportPdf}>
           <FileText className="h-4 w-4 mr-1" /> PDF
@@ -523,8 +527,8 @@ export default function FinancialPage() {
               <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={handleExportExcel}>
-                <FileSpreadsheet className="h-4 w-4" /> Excel
+              <DropdownMenuItem onClick={() => { if (!hasAccess) { setUpgradeOpen(true); return; } handleExportExcel(); }}>
+                {hasAccess ? <FileSpreadsheet className="h-4 w-4" /> : <Lock className="h-4 w-4 text-amber-500" />} Excel
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportPdf}>
                 <FileText className="h-4 w-4" /> PDF
@@ -1173,6 +1177,12 @@ export default function FinancialPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        featureName="Exportação em Excel"
+      />
     </div>
   );
 }
