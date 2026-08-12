@@ -118,7 +118,7 @@ export function PaymentHistory({ payments, registrationId, onRefresh, paidAmount
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+              className="h-7 w-7 max-md:h-11 max-md:w-11 shrink-0 text-destructive hover:text-destructive"
               onClick={() => setConfirmDelete(p)}
               disabled={deletingId === p.id}
             >

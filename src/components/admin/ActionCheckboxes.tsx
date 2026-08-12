@@ -44,7 +44,7 @@ export function ActionCheckboxes({ selected, autoFillValue, onChange }: Props) {
                     value={autoFillValue ?? ''}
                     onChange={(e) => onChange(selected, e.target.value)}
                     placeholder="Valor"
-                    className="ml-2 h-7 w-48 text-xs"
+                    className="ml-2 h-7 w-48 text-base md:text-xs"
                   />
                 )}
               </div>

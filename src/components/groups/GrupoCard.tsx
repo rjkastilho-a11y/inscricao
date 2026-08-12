@@ -9,6 +9,7 @@ export interface Integrante {
 }
 
 export interface GrupoRow {
+  id: string;
   grupo_numero: number;
   genero_saida: string;
   integrantes: Integrante[];
@@ -18,16 +19,15 @@ export interface GrupoRow {
 interface GrupoCardProps {
   grupo: GrupoRow;
   allGroups: GrupoRow[];
-  eventId: string;
   /** called after a successful DB move — parent should update local state */
   onMoveComplete: (memberName: string, sourceNumero: number, targetNumero: number) => void;
-  onRename?: (grupoNumero: number, currentName: string) => void;
-  onDeleteGroup?: (grupoNumero: number) => void;
+  onRename?: (groupId: string, currentName: string) => void;
+  onDeleteGroup?: (groupId: string) => void;
 }
 
 /* ─── MonitorInput ─── */
 
-function MonitorInput({ eventId, groupNumber }: { eventId: string; groupNumber: number }) {
+function MonitorInput({ assignmentId }: { assignmentId: string }) {
   const [monitorName, setMonitorName] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,8 +38,7 @@ function MonitorInput({ eventId, groupNumber }: { eventId: string; groupNumber: 
       const { data } = await supabase
         .from('group_assignments')
         .select('monitor_name')
-        .eq('event_id', eventId)
-        .eq('grupo_numero', groupNumber)
+        .eq('id', assignmentId)
         .maybeSingle();
 
       if (!cancelled) {
@@ -49,28 +48,15 @@ function MonitorInput({ eventId, groupNumber }: { eventId: string; groupNumber: 
     };
     fetchMonitor();
     return () => { cancelled = true; };
-  }, [eventId, groupNumber]);
+  }, [assignmentId]);
 
   const handleBlur = async () => {
     setSaving(true);
     try {
-      const { data: existing } = await supabase
+      await supabase
         .from('group_assignments')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('grupo_numero', groupNumber)
-        .maybeSingle();
-
-      if (existing?.id) {
-        await supabase
-          .from('group_assignments')
-          .update({ monitor_name: monitorName })
-          .eq('id', existing.id);
-      } else {
-        await supabase
-          .from('group_assignments')
-          .insert({ event_id: eventId, grupo_numero: groupNumber, monitor_name: monitorName });
-      }
+        .update({ monitor_name: monitorName })
+        .eq('id', assignmentId);
     } catch (err) {
       console.error('Erro ao salvar monitor:', err);
     }
@@ -87,7 +73,7 @@ function MonitorInput({ eventId, groupNumber }: { eventId: string; groupNumber: 
         onChange={(e) => setMonitorName(e.target.value)}
         onBlur={handleBlur}
         placeholder="Monitor responsável..."
-        className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white px-3 py-2 pr-8 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+        className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white px-3 py-2 pr-8 text-base text-slate-900 placeholder-slate-400 transition-colors focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground md:text-sm"
       />
       {saving && (
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 dark:text-muted-foreground">
@@ -103,13 +89,13 @@ export default GrupoCard;
 
 /* ─── GrupoCard ─── */
 
-function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, onDeleteGroup }: GrupoCardProps) {
+function GrupoCardInner({ grupo, allGroups, onMoveComplete, onRename, onDeleteGroup }: GrupoCardProps) {
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const otherGroups = allGroups.filter(
-    (g) => g.grupo_numero !== grupo.grupo_numero
+    (g) => g.id !== grupo.id
   );
 
   useEffect(() => {
@@ -123,54 +109,18 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenuFor]);
 
-  const handleMove = async (registrationId: string | undefined, targetGrupoNumero: number) => {
-    console.log('🚀 handleMove chamado', { registrationId, targetGrupoNumero, source: grupo.grupo_numero });
-
+  const handleMove = async (registrationId: string | undefined, target: GrupoRow) => {
     if (!registrationId) {
-      console.warn('⚠️ registration_id ausente para', grupo.grupo_numero, targetGrupoNumero);
+      console.warn('⚠️ registration_id ausente para', grupo.grupo_numero, target.grupo_numero);
       return;
     }
     if (moving) return;
     setMoving(true);
 
     try {
-      const { data: existing } = await supabase
-        .from('group_assignments')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('grupo_numero', targetGrupoNumero)
-        .maybeSingle();
-
-      let assignmentId = existing?.id;
-
-      if (!assignmentId) {
-        const { data: newAss, error: insertError } = await supabase
-          .from('group_assignments')
-          .insert({
-            event_id: eventId,
-            grupo_numero: targetGrupoNumero,
-            genero: grupo.genero_saida,
-          })
-          .select('id')
-          .single();
-
-        if (insertError) {
-          console.error('❌ Erro ao criar group_assignment:', insertError);
-          setMoving(false);
-          return;
-        }
-        assignmentId = (newAss as { id: string } | null)?.id;
-      }
-
-      if (!assignmentId) {
-        console.error('❌ assignmentId é nulo');
-        setMoving(false);
-        return;
-      }
-
       const { error: updateError } = await supabase
         .from('registrations')
-        .update({ group_assignment_id: assignmentId })
+        .update({ group_assignment_id: target.id })
         .eq('id', registrationId);
 
       if (updateError) {
@@ -183,7 +133,7 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
       onMoveComplete(
         grupo.integrantes.find((i) => i.registration_id === registrationId)?.nome ?? '',
         grupo.grupo_numero,
-        targetGrupoNumero
+        target.grupo_numero
       );
     } catch (err) {
       console.error('❌ Erro ao mover integrante:', err);
@@ -202,16 +152,16 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
           <div className="flex gap-1">
             <Tooltip content="Renomear grupo">
               <button
-                onClick={() => onRename?.(grupo.grupo_numero, grupo.custom_name || '')}
-                className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:text-muted-foreground dark:hover:bg-amber-500/10"
+                onClick={() => onRename?.(grupo.id, grupo.custom_name || '')}
+                className="flex size-7 max-md:size-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:text-muted-foreground dark:hover:bg-amber-500/10"
               >
                 <Pencil className="size-3.5" />
               </button>
             </Tooltip>
             <Tooltip content="Excluir grupo">
               <button
-                onClick={() => onDeleteGroup?.(grupo.grupo_numero)}
-                className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-muted-foreground dark:hover:bg-red-500/10"
+                onClick={() => onDeleteGroup?.(grupo.id)}
+                className="flex size-7 max-md:size-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-muted-foreground dark:hover:bg-red-500/10"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -223,7 +173,7 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
         </div>
       </div>
 
-      <MonitorInput eventId={eventId} groupNumber={grupo.grupo_numero} />
+      <MonitorInput assignmentId={grupo.id} />
 
       <div className="mt-4 space-y-1">
         {grupo.integrantes.length > 0 ? (
@@ -250,7 +200,7 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
                     onClick={() =>
                       setOpenMenuFor(openMenuFor === memberKey ? null : memberKey)
                     }
-                    className="flex size-7 items-center justify-center rounded-lg text-slate-300 opacity-0 transition-all hover:bg-amber-50 hover:text-amber-600 group-hover:opacity-100 disabled:opacity-30 dark:text-muted-foreground dark:hover:bg-amber-500/10"
+                    className="flex size-7 max-md:size-11 items-center justify-center rounded-lg text-slate-300 opacity-0 transition-all hover:bg-amber-50 hover:text-amber-600 group-hover:opacity-100 max-md:opacity-100 disabled:opacity-30 dark:text-muted-foreground dark:hover:bg-amber-500/10"
                     title="Mover para outro grupo"
                   >
                     {moving ? (
@@ -268,8 +218,8 @@ function GrupoCardInner({ grupo, allGroups, eventId, onMoveComplete, onRename, o
                   >
                     {otherGroups.map((g) => (
                       <button
-                        key={g.grupo_numero}
-                        onClick={() => handleMove(integrante.registration_id, g.grupo_numero)}
+                        key={g.id}
+                        onClick={() => handleMove(integrante.registration_id, g)}
                         className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-muted-foreground dark:hover:bg-muted"
                       >
                         Mover para {g.custom_name || `Grupo ${g.grupo_numero} — ${g.genero_saida}`}

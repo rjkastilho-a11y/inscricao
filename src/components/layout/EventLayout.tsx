@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Loader2, Undo2, Menu, X, LogOut } from 'lucide-react';
+import { Loader2, Undo2, Menu, X, LogOut, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { EventProvider } from '@/contexts/EventContext';
@@ -8,7 +8,7 @@ import { useEvent } from '@/contexts/useEvent';
 import { ChurchGuard, useTrial } from '@/components/layout/ChurchGuard';
 import { TrialBanner } from '@/components/layout/TrialBanner';
 import { useAuth } from '@/lib/auth';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 const NAV_GROUPS = [
   {
@@ -48,18 +48,25 @@ function SidebarNav({ eventId, sidebarOpen, setSidebarOpen }: { eventId: string;
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}
     >
-      <div className="flex shrink-0 items-center border-b border-border p-3">
-        <Link
-          to="/app/eventos"
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          &larr; Eventos
-        </Link>
-        <div className="ml-auto flex items-center gap-1">
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" className="lg:hidden text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-11" onClick={() => setSidebarOpen(false)}>
-            <X className="size-5" />
-          </Button>
+      <div className="shrink-0 border-b border-border">
+        <div className="flex items-center justify-between p-4 pb-2">
+          <Link to="/app/eventos" className="font-serif text-xl font-bold text-foreground">
+            Kairós <span className="text-primary">Events</span>
+          </Link>
+        </div>
+        <div className="flex items-center p-3 pt-0">
+          <Link
+            to="/app/eventos"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            &larr; Eventos
+          </Link>
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
+            <Button variant="ghost" size="icon" className="lg:hidden text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-11" onClick={() => setSidebarOpen(false)}>
+              <X className="size-5" />
+            </Button>
+          </div>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto p-2 scrollbar-thin">
@@ -109,6 +116,46 @@ function SidebarNav({ eventId, sidebarOpen, setSidebarOpen }: { eventId: string;
   );
 }
 
+function MobileTabs({ eventId }: { eventId: string }) {
+  const location = useLocation();
+  const trial = useTrial();
+  const activeTabRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [location.pathname]);
+
+  return (
+    <div className="flex w-full items-center gap-1.5 overflow-x-auto border-b border-border bg-background p-2 lg:hidden no-scrollbar print:hidden">
+      {NAV_GROUPS.flatMap((group) => group.items).map((item) => {
+        const to = `/app/evento/${eventId}/${item.to}`;
+        const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
+        const isGated = trial?.isTrialExceeded && GATED_ITEMS.has(item.to);
+        return (
+          <Link
+            key={item.to}
+            to={isGated ? '#' : to}
+            ref={isActive ? activeTabRef : null}
+            onClick={(e) => {
+              if (isGated) { e.preventDefault(); trial.openUpgrade(); return; }
+            }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs whitespace-nowrap shrink-0 transition-colors',
+              isActive
+                ? 'bg-primary text-primary-foreground font-medium shadow-sm'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            )}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 function EventLayoutContent() {
   const { event, eventId, loading, error } = useEvent();
   const location = useLocation();
@@ -153,17 +200,29 @@ function EventLayoutContent() {
         )}
 
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col lg:ml-[280px] print:ml-0 print:w-full">
-          <div className="flex shrink-0 items-center border-b border-border bg-muted p-4 backdrop-blur-sm lg:hidden print:hidden">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-11">
-              <Menu className="size-5" />
-            </Button>
-            <span className="ml-2 text-sm font-medium truncate text-foreground">{event.title}</span>
+          <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted p-4 backdrop-blur-sm lg:hidden print:hidden">
             {!isDashboard && (
-              <Button variant="ghost" size="icon" onClick={handleBack} className="ml-auto text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-11">
-                <Undo2 className="size-5" />
+              <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0 max-md:h-11 max-md:w-11">
+                <ArrowLeft className="size-5" />
               </Button>
             )}
+            <div className="flex min-w-0 flex-1 items-center gap-2 ml-1">
+              <img src="/screenshots/Icone.png" alt="Kairós Events" className="h-6 w-auto shrink-0" />
+              <div className="flex items-baseline gap-1 min-w-0 truncate">
+                <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
+                  Kairós
+                </span>
+                <span className="text-xs font-semibold uppercase text-[#F4B23A]" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '0.15em' }}>
+                  EVENTS
+                </span>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="ml-auto shrink-0 max-md:h-11 max-md:w-11">
+              <Menu className="size-5" />
+            </Button>
           </div>
+
+          <MobileTabs eventId={eventId} />
 
           <TrialBanner />
 
@@ -172,7 +231,7 @@ function EventLayoutContent() {
               {!isDashboard && (
                 <button
                   onClick={handleBack}
-                  className="hidden md:inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+                  className="hidden md:inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 print:hidden"
                 >
                   <Undo2 className="size-4" />
                   Voltar

@@ -13,12 +13,12 @@ export function TrialBanner() {
 
   return (
     <div className={cn(
-      'flex shrink-0 items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-8 text-sm print:hidden',
+      'flex shrink-0 flex-wrap items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-8 text-sm print:hidden',
       isUrgent
         ? 'bg-red-600/15 text-red-600'
         : 'bg-amber-500/10 text-amber-600'
     )}>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         {isUrgent
           ? <AlertTriangle className="size-4 shrink-0" />
           : isWarning
@@ -37,7 +37,7 @@ export function TrialBanner() {
         size="sm"
         onClick={() => (trial as any).openUpgrade?.()}
         className={cn(
-          'shrink-0 font-semibold shadow-lg',
+          'shrink-0 font-semibold shadow-lg max-md:h-11',
           isUrgent
             ? 'bg-red-600 text-white hover:bg-red-700 shadow-red-600/20'
             : 'bg-amber-600 text-white hover:bg-amber-700 shadow-amber-600/20'

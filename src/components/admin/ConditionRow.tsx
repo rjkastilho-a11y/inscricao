@@ -66,7 +66,7 @@ export function ConditionRow({ condition, availableFields, selfKey, onChange, on
           value={condition.value}
           onChange={(e) => onChange({ ...condition, value: e.target.value })}
           placeholder="Valor"
-          className="w-full sm:w-36 h-8 text-xs"
+          className="w-full sm:w-36 h-8 text-base md:text-xs"
         />
       );
     }
@@ -77,7 +77,7 @@ export function ConditionRow({ condition, availableFields, selfKey, onChange, on
         value={condition.value}
         onChange={(e) => onChange({ ...condition, value: e.target.value })}
         placeholder="Valor"
-        className="w-full sm:w-36 h-8 text-xs"
+        className="w-full sm:w-36 h-8 text-base md:text-xs"
       />
     );
   };
