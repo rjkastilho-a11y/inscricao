@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonCard, SkeletonMobileCard } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useEvent } from '@/contexts/useEvent';
-import { Printer, Loader2, CalendarDays, Users } from 'lucide-react';
+import { Printer, CalendarDays, Users } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 interface Registrant {
@@ -45,24 +45,26 @@ function SectionPage({ title, registrants, total, eventName, eventDate }: {
 
       <h2 className="text-lg font-semibold mb-4">{title} ({registrants.length})</h2>
 
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            <th className="border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Nº</th>
-            <th className="border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Nome</th>
-            <th className="w-48 border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Visto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {registrants.map((r, i) => (
-            <tr key={i}>
-              <td className="border border-border px-3 py-2 text-center text-muted-foreground">{i + 1}</td>
-              <td className="border border-border px-3 py-2 text-foreground">{r.full_name}</td>
-              <td className="border border-border px-3 py-2" />
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm mb-8 print:border-none print:shadow-none print:bg-transparent print:mb-4 print:overflow-visible">
+        <table className="w-full border-collapse text-sm sm:text-base">
+          <thead>
+            <tr>
+              <th className="border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Nº</th>
+              <th className="border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Nome</th>
+              <th className="w-48 border border-border bg-muted px-3 py-2 text-left text-foreground font-bold">Visto</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {registrants.map((r, i) => (
+              <tr key={i}>
+                <td className="border border-border px-3 py-2 text-center text-muted-foreground">{i + 1}</td>
+                <td className="border border-border px-3 py-2 text-foreground">{r.full_name}</td>
+                <td className="border border-border px-3 py-2" />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -148,10 +150,12 @@ export default function FrequenciaPage() {
         }
       `}</style>
 
-      <div className="print:hidden mb-6">
-        <PageHeader title="Lista de Presença" badge={event?.title} />
-        <Button onClick={() => window.print()}>
-          <Printer className="h-4 w-4 mr-2" /> Imprimir
+      <div className="print:hidden mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <PageHeader title="Lista de Presença" badge={event?.title} />
+        </div>
+        <Button onClick={() => window.print()} className="w-full sm:w-auto max-md:h-11 shadow-sm shrink-0">
+          <Printer className="size-4 mr-2" /> Imprimir
         </Button>
       </div>
 
