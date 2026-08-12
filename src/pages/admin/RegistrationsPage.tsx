@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDate, formatCurrency, normalizeText, paymentStatusLabels } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Trash2, Search, X, Download, Upload, FileDown, UserCheck, Loader2, Check, ArrowDownUp, ChevronUp, ChevronDown, Lock } from 'lucide-react';
+import { Trash2, Search, X, Download, Upload, FileDown, UserCheck, Loader2, Check, ArrowDownUp, ChevronUp, ChevronDown, Lock, MoreVertical, Pencil } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import Papa from 'papaparse';
 import { useTrial } from '@/components/layout/ChurchGuard';
@@ -408,58 +408,64 @@ export default function RegistrationsPage() {
 
   const downloadTemplate = async () => {
     if (!eventId) return;
-    const mapping = await getFormMapping(eventId, event?.is_custom ?? false, getDisabledSteps());
-    
-    const ExcelJS = (await import('exceljs')).default;
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Inscrições');
+    try {
+      const mapping = await getFormMapping(eventId, event?.is_custom ?? false, getDisabledSteps());
 
-    // Use field_key as header for exact matching during import
-    const fieldHeaders = mapping.fields.map((f) => f.field_key);
-    const allHeaders = [...fieldHeaders, ...META_HEADERS];
-    ws.columns = allHeaders.map((h) => ({ header: h, key: h, width: 22 }));
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Inscrições');
 
-    const sampleRow: Record<string, string> = {};
-    for (const field of mapping.fields) {
-      sampleRow[field.field_key] = getSampleValue(field);
-    }
-    sampleRow['payment_method'] = 'pix';
-    sampleRow['payment_status'] = 'pending';
-    sampleRow['paid_amount'] = '';
-    sampleRow['private_notes'] = '';
-    sampleRow['event_title'] = event?.title || '';
-    ws.addRow(sampleRow);
+      // Use field_key as header for exact matching during import
+      const fieldHeaders = mapping.fields.map((f) => f.field_key);
+      const allHeaders = [...fieldHeaders, ...META_HEADERS];
+      ws.columns = allHeaders.map((h) => ({ header: h, key: h, width: 22 }));
 
-    let colIndex = 0;
-    for (const field of mapping.fields) {
-      colIndex++;
-      const colLetter = String.fromCharCode(64 + colIndex);
-      const range = `${colLetter}2:${colLetter}1000`;
+      const colLetter = (index: number) => ws.getColumn(index).letter;
 
-      if (field.field_type === 'gender') {
-        (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae: ['"M,F,other"'] });
-      } else if (field.field_type === 'checkbox' && (!field.options || field.options.length === 0)) {
-        (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae: ['"Sim,Não"'] });
-      } else if (field.options && field.options.length > 0) {
-        const formulae = ['"' + field.options.join(',') + '"'];
-        (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae });
+      const sampleRow: Record<string, string> = {};
+      for (const field of mapping.fields) {
+        sampleRow[field.field_key] = getSampleValue(field);
       }
+      sampleRow['payment_method'] = 'pix';
+      sampleRow['payment_status'] = 'pending';
+      sampleRow['paid_amount'] = '';
+      sampleRow['private_notes'] = '';
+      sampleRow['event_title'] = event?.title || '';
+      ws.addRow(sampleRow);
+
+      let colIndex = 0;
+      for (const field of mapping.fields) {
+        colIndex++;
+        const letter = colLetter(colIndex);
+        const range = `${letter}2:${letter}1000`;
+
+        if (field.field_type === 'gender') {
+          (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae: ['"M,F,other"'] });
+        } else if (field.field_type === 'checkbox' && (!field.options || field.options.length === 0)) {
+          (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae: ['"Sim,Não"'] });
+        } else if (field.options && field.options.length > 0) {
+          const formulae = ['"' + field.options.join(',') + '"'];
+          (ws as unknown as WorksheetWithDataValidations).dataValidations.add(range, { type: 'list', formulae });
+        }
+      }
+
+      const paymentMethodLetter = colLetter(fieldHeaders.length + 1);
+      const paymentStatusLetter = colLetter(fieldHeaders.length + 2);
+      (ws as unknown as WorksheetWithDataValidations).dataValidations.add(`${paymentMethodLetter}2:${paymentMethodLetter}1000`, { type: 'list', formulae: ['"pix,credit_card,cash,bank_transfer,other,external_link"'] });
+      (ws as unknown as WorksheetWithDataValidations).dataValidations.add(`${paymentStatusLetter}2:${paymentStatusLetter}1000`, { type: 'list', formulae: ['"pending,paid,cortesia,refunded,canceled"'] });
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'modelo_inscricoes.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      toast.error('Erro ao exportar o modelo: ' + (err instanceof Error ? err.message : 'erro desconhecido'));
+      console.error('Erro ao exportar o modelo:', err);
     }
-
-    const metaStartCol = fieldHeaders.length + 1;
-    const paymentMethodCol = String.fromCharCode(64 + metaStartCol);
-    const paymentStatusCol = String.fromCharCode(64 + metaStartCol + 1);
-    (ws as unknown as WorksheetWithDataValidations).dataValidations.add(`${paymentMethodCol}2:${paymentMethodCol}1000`, { type: 'list', formulae: ['"pix,credit_card,cash,bank_transfer,other,external_link"'] });
-    (ws as unknown as WorksheetWithDataValidations).dataValidations.add(`${paymentStatusCol}2:${paymentStatusCol}1000`, { type: 'list', formulae: ['"pending,paid,cortesia,refunded,canceled"'] });
-
-    const buf = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'modelo_inscricoes.xlsx';
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1064,7 +1070,7 @@ export default function RegistrationsPage() {
             value={churchFilter}
             onValueChange={(v: string) => { setChurchFilter(v); setPage(0); }}
           >
-            <SelectTrigger className="hidden md:flex w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+            <SelectTrigger className="hidden md:flex w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10 data-[placeholder]:!text-foreground">
               <SelectValue placeholder="Igreja" />
             </SelectTrigger>
             <SelectContent>
@@ -1077,7 +1083,7 @@ export default function RegistrationsPage() {
         )}
         <div className="hidden md:flex flex-wrap gap-2">
           <Select value={originFilter} onValueChange={(v: string) => { setOriginFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10 data-[placeholder]:!text-foreground">
               <SelectValue placeholder="Origem" />
             </SelectTrigger>
             <SelectContent>
@@ -1087,7 +1093,7 @@ export default function RegistrationsPage() {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v: string) => { setStatusFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10 data-[placeholder]:!text-foreground">
               <SelectValue>
                 {(value) => value ? (paymentStatusLabels[value] || value) : "Status"}
               </SelectValue>
@@ -1100,7 +1106,7 @@ export default function RegistrationsPage() {
             </SelectContent>
           </Select>
           <Select value={checkinFilter} onValueChange={(v: string) => { setCheckinFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+            <SelectTrigger className="w-full md:min-w-0 md:flex-1 md:max-w-[200px] !h-10 data-[placeholder]:!text-foreground">
               <SelectValue>
                 {(value) => {
                   if (value === 'checked') return '✓ Confirmado';
@@ -1196,25 +1202,26 @@ export default function RegistrationsPage() {
               <X className="h-3 w-3 cursor-pointer" onClick={() => { setDateTo(''); setPage(0); }} />
             </Badge>
           )}
-          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={clearFilters}>
+          <Button variant="ghost" size="sm" className="h-6 max-md:h-11 text-xs" onClick={clearFilters}>
             Limpar todos
           </Button>
         </div>
       )}
 
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between gap-4 mb-4 p-3 bg-muted/50 rounded-lg border border-border">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4 p-3 bg-muted/50 rounded-lg border border-border">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm font-medium">
               {selectedIds.size} selecionado(s)
             </span>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearSelection}>
+            <Button variant="outline" size="sm" className="h-7 max-md:h-11 text-xs" onClick={clearSelection}>
               Limpar seleção
             </Button>
           </div>
           <Button
             variant="destructive"
             size="sm"
+            className="w-full sm:w-auto max-md:h-11"
             onClick={() => setBulkDeleteOpen(true)}
           >
             <Trash2 className="h-3.5 w-3.5 mr-1" />
@@ -1279,9 +1286,10 @@ export default function RegistrationsPage() {
                 onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${reg.id}`)}
               >
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-3">
-                      <div onClick={(e) => e.stopPropagation()}>
+                  <div className="w-full min-w-0">
+                    <div className="flex items-start justify-between w-full gap-2">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedIds.has(reg.id)}
                           onCheckedChange={() => handleSelect(reg.id)}
@@ -1291,7 +1299,7 @@ export default function RegistrationsPage() {
                       <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{reg.full_name}</p>
                       <p className="text-sm text-muted-foreground truncate">{reg.whatsapp}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                         <Badge
                           variant={reg.checked_in ? 'default' : 'secondary'}
                           className={reg.checked_in ? 'bg-emerald-600 hover:bg-emerald-600' : ''}
@@ -1338,24 +1346,50 @@ export default function RegistrationsPage() {
                           Reembolsado: -{formatCurrency(Number(reg.refunded_amount))}
                         </p>
                       )}
+                      </div>
                     </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive h-8 w-8 max-md:h-11 max-md:w-11 md:h-10 md:w-10"
-                        onClick={(e) => { e.stopPropagation(); setDeleteId(reg.id); setDialogOpen(true); }}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" size="icon" className="shrink-0 h-10 w-10 max-md:h-11 max-md:w-11" />
+                        }
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        <MoreVertical className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/app/evento/${eventId}/inscricoes/${reg.id}/editar`);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          className="cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteId(reg.id);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    </div>
+                    <div className="mt-3 w-full border-t border-border pt-3">
                       <Button
                         variant={reg.checked_in ? 'default' : 'outline'}
-                        size="sm"
                         className={
                           reg.checked_in
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 h-8 max-md:h-11 md:h-10 px-3 gap-1.5'
-                            : 'h-8 max-md:h-11 md:h-10 px-3 gap-1.5 text-muted-foreground'
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 w-full max-md:h-11 md:h-10 px-3 gap-1.5 text-base'
+                            : 'w-full max-md:h-11 md:h-10 px-3 gap-1.5 text-base text-muted-foreground'
                         }
                         onClick={(e) => {
                           e.stopPropagation();

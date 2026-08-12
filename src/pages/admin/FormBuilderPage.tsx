@@ -147,57 +147,52 @@ function FieldCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
+      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 mb-2 rounded-lg border shadow-sm group transition-colors ${
         f.is_active ? 'border-border bg-card' : 'border-border/40 bg-muted/20 opacity-60'
       } ${isDragging ? 'shadow-lg ring-2 ring-primary/20' : ''}`}
     >
-      <button
-        type="button"
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </button>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium">{f.label || '(sem label)'}</span>
-          <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${FIELD_TYPE_COLORS[f.field_type] || ''}`}>
+      {/* ÁREA DE INFORMAÇÃO (Cima no Mobile, Esquerda no Desktop) */}
+      <div className="flex items-center gap-3 overflow-hidden">
+        <button
+          type="button"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <div className="flex flex-col min-w-0">
+          <span className="text-sm font-medium text-foreground truncate">{f.label || '(sem label)'}</span>
+          <span className="text-xs text-muted-foreground truncate">
             {FIELD_TYPES.find((t) => t.value === f.field_type)?.label || f.field_type}
           </span>
-          {!f.is_active && (
-            <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-              Inativo
-            </span>
-          )}
-          {f.db_column && (
-            <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-              {f.db_column}
-            </span>
-          )}
         </div>
-        <p className="text-xs text-muted-foreground truncate">{f.field_key}</p>
       </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="flex items-center gap-2">
-          <Switch checked={f.is_active} onCheckedChange={onToggleActive} />
-          <Label className="text-xs cursor-pointer text-muted-foreground">Ativo</Label>
+
+      {/* ÁREA DE CONTROLOS (Baixo no Mobile, Direita no Desktop) */}
+      <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-3 sm:pt-0 mt-1 sm:mt-0 border-t sm:border-t-0 border-border/50">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Switch checked={f.is_active} onCheckedChange={onToggleActive} />
+            <Label className="text-xs cursor-pointer text-muted-foreground hidden sm:block">Ativo</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox id={`required-${f.id || f.field_key}`} checked={f.required} onCheckedChange={onToggleRequired} />
+            <Label htmlFor={`required-${f.id || f.field_key}`} className="text-xs cursor-pointer">Obrigatório</Label>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Checkbox id={`required-${f.id || f.field_key}`} checked={f.required} onCheckedChange={onToggleRequired} />
-          <Label htmlFor={`required-${f.id || f.field_key}`} className="text-xs cursor-pointer">Obrigatório</Label>
-        </div>
+
         {mode === 'custom' && (
-          <>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit!}>
-              <Pencil className="size-3.5" />
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="icon" className="h-9 w-9 max-md:h-11 max-md:w-11" onClick={onEdit!}>
+              <Pencil className="size-4" />
             </Button>
             {!f.is_default && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete!}>
-                <Trash2 className="size-3.5" />
+              <Button variant="ghost" size="icon" className="h-9 w-9 max-md:h-11 max-md:w-11 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={onDelete!}>
+                <Trash2 className="size-4" />
               </Button>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -758,12 +753,17 @@ export default function FormBuilderPage() {
             return (
             <Card key={group.step} className={`bg-card backdrop-blur-md border-border shadow-lg transition-opacity ${!enabled ? 'opacity-50' : ''}`}>
               <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{group.label}</h3>
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id={`step-${group.step}`}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-border/60">
+                  <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide truncate">{group.label}</h3>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        ({activeCount}/{group.fields.length})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Switch
                         checked={enabled}
                         disabled={savingStepToggle === group.step}
                         onCheckedChange={(checked) => {
@@ -780,24 +780,26 @@ export default function FormBuilderPage() {
                           handleStepToggle(group.step, value);
                         }}
                       />
-                      <Label htmlFor={`step-${group.step}`} className="text-xs cursor-pointer text-muted-foreground">
+                      <Label className="text-xs cursor-pointer text-muted-foreground hidden sm:block">
                         {savingStepToggle === group.step ? 'Salvando...' : (enabled ? 'Ativo' : 'Inativo')}
                       </Label>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      ({activeCount}/{group.fields.length})
-                    </span>
                   </div>
-                   <Button
-                     variant="outline"
-                     onClick={() => {
-                       if (!hasAccess) { setUpgradeOpen(true); return; }
-                       if (trial?.isTrialExceeded) { trial.openUpgrade(); return; }
-                       openNewField(group.step);
-                     }}
-                   >
-                     {hasAccess ? <Plus className="h-3.5 w-3.5 mr-1" /> : <Lock className="h-3.5 w-3.5 mr-1 text-amber-500" />} Novo campo
-                   </Button>
+
+                  <div className="w-full sm:w-auto shrink-0">
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto max-md:h-11 justify-center gap-1.5 shadow-sm"
+                      onClick={() => {
+                        if (!hasAccess) { setUpgradeOpen(true); return; }
+                        if (trial?.isTrialExceeded) { trial.openUpgrade(); return; }
+                        openNewField(group.step);
+                      }}
+                    >
+                      {hasAccess ? <Plus className="size-4" /> : <Lock className="size-4 text-amber-500" />}
+                      <span>Novo campo</span>
+                    </Button>
+                  </div>
                 </div>
                 {group.fields.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">Nenhum campo neste passo.</p>

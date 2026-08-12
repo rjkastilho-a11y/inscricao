@@ -545,30 +545,30 @@ export default function FinancialPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Previsto</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-blue-400">{formatCurrency(totalExpected)}</p></CardContent>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-blue-400">{formatCurrency(totalExpected)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Real</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-emerald-400">{formatCurrency(netActual)}</p></CardContent>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-emerald-400">{formatCurrency(netActual)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Entradas (Ofertas)</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-emerald-400">{formatCurrency(totalOfferings)}</p></CardContent>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-emerald-400">{formatCurrency(totalOfferings)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Saídas</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-red-400">{formatCurrency(totalExpenses)}</p></CardContent>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-red-400">{formatCurrency(totalExpenses)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Total Entradas</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold text-foreground">{formatCurrency(netActual + totalOfferings)}</p></CardContent>
+          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-foreground">{formatCurrency(netActual + totalOfferings)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Saldo</CardTitle></CardHeader>
           <CardContent>
-            <p className={`font-serif text-xl md:text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className={`font-serif text-xl md:text-3xl font-bold truncate ${netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {formatCurrency(netBalance)}
             </p>
           </CardContent>
@@ -608,7 +608,7 @@ export default function FinancialPage() {
                   placeholder="Até"
                 />
                 <Select value={regStatusFilter} onValueChange={setRegStatusFilter}>
-                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10 data-[placeholder]:!text-foreground">
                     <SelectValue>
                       {(value) => value ? (paymentStatusLabels[value] || value) : "Status"}
                     </SelectValue>
@@ -621,7 +621,7 @@ export default function FinancialPage() {
                   </SelectContent>
                 </Select>
                 <Select value={regMethodFilter} onValueChange={setRegMethodFilter}>
-                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10 data-[placeholder]:!text-foreground">
                     <SelectValue>
                       {(value) => value ? (paymentMethodLabels[value] || value) : "Método"}
                     </SelectValue>
@@ -634,7 +634,7 @@ export default function FinancialPage() {
                   </SelectContent>
                 </Select>
                 <Select value={regPercentFilter} onValueChange={setRegPercentFilter}>
-                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10">
+                  <SelectTrigger className="md:min-w-0 md:flex-1 md:max-w-[200px] !h-10 data-[placeholder]:!text-foreground">
                     <SelectValue placeholder="Pagamento %" />
                   </SelectTrigger>
                   <SelectContent>

@@ -658,7 +658,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6">
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Inscrições</CardTitle>
           </CardHeader>
@@ -666,7 +666,7 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-foreground">{stats.registrations}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Confirmados</CardTitle>
           </CardHeader>
@@ -674,7 +674,7 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-violet-400">{totalConfirmed}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Pagos</CardTitle>
           </CardHeader>
@@ -682,7 +682,7 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-primary">{totalPaid}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Pendentes</CardTitle>
           </CardHeader>
@@ -690,7 +690,7 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-muted-foreground">{eventStats.reduce((a, b) => a + b.pending, 0)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Reembolsados</CardTitle>
           </CardHeader>
@@ -698,55 +698,55 @@ export default function DashboardPage() {
             <p className="font-serif text-xl md:text-3xl font-bold text-orange-400">{eventStats.reduce((a, b) => a + b.refunded, 0)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Previsto</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-xl md:text-3xl font-bold text-blue-400">{formatCurrency(totalExpected)}</p>
+            <p className="font-serif text-xl md:text-3xl font-bold truncate text-blue-400">{formatCurrency(totalExpected)}</p>
           </CardContent>
         </Card>
-        <Card className="col-span-2 sm:col-span-1 bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="col-span-2 sm:col-span-1 bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Real</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-xl md:text-3xl font-bold text-emerald-400">{formatCurrency(netActual)}</p>
+            <p className="font-serif text-xl md:text-3xl font-bold truncate text-emerald-400">{formatCurrency(netActual)}</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-4 mb-6">
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-h-[100px]">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Ofertas</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-xl md:text-3xl font-bold text-emerald-400">{formatCurrency(finStats.offerings)}</p>
+            <p className="font-serif text-xl md:text-3xl font-bold truncate text-emerald-400">{formatCurrency(finStats.offerings)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Despesas</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-xl md:text-3xl font-bold text-red-400">{formatCurrency(finStats.expenses)}</p>
+            <p className="font-serif text-xl md:text-3xl font-bold truncate text-red-400">{formatCurrency(finStats.expenses)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Total Entradas</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-xl md:text-3xl font-bold text-foreground">{formatCurrency(netActual + finStats.offerings)}</p>
+            <p className="font-serif text-xl md:text-3xl font-bold truncate text-foreground">{formatCurrency(netActual + finStats.offerings)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground">Saldo Líquido</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`font-serif text-xl md:text-3xl font-bold ${netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className={`font-serif text-xl md:text-3xl font-bold truncate ${netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {formatCurrency(netIncome)}
             </p>
           </CardContent>
@@ -840,7 +840,7 @@ export default function DashboardPage() {
                 ))}
               </div>
               {/* Desktop: tabela */}
-              <div className="hidden md:block rounded-lg border border-border">
+              <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-accent">

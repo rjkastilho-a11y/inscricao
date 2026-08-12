@@ -350,7 +350,7 @@ export default function RegistrationDetailPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">Dados Pessoais</CardTitle>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=0`)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=0`)}>
               <Pencil className="h-3 w-3" />
             </Button>
           </CardHeader>
@@ -384,7 +384,7 @@ export default function RegistrationDetailPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">Vida Cristã</CardTitle>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=1`)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=1`)}>
               <Pencil className="h-3 w-3" />
             </Button>
           </CardHeader>
@@ -415,7 +415,7 @@ export default function RegistrationDetailPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-medium">Saúde & Emergência</CardTitle>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=2`)}>
+              <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=2`)}>
                 <Pencil className="h-3 w-3" />
               </Button>
             </CardHeader>
@@ -444,7 +444,7 @@ export default function RegistrationDetailPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium">Outros...</CardTitle>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=4`)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=4`)}>
               <Pencil className="h-3 w-3" />
             </Button>
           </CardHeader>
@@ -465,7 +465,7 @@ export default function RegistrationDetailPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-medium">Pagamento</CardTitle>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=5`)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11" onClick={() => navigate(`/app/evento/${eventId}/inscricoes/${id}/editar?step=5`)}>
               <Pencil className="h-3 w-3" />
             </Button>
           </CardHeader>

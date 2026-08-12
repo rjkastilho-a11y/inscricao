@@ -251,7 +251,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
           <Button
             variant={eventIsOpen ? 'outline' : 'default'}
             size="sm"
-            className="w-full sm:w-auto max-md:h-11 shrink-0 gap-1.5"
+            className="w-full sm:w-auto max-md:h-11 shrink-0 gap-1.5 rounded-lg"
             onClick={handleToggleEventStatus}
             disabled={togglingStatus}
           >
@@ -287,7 +287,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
       </div>
 
       {/* CARD 2: TOOLBAR DE CONVITES EXCLUSIVOS */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 w-full max-w-[320px] mx-auto sm:max-w-none sm:mx-0">
         <div className="flex items-center gap-2">
           <h3 className="text-base font-semibold text-foreground">Convites Exclusivos</h3>
           <Badge variant="outline" className="text-xs font-mono">
@@ -296,7 +296,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
         </div>
 
         {/* Botões de Ação em Lote */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-2 gap-3 w-full sm:w-auto sm:flex sm:items-center">
           <Button
             variant="outline"
             className="max-md:h-11 gap-1.5"

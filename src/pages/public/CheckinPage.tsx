@@ -245,7 +245,7 @@ export default function CheckinPage() {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
-            className="pl-8"
+            className="pl-8 max-md:h-11"
             placeholder="Buscar por nome..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -284,8 +284,8 @@ export default function CheckinPage() {
                   size="sm"
                   className={
                     reg.checked_in
-                      ? 'h-9 px-3 gap-1.5 shrink-0 border-muted-foreground/30'
-                      : 'h-9 px-3 gap-1.5 shrink-0'
+                      ? 'h-9 max-md:h-11 px-3 gap-1.5 shrink-0 border-muted-foreground/30'
+                      : 'h-9 max-md:h-11 px-3 gap-1.5 shrink-0'
                   }
                   onClick={() => handleToggleCheckIn(reg.id)}
                   disabled={checkingId === reg.id}

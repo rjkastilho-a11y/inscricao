@@ -235,7 +235,7 @@ export default function EventEditPage() {
               <Label htmlFor="description" className="text-foreground">Descrição</Label>
               <Textarea id="description" rows={3} {...form.register('description')} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="start_date" className="text-foreground">Data de início</Label>
                 <Input id="start_date" type="date" {...form.register('start_date')} />
@@ -249,7 +249,7 @@ export default function EventEditPage() {
               <Label htmlFor="location" className="text-foreground">Local</Label>
               <Input id="location" {...form.register('location')} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="price" className="text-foreground">Valor padrão (R$)</Label>
                 <Input id="price" type="number" step="0.01" {...form.register('price')} />
@@ -441,11 +441,11 @@ export default function EventEditPage() {
                 <div key={index} className="border border-border rounded-lg p-4 mb-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Lote {index + 1}</span>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeLot(index)}>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 max-md:h-11 max-md:w-11 text-destructive" onClick={() => removeLot(index)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Nome *</Label>
                       <Input value={lot.name} onChange={(e) => updateLot(index, 'name', e.target.value)} placeholder="1º Lote" />
@@ -459,7 +459,7 @@ export default function EventEditPage() {
                     <Label className="text-xs">Descrição</Label>
                     <Input value={lot.description || ''} onChange={(e) => updateLot(index, 'description', e.target.value)} placeholder="Desconto antecipado" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Início da validade *</Label>
                       <Input type="date" value={lot.start_date} onChange={(e) => updateLot(index, 'start_date', e.target.value)} />

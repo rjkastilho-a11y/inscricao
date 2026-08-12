@@ -13,7 +13,10 @@ import {
   DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Loader2, Printer, RefreshCw, Plus, FileText, Grid3X3, Lock } from 'lucide-react';
+import { Loader2, Printer, RefreshCw, Plus, FileText, Grid3X3, Lock, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import GrupoCard, { type GrupoRow, type Integrante } from '@/components/groups/GrupoCard';
 import { useEvent } from '@/contexts/useEvent';
 import { useTrial } from '@/components/layout/ChurchGuard';
@@ -30,17 +33,18 @@ export default function GroupsPage() {
   const [grupos, setGrupos] = useState<GrupoRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupGenero, setNewGroupGenero] = useState<'F' | 'M' | 'misto'>('misto');
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
-  const [renameTarget, setRenameTarget] = useState<number | null>(null);
+  const [renameTarget, setRenameTarget] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deletingGroup, setDeletingGroup] = useState(false);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [printMode, setPrintMode] = useState<'single' | 'compact'>('single');
@@ -72,6 +76,7 @@ export default function GroupsPage() {
     }
 
     const grupos: GrupoRow[] = assignments.map((a) => ({
+      id: a.id,
       grupo_numero: a.grupo_numero,
       genero_saida: a.genero ?? 'Não definido',
       integrantes: (regMap.get(a.id) ?? []).map((r) => ({
@@ -133,6 +138,7 @@ export default function GroupsPage() {
       }
 
       result.push({
+        id: ass.id,
         grupo_numero: g.grupo_numero,
         genero_saida: g.genero_saida ?? 'Não definido',
         integrantes,
@@ -219,6 +225,7 @@ export default function GroupsPage() {
     setGrupos((prev) => [
       ...prev,
       {
+        id: ass.id,
         grupo_numero: novoNumero,
         genero_saida: genero,
         integrantes: [],
@@ -240,8 +247,7 @@ export default function GroupsPage() {
     const { error } = await supabase
       .from('group_assignments')
       .update({ custom_name: renameValue.trim() })
-      .eq('event_id', eventId)
-      .eq('grupo_numero', renameTarget);
+      .eq('id', renameTarget);
 
     if (error) {
       toast.error('Erro ao renomear grupo: ' + error.message);
@@ -251,7 +257,7 @@ export default function GroupsPage() {
 
     setGrupos((prev) =>
       prev.map((g) =>
-        g.grupo_numero === renameTarget ? { ...g, custom_name: renameValue.trim() } : g
+        g.id === renameTarget ? { ...g, custom_name: renameValue.trim() } : g
       )
     );
 
@@ -267,8 +273,7 @@ export default function GroupsPage() {
     const { data: ass } = await supabase
       .from('group_assignments')
       .select('id')
-      .eq('event_id', eventId)
-      .eq('grupo_numero', deleteTarget)
+      .eq('id', deleteTarget)
       .single();
 
     if (ass) {
@@ -283,7 +288,7 @@ export default function GroupsPage() {
         .eq('id', ass.id);
     }
 
-    setGrupos((prev) => prev.filter((g) => g.grupo_numero !== deleteTarget));
+    setGrupos((prev) => prev.filter((g) => g.id !== deleteTarget));
     setDeleteConfirmOpen(false);
     setDeletingGroup(false);
   };
@@ -291,7 +296,7 @@ export default function GroupsPage() {
   /* ── Regenerar grupos ── */
   const handleRegenerate = async () => {
     if (!eventId) return;
-    if (!window.confirm('Tem certeza? Todas as alterações manuais, grupos avulsos e monitores serão perdidos.')) return;
+    setRegenerateConfirmOpen(false);
 
     setRegenerating(true);
     setError(null);
@@ -626,49 +631,78 @@ export default function GroupsPage() {
 
       {!loading && !error && Array.isArray(grupos) && grupos.length > 0 && (
         <>
-          <div className="mb-6 flex flex-wrap items-center gap-3">
-            <button
-              onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : handleRegenerate}
-              disabled={regenerating}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50 dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted"
-            >
-              {regenerating ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RefreshCw className="size-4" />
-              )}
-              Regenerar
-            </button>
-            <button
-              onClick={() => { setPrintMode('single'); setPrintOrientation('portrait'); setPrintDialogOpen(true); }}
-              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-800"
-            >
-              <Printer className="size-4" />
-              Imprimir PDF
-            </button>
+          <div className="mb-6 flex items-center justify-between gap-3">
+            {/* AÇÃO PRIMÁRIA - Sempre Visível */}
             <button
               onClick={() => {
                 if (trial?.isTrialExceeded) { trial.openUpgrade(); return; }
                 if (!hasAccess) { setUpgradeOpen(true); return; }
                 setNewGroupName(''); setNewGroupGenero('misto'); setCreateDialogOpen(true);
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
+              className="inline-flex flex-1 sm:flex-none justify-center items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 max-md:h-11"
             >
-              {hasAccess ? <Plus className="size-4" /> : <Lock className="size-4 text-amber-500" />}
+              {hasAccess ? <Plus className="size-4" /> : <Lock className="size-4 text-amber-300" />}
               Criar Grupo Avulso
             </button>
+
+            {/* DESKTOP: Ações Secundárias em Linha */}
+            <div className="hidden sm:flex items-center gap-3">
+              <button
+                onClick={() => { setPrintMode('single'); setPrintOrientation('portrait'); setPrintDialogOpen(true); }}
+                className="inline-flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                <Printer className="size-4" />
+                Imprimir PDF
+              </button>
+              <button
+                onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => setRegenerateConfirmOpen(true)}
+                disabled={regenerating}
+                className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 bg-transparent px-4 py-2 text-sm font-medium text-destructive shadow-sm transition-colors hover:bg-destructive/10 disabled:opacity-50"
+              >
+                {regenerating ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                Recriar
+              </button>
+            </div>
+
+            {/* MOBILE: Kebab Menu para Ações Secundárias */}
+            <div className="sm:hidden flex shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" size="icon" className="max-md:h-11 max-md:w-11 shrink-0" />}
+                >
+                  <MoreVertical className="size-5 text-foreground" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => { setPrintMode('single'); setPrintOrientation('portrait'); setPrintDialogOpen(true); }}
+                  >
+                    <Printer className="mr-2 size-4" />
+                    Imprimir PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    className="cursor-pointer"
+                    disabled={regenerating}
+                    onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => setRegenerateConfirmOpen(true)}
+                  >
+                    {regenerating ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
+                    Recriar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {grupos.map((grupo) => (
               <GrupoCard
-                key={`${grupo.grupo_numero}-${grupo.genero_saida}-${grupo.custom_name || ''}`}
+                key={grupo.id}
                 grupo={grupo}
                 allGroups={grupos}
-                eventId={eventId}
                 onMoveComplete={handleMoveComplete}
-                onRename={(num, name) => { setRenameTarget(num); setRenameValue(name); setRenameDialogOpen(true); }}
-                onDeleteGroup={(num) => { setDeleteTarget(num); setDeleteConfirmOpen(true); }}
+                onRename={(id, name) => { setRenameTarget(id); setRenameValue(name); setRenameDialogOpen(true); }}
+                onDeleteGroup={(id) => { setDeleteTarget(id); setDeleteConfirmOpen(true); }}
               />
             ))}
           </div>
@@ -787,7 +821,7 @@ export default function GroupsPage() {
             <div>
               <Label>Gênero</Label>
               <div className="mt-1 flex gap-6">
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
                     name="newGroupGenero"
@@ -797,7 +831,7 @@ export default function GroupsPage() {
                   />
                   Feminino
                 </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
                     name="newGroupGenero"
@@ -807,7 +841,7 @@ export default function GroupsPage() {
                   />
                   Masculino
                 </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
                     name="newGroupGenero"
@@ -875,8 +909,8 @@ export default function GroupsPage() {
           <DialogHeader>
             <DialogTitle>Excluir Grupo</DialogTitle>
             <DialogDescription>
-              {grupos.find((g) => g.grupo_numero === deleteTarget)?.integrantes.length
-                ? `Este grupo possui ${grupos.find((g) => g.grupo_numero === deleteTarget)!.integrantes.length} integrante(s) que serão removidos do grupo.`
+              {grupos.find((g) => g.id === deleteTarget)?.integrantes.length
+                ? `Este grupo possui ${grupos.find((g) => g.id === deleteTarget)!.integrantes.length} integrante(s) que serão removidos do grupo.`
                 : 'Tem certeza que deseja excluir este grupo?'}
             </DialogDescription>
           </DialogHeader>
@@ -890,6 +924,25 @@ export default function GroupsPage() {
               disabled={deletingGroup}
             >
               {deletingGroup ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Excluindo...</> : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={regenerateConfirmOpen} onOpenChange={setRegenerateConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recriar Grupos</DialogTitle>
+            <DialogDescription>
+              Todas as alterações manuais, grupos avulsos e monitores serão perdidos. Tem certeza que deseja continuar?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRegenerateConfirmOpen(false)} disabled={regenerating}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleRegenerate} disabled={regenerating}>
+              {regenerating ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Recriando...</> : 'Recriar'}
             </Button>
           </DialogFooter>
         </DialogContent>

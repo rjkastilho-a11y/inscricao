@@ -80,58 +80,59 @@ export default function CheckinLinkPage() {
               Carregando...
             </div>
           ) : checkinToken && checkinUrl ? (
-            <>
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-muted rounded-lg px-2.5 py-1.5 text-foreground truncate">
+                <code className="flex-1 text-xs bg-muted rounded-lg px-3 py-2 text-foreground truncate max-md:h-11 max-md:flex max-md:items-center">
                   {checkinUrl}
                 </code>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="shrink-0 bg-card backdrop-blur-md border-border"
+                  className="shrink-0 bg-card backdrop-blur-md border-border max-md:h-11 max-md:w-11 rounded-lg"
                   onClick={async () => {
                     await copyToClipboard(checkinUrl);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}
                 >
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                 </Button>
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 sm:flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-card backdrop-blur-md border-border"
+                  className="bg-card backdrop-blur-md border-border max-md:h-11 rounded-lg"
                   onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : generateToken}
                   disabled={saving}
                 >
-                  <RefreshCw className={`h-4 w-4 mr-1 ${saving ? 'animate-spin' : ''}`} />
-                  Regenerar
+                  <RefreshCw className={`size-4 mr-1 sm:mr-2 ${saving ? 'animate-spin' : ''}`} />
+                  <span>Gerar</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-card backdrop-blur-md border-border text-destructive hover:text-destructive"
+                  className="bg-card backdrop-blur-md border-border text-destructive hover:text-destructive max-md:h-11 rounded-lg"
                   onClick={removeToken}
                   disabled={saving}
                 >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Remover link
+                  <Trash2 className="size-4 mr-1 sm:mr-2" />
+                  <span>Remover link</span>
                 </Button>
               </div>
-            </>
+            </div>
           ) : (
             <Button
               variant="default"
               size="sm"
+              className="max-md:h-11 rounded-lg"
               onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : generateToken}
               disabled={saving}
             >
               {saving ? (
-                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                <RefreshCw className="size-4 mr-2 animate-spin" />
               ) : (
-                <Copy className="h-4 w-4 mr-1" />
+                <Copy className="size-4 mr-2" />
               )}
               Gerar link de check-in
             </Button>

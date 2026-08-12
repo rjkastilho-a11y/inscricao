@@ -20,7 +20,13 @@ import {
 } from '@/components/ui/dialog';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Trash2, Pencil, ExternalLink, Copy, Check, ArrowUpDown, CopyPlus, Lock } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Trash2, Pencil, ExternalLink, Copy, Check, ArrowUpDown, CopyPlus, Lock, MoreHorizontal } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useTrial } from '@/components/layout/ChurchGuard';
 import { Input } from '@/components/ui/input';
@@ -262,48 +268,49 @@ export default function EventsPage() {
                 <span className="text-foreground">{event.max_capacity ?? 'Ilimitado'}</span>
               </div>
             </CardContent>
-            <div className="flex items-center gap-2 border-t border-border p-3">
+            <div className="flex items-center gap-3 border-t border-border p-3">
               <Link
                 to={`/app/evento/${event.id}/dashboard`}
-                className={cn(buttonVariants({ size: 'sm' }), 'flex-1')}
+                className={cn(buttonVariants({ size: 'sm' }), 'flex-1 max-md:h-11')}
               >
                 <ExternalLink className="h-3.5 w-3.5 mr-1" />
                 Acessar
               </Link>
-              <Link
-                to={`/app/eventos/${event.id}/editar`}
-                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'bg-card border-border')}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Link>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-card border-border"
-                onClick={async () => {
-                  await copyToClipboard(`${window.location.origin}/e/${event.slug}`);
-                  setCopiedId(event.id);
-                  setTimeout(() => setCopiedId(null), 2000);
-                }}
-              >
-                {copiedId === event.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-card border-border"
-                onClick={() => openDuplicateDialog(event)}
-              >
-                <CopyPlus className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-card border-border text-destructive hover:text-destructive"
-                onClick={() => setDeleteTarget(event)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label="Mais ações"
+                  className={cn(
+                    buttonVariants({ variant: 'outline', size: 'icon' }),
+                    'bg-card border-border max-md:h-11 max-md:w-11'
+                  )}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => navigate(`/app/eventos/${event.id}/editar`)}>
+                    <Pencil className="h-4 w-4" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      await copyToClipboard(`${window.location.origin}/e/${event.slug}`);
+                      setCopiedId(event.id);
+                      setTimeout(() => setCopiedId(null), 2000);
+                    }}
+                  >
+                    {copiedId === event.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    Copiar link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openDuplicateDialog(event)}>
+                    <CopyPlus className="h-4 w-4" />
+                    Duplicar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(event)}>
+                    <Trash2 className="h-4 w-4" />
+                    Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </Card>
         ))}

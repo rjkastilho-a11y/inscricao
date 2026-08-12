@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PageHeader } from '@/components/shared/PageHeader';
 import {
@@ -10,7 +10,12 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Printer, Lock } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsiblePanel } from '@/components/ui/collapsible';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Printer, Lock, Settings2, ChevronDown, ChevronUp, ZoomIn } from 'lucide-react';
 import { useEvent } from '@/contexts/useEvent';
 import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { UpgradeModal } from '@/components/shared/UpgradeModal';
@@ -125,7 +130,22 @@ export default function EtiquetasPage() {
   const [breakLines, setBreakLines] = useState(false);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [labels, setLabels] = useState<string[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [mobilePreviewWidth, setMobilePreviewWidth] = useState(0);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const config = PIMACO_CONFIGS[selectedModel] || PIMACO_CONFIGS['6081/6181/6281'];
+
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    const update = () => setMobilePreviewWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const handleFormatLock = () => {
     if (!hasAccess) { setUpgradeOpen(true); return true; }
@@ -187,6 +207,99 @@ export default function EtiquetasPage() {
     gridTemplateRows: `repeat(${config.linhas}, ${cm(config.alturaEtiqueta)})`,
   };
 
+  const fontLabel = FONT_FAMILIES.find((f) => f.value === fontFamily)?.label ?? fontFamily;
+  const settingsSummary = `${config.name} • ${fontLabel} ${fontSize}`;
+  const isSettingsOpen = isMobile ? settingsOpen : true;
+
+  const A4_WIDTH_PX = (21 / 2.54) * 96;
+  const sheetScale = mobilePreviewWidth > 0 ? mobilePreviewWidth / A4_WIDTH_PX : 1;
+
+  const renderSheets = (scaled: boolean, scale: number) => {
+    return Array.from({ length: sheets }, (_, s) => {
+      const sheetGrid = (
+        <div
+          className="etiqueta-grid"
+          style={{
+            ...gridStyle,
+            marginTop: cm(config.margemSuperior),
+            marginLeft: cm(config.margemLateral),
+          }}
+        >
+          {Array.from({ length: totalLabels }, (_, i) => {
+            const labelIdx = s * totalLabels + i;
+            return (
+              <div
+                key={i}
+                className={`relative flex flex-col items-center justify-center text-center p-1 ${showGrid ? 'border border-dashed border-border/50 rounded-sm' : ''} ${labelIdx < labels.length ? 'cursor-pointer' : ''}`}
+                style={{
+                  width: cm(config.larguraEtiqueta),
+                  height: cm(config.alturaEtiqueta),
+                }}
+                onClick={() => labelIdx < labels.length && toggleSelection(labelIdx)}
+              >
+                {labelIdx < labels.length ? (
+                  <>
+                    <div className="absolute top-0.5 left-0.5 z-10">
+                      <div
+                        className={`size-3 rounded-sm border flex items-center justify-center ${selectedIndices.has(labelIdx) ? 'bg-primary border-primary' : 'bg-white border-gray-300'}`}
+                      >
+                        {selectedIndices.has(labelIdx) && (
+                          <svg className="size-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className={`text-foreground leading-tight w-full ${breakLines ? 'whitespace-normal break-words' : 'truncate'} ${!selectedIndices.has(labelIdx) ? 'opacity-40' : ''}`}
+                      style={{ fontSize, fontFamily, fontWeight: isBold ? '700' : '400' }}
+                    >
+                      {abbreviateNames ? abbreviateName(labels[labelIdx]) : labels[labelIdx]}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      );
+
+      const sheetLabel = sheets > 1 ? (
+        <p className="text-center text-xs text-muted-foreground mb-1">
+          Folha {s + 1} de {sheets}
+        </p>
+      ) : null;
+
+      if (scaled) {
+        return (
+          <div key={s}>
+            {sheetLabel}
+            <div className="relative w-full" style={{ aspectRatio: '210/297' }}>
+              <div
+                className="absolute top-0 left-0"
+                style={{
+                  width: '21cm',
+                  height: '29.7cm',
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                }}
+              >
+                {sheetGrid}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div key={s} className="mb-8" style={{ height: '29.7cm' }}>
+          {sheetLabel}
+          {sheetGrid}
+        </div>
+      );
+    });
+  };
+
   return (
     <div className="w-full print:bg-white">
       {/* Controls — hidden on print */}
@@ -197,142 +310,183 @@ export default function EtiquetasPage() {
           description="Gere etiquetas Pimaco para impressão"
         />
 
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Modelo:</span>
-              {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
-              <Select
-                value={selectedModel}
-                onValueChange={(v) => { if (handleFormatLock()) return; setSelectedModel(v); }}
-              >
-                <SelectTrigger className="w-full sm:max-w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PIMACO_CONFIGS).map(([key, cfg]) => (
-                    <SelectItem key={key} value={key}>
-                      {cfg.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <Collapsible
+          open={isSettingsOpen}
+          onOpenChange={setSettingsOpen}
+          className="mb-6 rounded-xl border border-border bg-card shadow-sm print:hidden"
+        >
+          <CollapsibleTrigger
+            className="flex w-full items-center gap-2 p-4 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 rounded-t-xl select-none max-md:h-11"
+          >
+            <Settings2 className="size-4 shrink-0 text-muted-foreground" />
+            <span className="text-sm font-semibold text-foreground">Ajustes de Impressão</span>
+            <span className="ml-auto hidden sm:block text-xs text-muted-foreground truncate">
+              {settingsSummary}
+            </span>
+            <span className="sm:hidden text-xs text-muted-foreground truncate">
+              {settingsSummary}
+            </span>
+            {isMobile && (
+              <span className="flex items-center justify-center size-8 shrink-0 rounded-lg border border-border/50">
+                {settingsOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+              </span>
+            )}
+          </CollapsibleTrigger>
+
+          <CollapsiblePanel>
+            <div className="flex flex-col gap-4 px-4 pb-4 pt-0">
+              {/* Linha 1: Modelo | Fonte | Tamanho em grid simétrico */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-foreground shrink-0">Modelo:</span>
+                  {!hasAccess && <Lock className="size-3.5 text-amber-500 shrink-0" />}
+                  <Select
+                    value={selectedModel}
+                    onValueChange={(v) => { if (handleFormatLock()) return; setSelectedModel(v); }}
+                  >
+                    <SelectTrigger className="w-full max-md:h-11">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(PIMACO_CONFIGS).map(([key, cfg]) => (
+                        <SelectItem key={key} value={key}>
+                          {cfg.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+  
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground shrink-0">Fonte:</span>
+                  {!hasAccess && <Lock className="size-3.5 text-amber-500 shrink-0" />}
+                  <Select
+                    value={fontFamily}
+                    onValueChange={(v) => { if (handleFormatLock()) return; setFontFamily(v); }}
+                  >
+                    <SelectTrigger className="w-full max-md:h-11">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_FAMILIES.map((font) => (
+                        <SelectItem key={font.value} value={font.value}>
+                          {font.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+  
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground shrink-0">Tamanho:</span>
+                  {!hasAccess && <Lock className="size-3.5 text-amber-500 shrink-0" />}
+                  <Select
+                    value={fontSize}
+                    onValueChange={(v) => { if (handleFormatLock()) return; setFontSize(v); }}
+                  >
+                    <SelectTrigger className="w-full max-md:h-11">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_SIZES.map((size) => (
+                        <SelectItem key={size} value={size}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+  
+              {/* Linha 2: toggles de formatação em grid 2x2 no mobile / 4 colunas no desktop */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60">
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer p-2 rounded-lg border border-border/50 hover:bg-accent max-md:h-11">
+                  <Checkbox
+                    id="bold"
+                    checked={isBold}
+                    onCheckedChange={(checked) => { if (handleFormatLock()) return; setIsBold(checked === true); }}
+                  />
+                  <span className="flex items-center gap-1">
+                    Negrito
+                    {!hasAccess && <Lock className="size-3 text-amber-500 shrink-0" />}
+                  </span>
+                </label>
+  
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer p-2 rounded-lg border border-border/50 hover:bg-accent max-md:h-11">
+                  <Checkbox
+                    id="showGrid"
+                    checked={showGrid}
+                    onCheckedChange={(checked) => setShowGrid(checked === true)}
+                  />
+                  <span>Mostrar grade</span>
+                </label>
+  
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer p-2 rounded-lg border border-border/50 hover:bg-accent max-md:h-11">
+                  <Checkbox
+                    id="abbreviateNames"
+                    checked={abbreviateNames}
+                    onCheckedChange={(checked) => { if (handleFormatLock()) return; setAbbreviateNames(checked === true); }}
+                  />
+                  <span className="flex items-center gap-1">
+                    Abreviar nomes
+                    {!hasAccess && <Lock className="size-3 text-amber-500 shrink-0" />}
+                  </span>
+                </label>
+  
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer p-2 rounded-lg border border-border/50 hover:bg-accent max-md:h-11">
+                  <Checkbox
+                    id="breakLines"
+                    checked={breakLines}
+                    onCheckedChange={(checked) => { if (handleFormatLock()) return; setBreakLines(checked === true); }}
+                  />
+                  <span className="flex items-center gap-1">
+                    Quebrar linha
+                    {!hasAccess && <Lock className="size-3 text-amber-500 shrink-0" />}
+                  </span>
+                </label>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Tamanho da Fonte:</span>
-              {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
-              <Select
-                value={fontSize}
-                onValueChange={(v) => { if (handleFormatLock()) return; setFontSize(v); }}
-              >
-                <SelectTrigger className="w-full sm:max-w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_SIZES.map((size) => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Fonte:</span>
-              {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
-              <Select
-                value={fontFamily}
-                onValueChange={(v) => { if (handleFormatLock()) return; setFontFamily(v); }}
-              >
-                <SelectTrigger className="w-full sm:max-w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_FAMILIES.map((font) => (
-                    <SelectItem key={font.value} value={font.value}>
-                      {font.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="bold"
-                checked={isBold}
-                onCheckedChange={(checked) => { if (handleFormatLock()) return; setIsBold(checked === true); }}
-              />
-              <label htmlFor="bold" className="text-sm text-muted-foreground cursor-pointer flex items-center">
-                Negrito
-                {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
-              </label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="showGrid"
-                checked={showGrid}
-                onCheckedChange={(checked) => setShowGrid(checked === true)}
-              />
-              <label htmlFor="showGrid" className="text-sm text-muted-foreground cursor-pointer">
-                Mostrar grade
-              </label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="abbreviateNames"
-                checked={abbreviateNames}
-                onCheckedChange={(checked) => { if (handleFormatLock()) return; setAbbreviateNames(checked === true); }}
-              />
-              <label htmlFor="abbreviateNames" className="text-sm text-muted-foreground cursor-pointer flex items-center">
-                Abreviar nomes
-                {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
-              </label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="breakLines"
-                checked={breakLines}
-                onCheckedChange={(checked) => { if (handleFormatLock()) return; setBreakLines(checked === true); }}
-              />
-              <label htmlFor="breakLines" className="text-sm text-muted-foreground cursor-pointer flex items-center">
-                Quebrar linha
-                {!hasAccess && <Lock className="size-3.5 ml-2 text-amber-500" />}
-              </label>
-            </div>
-          </div>
+          </CollapsiblePanel>
+        </Collapsible>
+
+        {/* Ação principal — Imprimir */}
+        <div className="mb-6 flex justify-end">
           <Button
-            variant="outline"
             onClick={() => window.print()}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto max-md:h-11 shadow-sm"
           >
             <Printer className="size-4" />
             Imprimir
           </Button>
         </div>
 
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <span className="text-sm text-muted-foreground">
+        <div className="mb-6 space-y-2">
+          <p className="text-sm text-muted-foreground">
             {selectedIndices.size} de {labels.length} etiquetas selecionadas
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedIndices(new Set(labels.map((_, i) => i)))}
-          >
-            Selecionar Todos
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedIndices(new Set())}
-          >
-            Desmarcar Todos
-          </Button>
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto max-md:h-11"
+              onClick={() => setSelectedIndices(new Set(labels.map((_, i) => i)))}
+            >
+              Selecionar Todos
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto max-md:h-11"
+              onClick={() => setSelectedIndices(new Set())}
+            >
+              Desmarcar Todos
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Preview — hidden on print */}
-      <div className="print:hidden rounded-lg border border-dashed border-border bg-muted/30 p-8 overflow-auto">
+      {/* Preview desktop — hidden on print */}
+      <div className="hidden sm:block print:hidden rounded-lg border border-dashed border-border bg-muted/30 p-8 overflow-auto">
         <div className="text-center mb-4">
           <p className="text-sm font-medium text-muted-foreground">
             Pré-visualização — {config.name}
@@ -356,62 +510,58 @@ export default function EtiquetasPage() {
           className="mx-auto"
           style={{ width: '21cm', maxHeight: '80vh' }}
         >
-          {Array.from({ length: sheets }, (_, s) => (
-            <div key={s} className="mb-8" style={{ height: '29.7cm' }}>
-              {sheets > 1 && (
-                <p className="text-center text-xs text-muted-foreground mb-1">
-                  Folha {s + 1} de {sheets}
-                </p>
-              )}
-              <div
-                className="etiqueta-grid"
-                style={{
-                  ...gridStyle,
-                  marginTop: cm(config.margemSuperior),
-                  marginLeft: cm(config.margemLateral),
-                }}
-              >
-                {Array.from({ length: totalLabels }, (_, i) => {
-                  const labelIdx = s * totalLabels + i;
-                  return (
-                    <div
-                      key={i}
-                      className={`relative flex flex-col items-center justify-center text-center p-1 ${showGrid ? 'border border-dashed border-border/50 rounded-sm' : ''} ${labelIdx < labels.length ? 'cursor-pointer' : ''}`}
-                      style={{
-                        width: cm(config.larguraEtiqueta),
-                        height: cm(config.alturaEtiqueta),
-                      }}
-                      onClick={() => labelIdx < labels.length && toggleSelection(labelIdx)}
-                    >
-                      {labelIdx < labels.length ? (
-                        <>
-                          <div className="absolute top-0.5 left-0.5 z-10">
-                            <div
-                              className={`size-3 rounded-sm border flex items-center justify-center ${selectedIndices.has(labelIdx) ? 'bg-primary border-primary' : 'bg-white border-gray-300'}`}
-                            >
-                              {selectedIndices.has(labelIdx) && (
-                                <svg className="size-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </div>
-                          </div>
-                          <span
-                            className={`text-foreground leading-tight w-full ${breakLines ? 'whitespace-normal break-words' : 'truncate'} ${!selectedIndices.has(labelIdx) ? 'opacity-40' : ''}`}
-                            style={{ fontSize, fontFamily, fontWeight: isBold ? '700' : '400' }}
-                          >
-                            {abbreviateNames ? abbreviateName(labels[labelIdx]) : labels[labelIdx]}
-                          </span>
-                        </>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          {renderSheets(false, 1)}
         </div>
       </div>
+
+      {/* Preview mobile — miniatura escalada, abre zoom ao tocar */}
+      <div
+        onClick={() => setZoomOpen(true)}
+        className="sm:hidden print:hidden w-full overflow-hidden rounded-lg border border-border bg-muted/20 relative cursor-pointer"
+      >
+        <div className="p-4 pb-0 text-center">
+          <p className="text-sm font-medium text-muted-foreground">
+            Pré-visualização — {config.name}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {config.colunas} × {config.linhas} = {totalLabels} etiquetas por folha
+            {sheets > 1 && <span> — {sheets} folhas no total</span>}
+          </p>
+        </div>
+        <div className="px-4 pb-4">
+          <div ref={previewRef}>
+            {renderSheets(true, sheetScale)}
+          </div>
+        </div>
+        {eventId && labels.length === 0 && (
+          <p className="pb-3 text-center text-xs text-muted-foreground">
+            Nenhum inscrito encontrado para este evento
+          </p>
+        )}
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm border border-border">
+            <ZoomIn className="size-3.5" />
+            Ampliar Folha
+          </span>
+        </div>
+      </div>
+
+      {/* Dialog de zoom — folha ampliada */}
+      <Dialog open={zoomOpen} onOpenChange={setZoomOpen}>
+        <DialogContent className="w-full max-w-[calc(100%-1rem)] sm:max-w-2xl h-[90vh] grid-rows-[auto_1fr] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Visualização da Folha</DialogTitle>
+            <DialogDescription>
+              Toque nas etiquetas para selecionar ou desmarcar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 overflow-auto">
+            <div className="mx-auto" style={{ width: '21cm' }}>
+              {renderSheets(false, 1)}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Print layout — only visible on print */}
       <div className="hidden print:block print:visible print:w-full print:m-0 print:p-0 print:bg-white">

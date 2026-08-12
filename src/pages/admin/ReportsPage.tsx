@@ -89,16 +89,16 @@ export default function ReportsPage() {
           <CardTitle className="text-lg">Por Evento</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border border-border">
+          <div className="rounded-lg border border-border overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted">
-                  <th className="text-left p-4 text-sm font-medium">Evento</th>
-                  <th className="text-left p-4 text-sm font-medium">Inscrições</th>
-                  <th className="text-left p-4 text-sm font-medium">Pagos</th>
-                  <th className="text-left p-4 text-sm font-medium">Confirmados</th>
-                  <th className="text-left p-4 text-sm font-medium">Pendentes</th>
-                  <th className="text-left p-4 text-sm font-medium">Receita</th>
+                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Evento</th>
+                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Inscrições</th>
+                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Pagos</th>
+                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Confirmados</th>
+                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Pendentes</th>
+                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Receita</th>
                 </tr>
               </thead>
               <tbody>

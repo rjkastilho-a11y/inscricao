@@ -236,7 +236,7 @@ export default function LandingPage() {
 
       {/* Navbar */}
       <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-slate-900/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-8">
+        <div className="mx-auto flex min-h-14 max-w-7xl flex-wrap items-center justify-between gap-y-2 px-4 sm:px-8">
         <div className="flex items-center gap-3">
           <img src="/screenshots/Icone.png" alt="" className="h-[36px] w-auto" />
           <div className="flex flex-col leading-none">

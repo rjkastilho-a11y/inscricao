@@ -1,12 +1,17 @@
 import { useEffect, useState, Fragment } from 'react';
 import { useEvent } from '@/contexts/useEvent';
+import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { fetchFormFields, type FormField, type FormStep, STEP_LABELS, STEP_ORDER } from '@/lib/form-fields';
 import { formatDate } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Printer, Loader2 } from 'lucide-react';
 import { useTrial } from '@/components/layout/ChurchGuard';
+
+const WATERMARK_ALLOWED_EMAILS = ['rj.kastilho@gmail.com', 'rie@pibane.com.br'];
 
 const EXCLUDED_KEYS = new Set(['accept_terms', 'pastoral_authorization', 'church_role', 'church_role_other', 'godparent', 'godparent_contact', 'cep', 'city', 'state']);
 
@@ -39,6 +44,8 @@ function isSelect(field: FormField): boolean {
 export default function FichaImpressaPage() {
   const { event } = useEvent();
   const trial = useTrial();
+  const { user, isSuperAdmin } = useAuth();
+  const canEditWatermark = isSuperAdmin || (user?.email && WATERMARK_ALLOWED_EMAILS.includes(user.email.toLowerCase()));
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const [watermarkUrl, setWatermarkUrl] = useState('');
@@ -61,18 +68,6 @@ export default function FichaImpressaPage() {
       setLoading(false);
     });
   }, [event]);
-
-  const handleSaveWatermark = async () => {
-    setSavingWatermark(true);
-    const val = watermarkUrl.trim() || null;
-    const { error } = await supabase.from('events').update({ watermark_url: val }).eq('id', event.id);
-    if (error) {
-      toast.error('Erro ao salvar: ' + error.message);
-    } else {
-      setWatermarkUrl(val || '');
-    }
-    setSavingWatermark(false);
-  };
 
   if (!event) return null;
 
@@ -188,18 +183,10 @@ export default function FichaImpressaPage() {
           letter-spacing: 0.3px;
         }
 
-        .print-fields-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px 24px;
-        }
         .print-field {
           display: flex;
           flex-direction: column;
           min-height: 32px;
-        }
-        .print-field.col-span-2 {
-          grid-column: span 2;
         }
         .print-field-label {
           font-size: 13px;
@@ -309,6 +296,9 @@ export default function FichaImpressaPage() {
           color: hsl(var(--muted-foreground));
           white-space: nowrap;
         }
+        @media screen {
+          .print-option { white-space: normal; }
+        }
         @media print {
           body { background: white !important; }
           @page { margin: 12mm 15mm; size: A4; }
@@ -340,46 +330,55 @@ export default function FichaImpressaPage() {
         }
       `}</style>
 
-      <div className="no-print mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h1 className="font-serif text-2xl font-bold text-foreground">Ficha de Inscrição Impressa</h1>
-            <p className="text-muted-foreground text-sm mt-1">
+      <div className="no-print mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="font-serif text-xl sm:text-2xl font-bold text-foreground">Ficha de Inscrição Impressa</h1>
+            <p className="text-muted-foreground text-sm mt-1 leading-relaxed">
               Ficha em branco com os campos configurados no formulário do evento.
               Imprima para preenchimento manual quando o inscrito não puder fazer online.
             </p>
           </div>
-          <Button onClick={() => window.print()}>
-            <Printer className="h-4 w-4 mr-1" />
+          <Button onClick={() => window.print()} className="w-full sm:w-auto max-md:h-11 shadow-sm shrink-0">
+            <Printer className="size-4 mr-2" />
             Imprimir
           </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border">
-          <input
-            type="text"
-            value={watermarkUrl}
-            onChange={(e) => setWatermarkUrl(e.target.value)}
-            placeholder="URL da marca d'água (opcional)"
-            className="flex h-9 w-full md:min-w-[250px] rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <Button disabled={savingWatermark} onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : handleSaveWatermark}>
-            {savingWatermark ? 'Salvando...' : 'Salvar'}
-          </Button>
-          {watermarkUrl && (
-            <Button variant="outline" onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : async () => {
-              setWatermarkUrl('');
-              setSavingWatermark(true);
-              const { error } = await supabase.from('events').update({ watermark_url: null }).eq('id', event.id);
-              if (error) toast.error('Erro ao remover: ' + error.message);
-              setSavingWatermark(false);
-            }}>
-              Remover
-            </Button>
-          )}
-          <span className="text-xs text-muted-foreground">
-            {watermarkUrl ? 'Marca d\'água ativa' : 'Sem marca d\'água'}
-          </span>
-        </div>
+
+        {canEditWatermark && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4 pt-4 border-t border-border">
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={!!watermarkUrl}
+                disabled={savingWatermark}
+                onCheckedChange={async (checked) => {
+                  if (trial?.isTrialExceeded) { trial.openUpgrade(); return; }
+                  setSavingWatermark(true);
+                  const newValue = checked ? '/Logo Rie.png' : null;
+
+                  // Update otimista na UI
+                  setWatermarkUrl(newValue || '');
+
+                  // Update no banco
+                  const { error } = await supabase.from('events').update({ watermark_url: newValue }).eq('id', event.id);
+                  if (error) {
+                    toast.error("Erro ao atualizar marca d'água: " + error.message);
+                    setWatermarkUrl(watermarkUrl); // reverte em caso de erro
+                  }
+                  setSavingWatermark(false);
+                }}
+              />
+              <div className="flex flex-col">
+                <Label className="text-sm font-semibold cursor-pointer">
+                  Imprimir com Marca d'água
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  {savingWatermark ? 'A guardar...' : (watermarkUrl ? 'O logótipo será impresso no fundo da ficha' : 'Fundo da folha em branco')}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div
@@ -410,12 +409,12 @@ export default function FichaImpressaPage() {
               return (
                 <div key={step} className="print-section">
                   <h2>{STEP_LABELS[step]}</h2>
-                  <div className="print-fields-grid">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 print:grid-cols-2">
                     {stepFields.map((field) => {
                       if (field.field_key === 'has_allergies') {
                         const descField = fields.find(f => f.field_key === 'allergy_description' && f.step === step);
                         return (
-                          <div key={field.id} className="print-field col-span-2">
+                          <div key={field.id} className="print-field min-w-0 col-span-1 sm:col-span-2 print:col-span-2">
                             <span className="print-field-label">
                               {field.label}
                               {field.required && <span className="text-destructive ml-0.5">*</span>}
@@ -446,7 +445,7 @@ export default function FichaImpressaPage() {
                       }
                       if (field.field_key === 'dietary_restrictions') {
                         return (
-                          <div key={field.id} className="print-field col-span-2">
+                          <div key={field.id} className="print-field min-w-0 col-span-1 sm:col-span-2 print:col-span-2">
                             <span className="print-field-label">
                               {field.label}
                               {field.required && <span className="text-destructive ml-0.5">*</span>}
@@ -473,7 +472,7 @@ export default function FichaImpressaPage() {
                       if (field.field_key === 'address') {
                         return (
                           <Fragment key="address-group">
-                            <div className="col-span-2 print-address-row">
+                            <div className="col-span-1 sm:col-span-2 print:col-span-2 print-address-row">
                               <div className="print-field print-field-address-cep">
                                 <span className="print-field-label">CEP</span>
                                 <div className="print-line" />
@@ -489,7 +488,7 @@ export default function FichaImpressaPage() {
                             </div>
                             <div
                               key={field.id}
-                              className="print-field col-span-2"
+                              className="print-field min-w-0 col-span-1 sm:col-span-2 print:col-span-2"
                             >
                               <span className="print-field-label">
                                 {LABEL_OVERRIDES[field.field_key] ?? field.label}
@@ -503,7 +502,7 @@ export default function FichaImpressaPage() {
                       return (
                         <div
                           key={field.id}
-                          className={`print-field${isFullWidth(field) ? ' col-span-2' : ''}`}
+                          className={`print-field min-w-0${isFullWidth(field) ? ' col-span-1 sm:col-span-2 print:col-span-2' : ''}`}
                         >
                           <span className="print-field-label">
                             {LABEL_OVERRIDES[field.field_key] ?? field.label}
@@ -520,9 +519,9 @@ export default function FichaImpressaPage() {
             {(fields.filter((f) => f.field_key === 'godparent' || f.field_key === 'godparent_contact').length > 0) && (
               <div key="godparent-section" className="print-section">
                 <h2>Padrinho/Madrinha</h2>
-                <div className="print-fields-grid">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 print:grid-cols-2">
                   {fields.filter((f) => f.field_key === 'godparent' || f.field_key === 'godparent_contact').map((field) => (
-                    <div key={field.id} className="print-field">
+                    <div key={field.id} className="print-field min-w-0">
                       <span className="print-field-label">
                         {field.label}
                         {field.required && <span className="text-destructive ml-0.5">*</span>}

@@ -22,12 +22,13 @@ interface Registrant {
   gender: string | null;
 }
 
-function SectionPage({ title, registrants, total, eventName, eventDate }: {
+function SectionPage({ title, registrants, total, eventName, eventDate, hideTitle }: {
   title: string;
   registrants: Registrant[];
   total: number;
   eventName: string;
   eventDate: string | null;
+  hideTitle?: boolean;
 }) {
   return (
     <div className="print-section">
@@ -53,7 +54,7 @@ function SectionPage({ title, registrants, total, eventName, eventDate }: {
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">{title} ({registrants.length})</h2>
+      {!hideTitle && <h2 className="text-lg font-semibold mb-4">{title} ({registrants.length})</h2>}
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm mb-8 print:border-none print:shadow-none print:bg-transparent print:mb-4 print:overflow-visible">
         <table className="w-full border-collapse text-sm sm:text-base">
@@ -190,16 +191,11 @@ export default function FrequenciaPage() {
         </Button>
       </div>
 
-      {sections.map(([title, registrants, mode], idx) => (
+      {sections.map(([title, registrants, mode]) => (
         <div
           key={title}
-          className={printMode === mode ? undefined : 'print:hidden'}
+          className={cn('hidden', printMode === mode ? 'print:block' : 'print:hidden')}
         >
-          {idx > 0 && (
-            <div className="print:hidden border-t-2 border-dashed border-muted-foreground/30 my-8 py-2 text-center text-xs text-muted-foreground">
-              — Quebra de página —
-            </div>
-          )}
           <SectionPage
             title={title}
             registrants={registrants}
@@ -210,13 +206,14 @@ export default function FrequenciaPage() {
         </div>
       ))}
 
-      <div className={cn('hidden', printMode === 'todas' ? 'print:block' : 'print:hidden')}>
+      <div className={cn('block', printMode === 'todas' ? '' : 'print:hidden')}>
         <SectionPage
           title="Todos Juntos"
           registrants={allRegistrants}
           total={total}
           eventName={eventName}
           eventDate={eventDate}
+          hideTitle
         />
       </div>
 

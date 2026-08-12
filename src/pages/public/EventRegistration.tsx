@@ -528,16 +528,16 @@ export default function EventRegistration() {
         }`}
         onClick={() => !disabled && setSelectedLot(lot)}
       >
-        <CardContent className="flex items-start justify-between p-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">{lot.name}</span>
+        <CardContent className="flex items-start justify-between gap-3 p-4">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="min-w-0 truncate font-semibold text-foreground">{lot.name}</span>
               {status !== 'active' && (
-                <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${cfg.className}`}>
+                <span className={`shrink-0 text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${cfg.className}`}>
                   {cfg.label}
                 </span>
               )}
-              {selectedLot?.id === lot.id && <CheckCircle className="size-5 text-primary" />}
+              {selectedLot?.id === lot.id && <CheckCircle className="size-5 shrink-0 text-primary" />}
             </div>
             {lot.description && (
               <p className="text-sm text-muted-foreground">{lot.description}</p>
@@ -547,7 +547,7 @@ export default function EventRegistration() {
               {lot.max_capacity !== null && ` · ${count}/${lot.max_capacity} vagas`}
             </p>
           </div>
-          <div className="text-right">
+          <div className="shrink-0 text-right">
             <p className="text-lg font-bold text-foreground">
               {lot.price > 0 ? `R$ ${lot.price.toFixed(2)}` : 'Grátis'}
             </p>
