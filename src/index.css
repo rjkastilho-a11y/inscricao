@@ -52,7 +52,7 @@
     --muted: 222 16% 22%; 
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 222 16% 24%;
+    --accent: 222 16% 30%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 72% 50%;
@@ -90,5 +90,14 @@ body {
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: hsl(var(--border));
     border-radius: 3px;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
