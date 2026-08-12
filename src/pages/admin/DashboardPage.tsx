@@ -15,7 +15,6 @@ import {
 } from 'recharts';
 import { Building2, Lock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useTrial } from '@/components/layout/ChurchGuard';
 import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { UpgradeModal } from '@/components/shared/UpgradeModal';
 import { fetchFormFields } from '@/lib/form-fields';
@@ -115,9 +114,9 @@ const PREMIUM_METRICS = new Set<MetricKey>(['perfil_fe', 'marital_status', 'is_b
 export default function DashboardPage() {
   const { event, eventId } = useEvent();
   const { isSuperAdmin, churchId } = useAuth();
-  const trial = useTrial();
   const { hasAccess } = useFeatureGate();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+
   const [stats, setStats] = useState({ events: 0, registrations: 0 });
   const [eventStats, setEventStats] = useState<EventStat[]>([]);
   const [finStats, setFinStats] = useState({ offerings: 0, expenses: 0 });
@@ -611,51 +610,6 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader title="Dashboard" badge={event?.title} />
-
-      <div className="grid grid-cols-2 md:hidden gap-2 mb-4">
-        {trial?.isTrialExceeded ? (
-          <button
-            onClick={() => trial.openUpgrade()}
-            className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Nova Inscrição
-          </button>
-        ) : (
-          <Link
-            to={`/app/evento/${eventId}/inscricoes/nova`}
-            className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Nova Inscrição
-          </Link>
-        )}
-        {trial?.isTrialExceeded ? (
-          <button
-            onClick={() => trial.openUpgrade()}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-3 text-sm font-medium text-foreground hover:bg-accent transition-colors"
-          >
-            Gerar Convite
-          </button>
-        ) : (
-          <Link
-            to={`/app/evento/${eventId}/convites`}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-3 text-sm font-medium text-foreground hover:bg-accent transition-colors"
-          >
-            Gerar Convite
-          </Link>
-        )}
-        <Link
-          to={`/app/evento/${eventId}/financeiro`}
-          className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-3 text-sm font-medium text-foreground hover:bg-accent transition-colors"
-        >
-          Lançar Entrada
-        </Link>
-        <Link
-          to={`/app/evento/${eventId}/inscricoes`}
-          className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-3 text-sm font-medium text-foreground hover:bg-accent transition-colors"
-        >
-          Check-in
-        </Link>
-      </div>
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6">
         <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
