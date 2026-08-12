@@ -3,14 +3,14 @@ import { supabase } from '@/lib/supabase';
 import { copyToClipboard } from '@/lib/clipboard';
 import { SkeletonMobileCard } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Plus, Download, Loader2, Trash2, MessageCircle, ChevronDown, ChevronUp, Copy, Check, Link2, Globe } from 'lucide-react';
+import { Plus, Loader2, Trash2, MessageCircle, ChevronDown, ChevronUp, Copy, Check, Link2, Globe, Lock, Unlock } from 'lucide-react';
 import { useTrial } from '@/components/layout/ChurchGuard';
 
 interface Invite {
@@ -61,7 +61,7 @@ function RecipientNameCell({
           if (e.key === 'Enter') onCommit();
           if (e.key === 'Escape') onCancel();
         }}
-        className="h-8 w-full max-w-[220px] text-sm"
+        className="h-8 w-full max-w-[220px] text-base md:text-sm"
         autoFocus
         disabled={isSaving}
         placeholder="Nome de quem vai receber"
@@ -81,7 +81,7 @@ function RecipientNameCell({
   );
 }
 
-export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIsOpen }: GestaoConvitesProps) {
+export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIsOpen: initialIsOpen }: GestaoConvitesProps) {
   console.log('[GestaoConvites] Renderizando com eventId:', eventId, 'eventSlug:', eventSlug);
   const trial = useTrial();
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -91,9 +91,9 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
-  const [publicOpen, setPublicOpen] = useState(eventIsOpen ?? true);
-  const [togglingPublic, setTogglingPublic] = useState(false);
-  const [copiedPublicLink, setCopiedPublicLink] = useState(false);
+  const [eventIsOpen, setEventIsOpen] = useState(initialIsOpen ?? true);
+  const [togglingStatus, setTogglingStatus] = useState(false);
+  const [copiedPublicUrl, setCopiedPublicUrl] = useState(false);
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [savingNameId, setSavingNameId] = useState<string | null>(null);
@@ -101,8 +101,8 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
   const MOBILE_LIMIT = 3;
 
   useEffect(() => {
-    setPublicOpen(eventIsOpen ?? true);
-  }, [eventIsOpen]);
+    setEventIsOpen(initialIsOpen ?? true);
+  }, [initialIsOpen]);
 
   const fetchInvites = useCallback(async () => {
     setLoading(true);
@@ -191,47 +191,24 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
     handleCancelEditName();
   };
 
-  const handleExportCsv = () => {
-    const unused = invites.filter((i) => !i.used);
-    if (unused.length === 0) {
-      toast.error('Nenhum convite disponível para exportar.');
-      return;
-    }
+  const publicUrl = `${window.location.origin}/e/${eventSlug}`;
 
-    const esc = (v: unknown) => `"${(`${v ?? ''}`).replace(/"/g, '""')}"`;
-    const baseUrl = window.location.origin;
-    const header = 'Token,Enviado para,Link de Inscrição';
-    const rows = unused.map(
-      (i) => `${esc(i.token)},${esc(i.recipient_name ?? '')},${esc(`${baseUrl}/e/${eventSlug}?token=${i.token}`)}`
-    );
-
-    const csv = [header, ...rows].join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `convites_${eventId.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleCopyPublicUrl = async () => {
+    await copyToClipboard(publicUrl);
+    setCopiedPublicUrl(true);
+    setTimeout(() => setCopiedPublicUrl(false), 2000);
   };
 
-  const handleCopyPublicLink = async () => {
-    const link = `${window.location.origin}/e/${eventSlug}`;
-    await copyToClipboard(link);
-    setCopiedPublicLink(true);
-    setTimeout(() => setCopiedPublicLink(false), 2000);
-  };
-
-  const handleTogglePublic = async () => {
-    setTogglingPublic(true);
-    const newValue = !publicOpen;
-    setPublicOpen(newValue);
+  const handleToggleEventStatus = async () => {
+    setTogglingStatus(true);
+    const newValue = !eventIsOpen;
+    setEventIsOpen(newValue);
     const { error } = await supabase.from('events').update({ is_open: newValue }).eq('id', eventId);
     if (error) {
-      setPublicOpen(!newValue);
+      setEventIsOpen(!newValue);
       toast.error('Erro ao alterar status: ' + error.message);
     }
-    setTogglingPublic(false);
+    setTogglingStatus(false);
   };
 
   const handleCopyLink = async (invite: Invite) => {
@@ -247,101 +224,100 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
     return `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
   };
 
-  const total = invites.length;
-  const used = invites.filter((i) => i.used).length;
-  const available = total - used;
-
   return (
     <Card className="bg-card backdrop-blur-md border-border shadow-lg">
-      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <CardTitle className="text-sm font-medium text-foreground">Inscrição de Uso Único</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            {available} disponíveis · {used} utilizados · {total} total
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+      {/* CARD 1: LINK PÚBLICO DO EVENTO */}
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm mb-6 flex flex-col gap-4">
+        {/* Cabeçalho do Link Público */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5 sm:mt-0">
+              <Globe className="size-4" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-semibold text-foreground">Link Público do Evento</h3>
+                <Badge variant={eventIsOpen ? 'default' : 'destructive'} className="text-[11px]">
+                  {eventIsOpen ? 'Público Ativo' : 'Inscrições Bloqueadas'}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground truncate sm:whitespace-normal">
+                Qualquer pessoa com este link pode se inscrever sem convite exclusivo.
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle de Bloqueio do Evento */}
           <Button
-            variant="outline"
-            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground hidden md:inline-flex dark:bg-muted/50 dark:hover:bg-muted/70 dark:border-foreground/20"
-            onClick={handleExportCsv}
-            disabled={loading || generating}
+            variant={eventIsOpen ? 'outline' : 'default'}
+            size="sm"
+            className="w-full sm:w-auto max-md:h-11 shrink-0 gap-1.5"
+            onClick={handleToggleEventStatus}
+            disabled={togglingStatus}
           >
-            <Download className="h-3.5 w-3.5 mr-1" />
-            Exportar CSV
+            {togglingStatus ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : eventIsOpen ? (
+              <Lock className="size-3.5 text-amber-500" />
+            ) : (
+              <Unlock className="size-3.5" />
+            )}
+            <span>{eventIsOpen ? 'Bloquear Inscrições' : 'Desbloquear Inscrições'}</span>
           </Button>
+        </div>
+
+        {/* Caixa de Cópia da URL Pública */}
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          <div className="flex-1 w-full relative">
+            <Input
+              readOnly
+              value={publicUrl}
+              className="font-mono text-xs pr-10 max-md:h-11 bg-muted/30"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            className="w-full sm:w-auto max-md:h-11 gap-2 font-medium shrink-0"
+            onClick={handleCopyPublicUrl}
+          >
+            {copiedPublicUrl ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+            <span>{copiedPublicUrl ? 'Copiado!' : 'Copiar Link Público'}</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* CARD 2: TOOLBAR DE CONVITES EXCLUSIVOS */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold text-foreground">Convites Exclusivos</h3>
+          <Badge variant="outline" className="text-xs font-mono">
+            {invites.length}
+          </Badge>
+        </div>
+
+        {/* Botões de Ação em Lote */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
-            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground flex-1 sm:flex-none max-md:h-11 dark:bg-muted/50 dark:hover:bg-muted/70 dark:border-foreground/20"
+            className="max-md:h-11 gap-1.5"
             onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => handleGenerate(1)}
             disabled={generating}
           >
-            {generating ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-            Gerar 1
+            {generating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            <span>Gerar 1</span>
           </Button>
           <Button
             variant="outline"
-            className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground flex-1 sm:flex-none max-md:h-11 dark:bg-muted/50 dark:hover:bg-muted/70 dark:border-foreground/20"
+            className="max-md:h-11 gap-1.5"
             onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => handleGenerate(100)}
             disabled={generating}
           >
-            {generating ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-            Gerar 100
+            {generating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            <span>Gerar 100</span>
           </Button>
         </div>
-      </CardHeader>
+      </div>
       <CardContent className="space-y-4">
-        <div className="rounded-lg border border-border bg-muted/50 p-3 md:p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="min-w-0">
-              <h4 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                <Globe className="h-4 w-4 text-muted-foreground" />
-                Link Público do Evento
-              </h4>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Divulgação geral — qualquer pessoa com este link pode se inscrever (sem convite)
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="secondary" className="text-xs">
-                Público
-              </Badge>
-              <Badge variant={publicOpen ? 'default' : 'secondary'} className="text-xs">
-                {publicOpen ? 'Ativo' : 'Bloqueado'}
-              </Badge>
-          <Button
-              variant={publicOpen ? 'destructive' : 'default'}
-              size="sm"
-              className="h-7 text-xs max-md:h-11 dark:bg-destructive/70 dark:hover:bg-destructive/80 dark:text-destructive-foreground"
-              onClick={handleTogglePublic}
-                disabled={togglingPublic}
-              >
-                {togglingPublic ? (
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                ) : null}
-                {publicOpen ? 'Bloquear' : 'Desbloquear'}
-              </Button>
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <code className="flex-1 text-xs bg-background rounded border border-border px-2 py-1.5 truncate font-mono">
-              {window.location.origin}/e/{eventSlug}
-            </code>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs shrink-0 max-md:h-11 dark:bg-muted/50 dark:hover:bg-muted/70 dark:border-foreground/20"
-              onClick={handleCopyPublicLink}
-            >
-              {copiedPublicLink ? (
-                <Check className="h-3 w-3 mr-1" />
-              ) : (
-                <Copy className="h-3 w-3 mr-1" />
-              )}
-              {copiedPublicLink ? 'Copiado' : 'Copiar link público'}
-            </Button>
-          </div>
-        </div>
         {loading ? (
           <div className="space-y-3 py-4">
             {Array.from({ length: 3 }).map((_, i) => <SkeletonMobileCard key={i} />)}
@@ -364,74 +340,82 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
             {/* Mobile */}
             <div className="grid gap-2 md:hidden">
               {(mobileExpanded ? invites : invites.slice(0, MOBILE_LIMIT)).map((invite) => (
-                <div key={invite.id} className="rounded-lg border border-border bg-muted p-3 space-y-2">
+                <div 
+                  key={invite.id} 
+                  className={`rounded-xl border border-border bg-card p-4 shadow-sm flex flex-col gap-3 transition-all ${invite.used ? 'opacity-60 bg-muted/50 grayscale-[0.2]' : ''}`}
+                >
+                  {/* CABEÇALHO: Identidade do Convite */}
                   <div className="flex items-center justify-between">
-                    <Badge variant={invite.used ? 'secondary' : 'default'}>
+                    <div className="flex items-center gap-2">
+                      <Link2 className="size-4 text-primary shrink-0" />
+                      <p className="text-sm font-mono font-bold text-foreground truncate" title={invite.token}>
+                        {invite.token.slice(0, 8)}...{invite.token.slice(-4)}
+                      </p>
+                    </div>
+                    <Badge variant={invite.used ? 'secondary' : 'default'} className={!invite.used ? 'bg-primary text-primary-foreground' : ''}>
                       {invite.used ? 'Usado' : 'Disponível'}
                     </Badge>
-                    <div className="flex items-center gap-1">
-                      {!invite.used && (
-                        <>
-                          <Tooltip content="Copiar link exclusivo deste convite">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 max-md:h-11 max-md:w-11 text-muted-foreground hover:text-foreground hover:bg-accent"
-                              onClick={() => handleCopyLink(invite)}
-                            >
-                              {copiedInviteId === invite.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                            </Button>
-                          </Tooltip>
-                          <Tooltip content="Compartilhar link exclusivo no WhatsApp">
-                            <a
-                              href={whatsappUrl(invite)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center h-7 w-7 max-md:h-11 max-md:w-11 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
-                            >
-                              <MessageCircle className="h-3.5 w-3.5" />
-                            </a>
-                          </Tooltip>
-                        </>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 max-md:h-11 max-md:w-11 text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(invite.id)}
-                        disabled={deletingId === invite.id}
-                      >
-                        {deletingId === invite.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
+                  </div>
+
+                  {/* CORPO: Destinatário e Datas */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground font-medium shrink-0">Para:</span>
+                      <div className="flex-1 min-w-0">
+                        <RecipientNameCell
+                          invite={invite}
+                          isEditing={editingNameId === invite.id}
+                          draftName={draftName}
+                          isSaving={savingNameId === invite.id}
+                          onStartEdit={handleStartEditName}
+                          onDraftChange={setDraftName}
+                          onCommit={handleCommitEditName}
+                          onCancel={handleCancelEditName}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>Criado: {formatDate(invite.created_at)}</span>
+                      {invite.used_at && <span className="font-medium text-foreground">Usado: {formatDate(invite.used_at)}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Link2 className="h-3.5 w-3.5 text-primary" />
-                    <p className="text-xs font-mono text-foreground truncate" title={invite.token}>
-                      {invite.token.slice(0, 8)}...{invite.token.slice(-4)}
-                    </p>
-                    <Badge variant="default" className="text-[10px]">Exclusivo</Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="shrink-0">Enviado para:</span>
-                    <RecipientNameCell
-                      invite={invite}
-                      isEditing={editingNameId === invite.id}
-                      draftName={draftName}
-                      isSaving={savingNameId === invite.id}
-                      onStartEdit={handleStartEditName}
-                      onDraftChange={setDraftName}
-                      onCommit={handleCommitEditName}
-                      onCancel={handleCancelEditName}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Criado: {formatDate(invite.created_at)}</span>
-                    {invite.used_at && <span>Usado: {formatDate(invite.used_at)}</span>}
+
+                  {/* RODAPÉ: Ações Rápidas (Action Bar) */}
+                  <div className="flex items-center gap-2 pt-3 mt-1 border-t border-border/60">
+                    {!invite.used ? (
+                      <>
+                        <Button
+                          variant="secondary"
+                          className="flex-1 h-10 max-md:h-11 gap-2 font-medium"
+                          onClick={() => handleCopyLink(invite)}
+                        >
+                          {copiedInviteId === invite.id ? <Check className="size-4 text-emerald-600 dark:text-emerald-500" /> : <Copy className="size-4" />}
+                          {copiedInviteId === invite.id ? 'Copiado' : 'Copiar'}
+                        </Button>
+                        <a
+                          href={whatsappUrl(invite)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex flex-1 items-center justify-center h-10 max-md:h-11 rounded-md bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 font-semibold text-sm gap-2 transition-colors"
+                        >
+                          <MessageCircle className="size-4" />
+                          WhatsApp
+                        </a>
+                      </>
+                    ) : (
+                      <div className="flex-1 text-xs text-muted-foreground text-center italic">
+                        Convite já utilizado
+                      </div>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 max-md:h-11 max-md:w-11 text-destructive hover:bg-destructive/10 shrink-0"
+                      onClick={() => handleDelete(invite.id)}
+                      disabled={deletingId === invite.id}
+                    >
+                      {deletingId === invite.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                    </Button>
                   </div>
                 </div>
               ))}
