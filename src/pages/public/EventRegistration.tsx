@@ -237,6 +237,7 @@ export default function EventRegistration() {
         ...columns,
         event_id: event.id,
         invite_id: inviteId,
+        origin: inviteId ? 'invite' : 'public',
         extra_fields: Object.keys(extra).length > 0 ? extra : null,
       };
       console.log('[DIAGNÓSTICO] Payload final de inscrição:', payload);

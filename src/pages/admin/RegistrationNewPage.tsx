@@ -136,6 +136,7 @@ export default function RegistrationNewPage() {
     const payload: any = {
       ...columns,
       event_id: eventId,
+      origin: 'admin',
       extra_fields: Object.keys(extra).length > 0 ? extra : null,
       payment_status: data.payment_status ?? 'pending',
       payment_method: data.payment_method ?? 'pix',

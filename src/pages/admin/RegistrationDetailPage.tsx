@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDate, paymentStatusLabels, paymentMethodLabels } from '@/lib/utils';
-import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer, Link2, Globe } from 'lucide-react';
+import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer, Link2, Globe, ShieldCheck } from 'lucide-react';
 import { RegistrationComprovante } from '@/components/registration/RegistrationComprovante';
 import { buildCheckinUrl, ensureCheckinToken } from '@/lib/checkin';
 import { Input } from '@/components/ui/input';
@@ -104,6 +104,7 @@ interface Registration {
   } | null;
   event_lots: { name: string; price: number } | null;
   invite_id: string | null;
+  origin?: 'public' | 'admin' | 'invite';
   event_invites: { recipient_name: string | null; token: string; created_at: string } | null;
 }
 
@@ -550,7 +551,15 @@ export default function RegistrationDetailPage() {
           </CardContent>
         </Card>
 
-        {reg.invite_id ? (
+        {reg.origin === 'admin' ? (
+          <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+            <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0 text-blue-500 dark:text-blue-400" />
+            <div>
+              <p className="font-medium">Inscrição ADM</p>
+              <p className="mt-0.5 text-blue-600/80 dark:text-blue-400/80">Inscrito via Painel administrativo do evento</p>
+            </div>
+          </div>
+        ) : reg.invite_id || reg.origin === 'invite' ? (
           <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-3 text-sm">
             <Link2 className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
             <div>
