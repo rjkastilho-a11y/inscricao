@@ -23,6 +23,7 @@ const EventsPage = lazy(() => import('@/pages/admin/EventsPage'));
 const EventNewPage = lazy(() => import('@/pages/admin/EventNewPage'));
 const EventDetailPage = lazy(() => import('@/pages/admin/EventDetailPage'));
 const EventEditPage = lazy(() => import('@/pages/admin/EventEditPage'));
+const ChurchSettingsPage = lazy(() => import('@/pages/admin/ChurchSettingsPage'));
 const MasterDashboardPage = lazy(() => import('@/pages/admin/MasterDashboardPage'));
 
 const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
@@ -82,7 +83,7 @@ export const router = createBrowserRouter([
       { path: 'eventos/novo', element: <SuspensePage><EventNewPage /></SuspensePage> },
       { path: 'eventos/:id', element: <SuspensePage><EventDetailPage /></SuspensePage> },
       { path: 'eventos/:id/editar', element: <SuspensePage><EventEditPage /></SuspensePage> },
-      { path: 'configuracoes', element: <Navigate to="/app/eventos" replace /> },
+      { path: 'configuracoes', element: <SuspensePage><ChurchSettingsPage /></SuspensePage> },
       { path: 'configuracoes/plano', element: <SuspensePage><PlanPage /></SuspensePage> },
       { path: 'master', element: <SuspensePage><MasterDashboardPage /></SuspensePage> },
     ],

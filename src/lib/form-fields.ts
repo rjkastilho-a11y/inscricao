@@ -393,7 +393,7 @@ export const KNOWN_COLUMNS = new Set([
   'pastoral_authorization', 'health_info', 'emergency_contact',
   'emergency_phone', 'payment_method', 'payment_status',
   'paid_amount', 'private_notes', 'lot_id', 'invite_id',
-  'cpf', 'rg', 'cep', 'address', 'city', 'state',
+  'cpf', 'rg', 'cep', 'address', 'neighborhood', 'city', 'state',
   'has_allergies', 'allergy_description', 'dietary_restrictions',
   'accept_terms', 'spouse_name', 'marital_status', 'wedding_date',
   'has_special_needs', 'special_needs_description',
@@ -474,6 +474,15 @@ export function splitFieldValues(
       columns[field.field_key] = finalValue;
     } else {
       extra[field.field_key] = finalValue;
+    }
+  }
+
+  // Passthrough de colunas de endereço preenchidas fora dos campos mapeados
+  // (ex.: bairro preenchido pelo ViaCEP em eventos antigos sem o campo no formulário)
+  const ADDRESS_ALWAYS_COLUMNS = ['neighborhood'];
+  for (const key of ADDRESS_ALWAYS_COLUMNS) {
+    if (data[key] !== undefined && data[key] !== '' && columns[key] === undefined) {
+      columns[key] = data[key];
     }
   }
 

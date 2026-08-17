@@ -2,7 +2,7 @@ import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, LogOut, Menu, X, Shield } from 'lucide-react';
+import { CalendarDays, LogOut, Menu, X, Shield, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ChurchGuard } from '@/components/layout/ChurchGuard';
@@ -11,6 +11,7 @@ import { ChurchSwitcher } from '@/components/layout/ChurchSwitcher';
 
 const NAV_ITEMS = [
   { to: '/app/eventos', label: 'Eventos', icon: CalendarDays },
+  { to: '/app/configuracoes', label: 'Configurações', icon: Settings },
 ];
 
 export function AdminLayout() {

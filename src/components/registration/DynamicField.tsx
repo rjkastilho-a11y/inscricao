@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { maskPhone } from '@/lib/utils';
-import { FileText } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { FormField } from '@/lib/form-fields';
 import type { FieldState } from '@/lib/conditional-logic';
 
@@ -21,10 +22,41 @@ interface Props {
 function DynamicFieldInner({ field, state, termsText }: Props) {
   const form = useFormContext();
   const [termsOpen, setTermsOpen] = useState(false);
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
   const prevVisibleRef = useRef(state?.visible ?? true);
 
   const error = form.formState.errors[field.field_key];
   const value = form.watch(field.field_key);
+
+  const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let digits = e.target.value.replace(/\D/g, '');
+    if (digits.length > 8) digits = digits.slice(0, 8);
+
+    const maskedValue = digits.replace(/^(\d{5})(\d)/, '$1-$2');
+    form.setValue(field.field_key, maskedValue, { shouldValidate: true, shouldDirty: true });
+
+    if (digits.length !== 8) return;
+
+    setIsFetchingCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+
+      if (!data.erro) {
+        if (data.logradouro) form.setValue('address', data.logradouro, { shouldValidate: true, shouldDirty: true });
+        if (data.bairro) form.setValue('neighborhood', data.bairro, { shouldValidate: true, shouldDirty: true });
+        if (data.localidade) form.setValue('city', data.localidade, { shouldValidate: true, shouldDirty: true });
+        if (data.uf) form.setValue('state', data.uf, { shouldValidate: true, shouldDirty: true });
+      } else {
+        toast.error('CEP não encontrado.');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP', error);
+      toast.error('Erro ao consultar o CEP.');
+    } finally {
+      setIsFetchingCep(false);
+    }
+  };
 
   // Debug: log state when present
   if (state && (state.autoFillValue || state.clearOnHide || state.disabled || state.readOnly || !state.visible)) {
@@ -223,6 +255,28 @@ function DynamicFieldInner({ field, state, termsText }: Props) {
               const masked = maskPhone(e.target.value);
               form.setValue(field.field_key, masked);
             }}
+          />
+          {error && <p className="text-sm text-destructive mt-1">{error.message as string}</p>}
+        </div>
+      );
+
+    case 'cep':
+      return (
+        <div>
+          <Label htmlFor={field.field_key} className="mb-1.5 flex items-center gap-2">
+            {field.label}
+            {effectiveRequired && ' *'}
+            {isFetchingCep && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+          </Label>
+          <Input
+            id={field.field_key}
+            type="text"
+            inputMode="numeric"
+            placeholder={field.placeholder || '00000-000'}
+            disabled={isDisabled || isFetchingCep}
+            readOnly={isReadOnly}
+            {...form.register(field.field_key)}
+            onChange={handleCepChange}
           />
           {error && <p className="text-sm text-destructive mt-1">{error.message as string}</p>}
         </div>

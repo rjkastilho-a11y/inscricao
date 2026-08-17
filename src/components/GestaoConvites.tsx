@@ -396,7 +396,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
                           href={whatsappUrl(invite)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex flex-1 items-center justify-center h-10 max-md:h-11 rounded-md bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 font-semibold text-sm gap-2 transition-colors"
+                          className="inline-flex flex-1 items-center justify-center h-10 max-md:h-11 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 font-semibold text-sm gap-2 transition-colors"
                         >
                           <MessageCircle className="size-4" />
                           WhatsApp

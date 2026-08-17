@@ -26,8 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2, Pencil, ExternalLink, Copy, Check, ArrowUpDown, CopyPlus, Lock, MoreHorizontal } from 'lucide-react';
-import { Tooltip } from '@/components/ui/tooltip';
+import { Trash2, Pencil, ExternalLink, Copy, Check, ArrowUpDown, CopyPlus, Lock, MoreHorizontal, LayoutDashboard } from 'lucide-react';
 import { useTrial } from '@/components/layout/ChurchGuard';
 import { Input } from '@/components/ui/input';
 import { duplicateEvent } from '@/lib/duplicate-event';
@@ -224,6 +223,7 @@ export default function EventsPage() {
               key={opt.key}
               variant={filter === opt.key ? 'default' : 'outline'}
               size="sm"
+              className="rounded-full"
               onClick={() => setFilter(opt.key)}
             >
               {opt.label}
@@ -241,7 +241,7 @@ export default function EventsPage() {
                 <CardTitle className="text-lg font-semibold text-foreground">
                   {event.title}
                 </CardTitle>
-                <Badge variant={event.is_open ? 'default' : 'secondary'} className="shrink-0">
+                <Badge variant={event.is_open ? 'default' : 'secondary'} className="shrink-0 rounded-full">
                   {event.is_open ? 'Aberto' : 'Fechado'}
                 </Badge>
               </div>
@@ -271,7 +271,7 @@ export default function EventsPage() {
             <div className="flex items-center gap-3 border-t border-border p-3">
               <Link
                 to={`/app/evento/${event.id}/dashboard`}
-                className={cn(buttonVariants({ size: 'sm' }), 'flex-1 max-md:h-11')}
+                className={cn(buttonVariants({ size: 'sm' }), 'flex-1 max-md:h-11 rounded-lg')}
               >
                 <ExternalLink className="h-3.5 w-3.5 mr-1" />
                 Acessar
@@ -281,7 +281,7 @@ export default function EventsPage() {
                   aria-label="Mais ações"
                   className={cn(
                     buttonVariants({ variant: 'outline', size: 'icon' }),
-                    'bg-card border-border max-md:h-11 max-md:w-11'
+                    'bg-card border-border max-md:h-11 max-md:w-11 rounded-lg'
                   )}
                 >
                   <MoreHorizontal className="h-4 w-4" />
@@ -335,7 +335,7 @@ export default function EventsPage() {
               <tr key={event.id} className="border-b border-border hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => navigate(`/app/evento/${event.id}/dashboard`)}>
                 <td className="p-4 text-base font-medium text-foreground">{event.title}</td>
                 <td className="p-4">
-                  <Badge variant={event.is_open ? 'default' : 'secondary'}>
+                  <Badge variant={event.is_open ? 'default' : 'secondary'} className="rounded-full">
                     {event.is_open ? 'Aberto' : 'Fechado'}
                   </Badge>
                 </td>
@@ -352,57 +352,52 @@ export default function EventsPage() {
                   {event.max_capacity ?? '∞'}
                 </td>
                 <td className="p-4 text-right">
-                  <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Tooltip content="Acessar">
-                      <Link
-                        to={`/app/evento/${event.id}/dashboard`}
-                        className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-muted-foreground hover:text-foreground')}
+                  <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Link
+                      to={`/app/evento/${event.id}/dashboard`}
+                      className={cn(buttonVariants({ variant: 'default', size: 'sm' }), 'rounded-lg')}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
+                      Painel
+                    </Link>
+                    <Link
+                      to={`/app/eventos/${event.id}/editar`}
+                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'rounded-lg')}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Editar
+                    </Link>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        aria-label="Mais ações"
+                        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg')}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <ExternalLink className="size-3.5" />
-                      </Link>
-                    </Tooltip>
-                    <Tooltip content="Editar">
-                      <Link
-                        to={`/app/eventos/${event.id}/editar`}
-                        className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-muted-foreground hover:text-foreground')}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Link>
-                    </Tooltip>
-                    <Tooltip content="Copiar link">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-foreground"
-                        onClick={async () => {
-                          await copyToClipboard(`${window.location.origin}/e/${event.slug}`);
-                          setCopiedId(event.id);
-                          setTimeout(() => setCopiedId(null), 2000);
-                        }}
-                      >
-                        {copiedId === event.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                      </Button>
-                    </Tooltip>
-                    <Tooltip content="Duplicar">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-foreground"
-                        onClick={() => openDuplicateDialog(event)}
-                      >
-                        <CopyPlus className="size-3.5" />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip content="Excluir">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setDeleteTarget(event)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </Tooltip>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            await copyToClipboard(`${window.location.origin}/e/${event.slug}`);
+                            setCopiedId(event.id);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }}
+                        >
+                          {copiedId === event.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          Copiar link público
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDuplicateDialog(event)}>
+                          <CopyPlus className="h-4 w-4" />
+                          Duplicar evento
+                        </DropdownMenuItem>
+                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(event)}>
+                          <Trash2 className="h-4 w-4" />
+                          Excluir evento
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </td>
               </tr>

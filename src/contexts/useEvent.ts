@@ -4,10 +4,16 @@ export interface EventData {
   id: string;
   slug: string;
   title: string;
+  subtitle?: string;
+  hotsite_title?: string | null;
   description: string;
   start_date: string;
   end_date: string;
   location: string;
+  location_name: string | null;
+  show_location: boolean;
+  show_about?: boolean;
+  show_registration?: boolean;
   is_open: boolean;
   is_custom: boolean;
   max_capacity: number;

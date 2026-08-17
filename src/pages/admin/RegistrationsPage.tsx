@@ -1246,7 +1246,7 @@ export default function RegistrationsPage() {
           <p className="font-semibold">Erro ao carregar inscrições</p>
           <p className="text-sm mt-1">{fetchError}</p>
           <p className="text-sm mt-4 text-muted-foreground">
-            Execute o script <code className="bg-muted px-1 rounded">supabase/fix_select_policy.sql</code> no SQL Editor do Supabase Dashboard para corrigir as permissões.
+            Execute o script <code className="bg-muted px-1 rounded-md">supabase/fix_select_policy.sql</code> no SQL Editor do Supabase Dashboard para corrigir as permissões.
           </p>
           <Button variant="outline" className="mt-4" onClick={() => fetchData()}>
             Tentar novamente
@@ -1302,14 +1302,14 @@ export default function RegistrationsPage() {
                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                         <Badge
                           variant={reg.checked_in ? 'default' : 'secondary'}
-                          className={reg.checked_in ? 'bg-emerald-600 hover:bg-emerald-600' : ''}
+                          className={reg.checked_in ? 'bg-emerald-600 hover:bg-emerald-600 rounded-full' : 'rounded-full'}
                         >
                           {reg.checked_in ? 'Confirmado' : 'Ausente'}
                         </Badge>
                         <Badge
                           variant="secondary"
                           className={
-                            reg.payment_status === 'paid'
+                            (reg.payment_status === 'paid'
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
                               : reg.payment_status === 'pending'
                                 ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200'
@@ -1319,7 +1319,7 @@ export default function RegistrationsPage() {
                                     ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-200'
                                     : reg.payment_status === 'canceled'
                                       ? 'bg-muted text-muted-foreground'
-                                      : ''
+                                      : '') + ' rounded-full'
                           }
                         >
                           {paymentStatusLabels[reg.payment_status]}
@@ -1388,8 +1388,8 @@ export default function RegistrationsPage() {
                         variant={reg.checked_in ? 'default' : 'outline'}
                         className={
                           reg.checked_in
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 w-full max-md:h-11 md:h-10 px-3 gap-1.5 text-base'
-                            : 'w-full max-md:h-11 md:h-10 px-3 gap-1.5 text-base text-muted-foreground'
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 w-full max-md:h-11 md:h-10 px-3 gap-1.5 text-base rounded-lg'
+                            : 'w-full max-md:h-11 md:h-10 px-3 gap-1.5 text-base text-muted-foreground rounded-lg'
                         }
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1502,7 +1502,7 @@ export default function RegistrationsPage() {
                       <Badge
                         variant="secondary"
                         className={
-                          reg.payment_status === 'paid'
+                          (reg.payment_status === 'paid'
                             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
                             : reg.payment_status === 'pending'
                               ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200'
@@ -1512,7 +1512,7 @@ export default function RegistrationsPage() {
                                   ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-200'
                                   : reg.payment_status === 'canceled'
                                     ? 'bg-muted text-muted-foreground'
-                                    : ''
+                                    : '') + ' rounded-full'
                         }
                       >
                         {paymentStatusLabels[reg.payment_status]}
@@ -1524,8 +1524,8 @@ export default function RegistrationsPage() {
                         size="sm"
                         className={
                           reg.checked_in
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 h-7 px-2.5 gap-1'
-                            : 'h-7 px-2.5 gap-1 text-muted-foreground'
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 h-7 px-2.5 gap-1 rounded-lg'
+                            : 'h-7 px-2.5 gap-1 text-muted-foreground rounded-lg'
                         }
                         onClick={(e) => {
                           e.stopPropagation();

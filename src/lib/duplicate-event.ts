@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { getAvailableSlug } from '@/lib/slug';
 
 interface LotRow {
   name: string;
@@ -23,33 +24,6 @@ interface FieldRow {
   db_column: string | null;
 }
 
-function slugify(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-async function generateUniqueSlug(churchId: string, baseTitle: string): Promise<string> {
-  const base = slugify(baseTitle) || 'evento';
-  let slug = base;
-  let suffix = 2;
-  for (;;) {
-    const { data } = await supabase
-      .from('events')
-      .select('id')
-      .eq('church_id', churchId)
-      .eq('slug', slug)
-      .is('deleted_at', null)
-      .maybeSingle();
-    if (!data) return slug;
-    slug = `${base}-${suffix}`;
-    suffix += 1;
-  }
-}
-
 export async function duplicateEvent(
   sourceEventId: string,
   newTitle: string
@@ -70,7 +44,7 @@ export async function duplicateEvent(
       return { ok: false, error: 'O título deve ter pelo menos 3 caracteres.' };
     }
 
-    const slug = await generateUniqueSlug(source.church_id, title);
+    const slug = await getAvailableSlug(title);
 
     const newEvent: Record<string, unknown> = {
       ...source,

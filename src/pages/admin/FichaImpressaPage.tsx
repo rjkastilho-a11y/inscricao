@@ -389,7 +389,7 @@ export default function FichaImpressaPage() {
           <div className="print-header">
             <h1>{event.title}</h1>
             {event.start_date && <p>Data: {formatDate(event.start_date)}{event.end_date ? ` a ${formatDate(event.end_date)}` : ''}</p>}
-            {event.location && <p>Local: {event.location}</p>}
+            {(event.location || event.location_name) && <p>Local: {event.location_name || event.location}</p>}
           </div>
 
           {loading ? (

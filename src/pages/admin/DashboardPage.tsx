@@ -411,8 +411,8 @@ export default function DashboardPage() {
 
   const renderPieChart = (data: { name: string; value: number; fill: string }[]) => (
     <>
-      <ResponsiveContainer width="100%" height={200}>
-        <PieChart>
+      <ResponsiveContainer width="100%" height={220}>
+        <PieChart margin={{ top: 30, right: 24, bottom: 8, left: 24 }}>
           <Pie
             data={data}
             cx="50%"

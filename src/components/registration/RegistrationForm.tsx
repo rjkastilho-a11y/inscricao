@@ -699,7 +699,7 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
             <button
               type="button"
               onClick={clearError}
-              className="shrink-0 rounded p-0.5 transition-colors hover:bg-destructive/20"
+              className="shrink-0 rounded-lg p-0.5 transition-colors hover:bg-destructive/20"
             >
               <X className="h-4 w-4" />
             </button>

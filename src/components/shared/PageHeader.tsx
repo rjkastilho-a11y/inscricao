@@ -20,7 +20,7 @@ function PageHeaderInner({ title, badge, description, action }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="font-serif text-3xl font-bold text-foreground">{title}</h1>
           {badge && (
-            <span className="truncate max-w-[200px] rounded bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+            <span className="truncate max-w-[200px] rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
               {badge}
             </span>
           )}

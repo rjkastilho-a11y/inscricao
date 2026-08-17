@@ -32,6 +32,8 @@
     --ring: 38 92% 50%;               /* amber-500 */
 
     --radius: 0.5rem;
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
   }
 
   .dark {
