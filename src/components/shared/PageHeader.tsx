@@ -7,13 +7,19 @@ interface Props {
   description?: string;
   action?: {
     label: string;
-    to: string;
+    to?: string;
+    onClick?: () => void;
+    icon?: React.ReactNode;
+  };
+  secondaryAction?: {
+    label: string;
+    to?: string;
     onClick?: () => void;
     icon?: React.ReactNode;
   };
 }
 
-function PageHeaderInner({ title, badge, description, action }: Props) {
+function PageHeaderInner({ title, badge, description, action, secondaryAction }: Props) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-border">
       <div>
@@ -29,7 +35,27 @@ function PageHeaderInner({ title, badge, description, action }: Props) {
           <p className="text-muted-foreground text-sm mt-1">{description}</p>
         )}
       </div>
-      {action && (
+      <div className="flex items-center gap-2">
+        {secondaryAction && (
+          secondaryAction.onClick ? (
+            <button
+              onClick={secondaryAction.onClick}
+              className="inline-flex items-center justify-center rounded-lg border border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground hover:bg-muted max-md:min-h-[44px]"
+            >
+              {secondaryAction.icon}
+              {secondaryAction.label}
+            </button>
+          ) : (
+            <Link
+              to={secondaryAction.to!}
+              className="inline-flex items-center justify-center rounded-lg border border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground hover:bg-muted max-md:min-h-[44px]"
+            >
+              {secondaryAction.icon}
+              {secondaryAction.label}
+            </Link>
+          )
+        )}
+        {action && (
         action.onClick ? (
           <button
             onClick={action.onClick}
@@ -48,6 +74,7 @@ function PageHeaderInner({ title, badge, description, action }: Props) {
           </Link>
         )
       )}
+      </div>
     </div>
   );
 }

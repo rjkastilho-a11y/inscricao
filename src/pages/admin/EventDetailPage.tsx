@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, LayoutDashboard, Pencil } from 'lucide-react';
 import GestaoConvites from '@/components/GestaoConvites';
 
 interface Event {
@@ -65,7 +65,11 @@ export default function EventDetailPage() {
 
   return (
     <div>
-      <PageHeader title={event.title} action={{ label: 'Editar', to: `/app/eventos/${id}/editar` }} />
+      <PageHeader
+        title={event.title}
+        action={{ label: 'Acessar Painel', to: `/app/evento/${id}/dashboard`, icon: <LayoutDashboard className="size-4" /> }}
+        secondaryAction={{ label: 'Editar', to: `/app/eventos/${id}/editar`, icon: <Pencil className="size-4" /> }}
+      />
 
       <div className="mb-4">
         <Select value={id} onValueChange={(value) => navigate(`/app/eventos/${value}`)}>
