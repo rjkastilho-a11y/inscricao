@@ -191,7 +191,7 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
     handleCancelEditName();
   };
 
-  const publicUrl = `${window.location.origin}/e/${eventSlug}`;
+  const publicUrl = `${window.location.origin}/e/${eventSlug}/inscricao`;
 
   const handleCopyPublicUrl = async () => {
     await copyToClipboard(publicUrl);
@@ -212,14 +212,14 @@ export default function GestaoConvites({ eventId, eventSlug, eventTitle, eventIs
   };
 
   const handleCopyLink = async (invite: Invite) => {
-    const link = `${window.location.origin}/e/${eventSlug}?token=${invite.token}`;
+    const link = `${window.location.origin}/e/${eventSlug}/inscricao?token=${invite.token}`;
     await copyToClipboard(link);
     setCopiedInviteId(invite.id);
     setTimeout(() => setCopiedInviteId(null), 2000);
   };
 
   const whatsappUrl = (invite: Invite) => {
-    const link = `${window.location.origin}/e/${eventSlug}?token=${invite.token}`;
+    const link = `${window.location.origin}/e/${eventSlug}/inscricao?token=${invite.token}`;
     const msg = `Olá! Use este link para se inscrever no ${eventTitle}:\n\n${link}`;
     return `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
   };

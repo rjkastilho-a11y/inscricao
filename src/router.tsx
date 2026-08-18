@@ -64,6 +64,7 @@ function SuspensePage({ children }: { children: React.ReactNode }) {
 export const router = createBrowserRouter([
   { path: '/', element: <SuspensePage><LandingPage /></SuspensePage> },
   { path: '/e/:slug', element: <SuspensePage><EventRegistration /></SuspensePage> },
+  { path: '/e/:slug/inscricao', element: <SuspensePage><EventRegistration directForm /></SuspensePage> },
   { path: '/e/:slug/comprovante', element: <SuspensePage><ComprovantePage /></SuspensePage> },
   { path: '/e/:slug/checkin', element: <SuspensePage><CheckinPage /></SuspensePage> },
   { path: '/login', element: <SuspensePage><LoginPage /></SuspensePage> },

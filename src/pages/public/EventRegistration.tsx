@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link, useLocation } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import * as Sentry from '@sentry/react';
 import { supabase } from '@/lib/supabase';
@@ -49,10 +49,18 @@ const STATUS_CONFIG: Record<LotStatus, { label: string; className: string }> = {
   active: { label: '', className: '' },
 };
 
-export default function EventRegistration() {
+interface EventRegistrationProps {
+  directForm?: boolean;
+}
+
+export default function EventRegistration({ directForm }: EventRegistrationProps) {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const urlToken = searchParams.get('token');
+  const location = useLocation();
+  const searchParamsURL = new URLSearchParams(location.search);
+  const hasToken = !!searchParamsURL.get('token');
+  const isDirectForm = !!directForm || location.pathname.endsWith('/inscricao');
   const { user, loading: authLoading } = useAuth();
 
   const readInviteToken = (): string | null => {
@@ -80,6 +88,12 @@ export default function EventRegistration() {
     }
   }, [urlToken, slug]);
 
+  useEffect(() => {
+    if (!isDirectForm && hasToken) {
+      window.location.replace(`/e/${slug}/inscricao${location.search}`);
+    }
+  }, [isDirectForm, hasToken, slug, location.search]);
+
   console.log('[DIAGNÓSTICO] URL:', window.location.href, '| Token da URL:', urlToken, '| Persistido:', inviteToken);
 
   const [event, setEvent] = useState<any>(null);
@@ -95,7 +109,7 @@ export default function EventRegistration() {
   const [blocked, setBlocked] = useState(false);
   const [blockReason, setBlockReason] = useState<'trial_expired' | 'trial_limit' | 'inactive' | null>(null);
   const [tokenValid, setTokenValid] = useState<boolean | null>(inviteToken ? null : true);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(hasToken);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [disabledSteps, setDisabledSteps] = useState<FormStep[]>([]);
   const [submittedData, setSubmittedData] = useState<Record<string, any> | null>(null);
@@ -442,6 +456,184 @@ export default function EventRegistration() {
   const canRegister = !!event?.is_open && !!event?.is_published;
   const displayTitle = event.hotsite_title?.trim() || event.title;
 
+  const themeStyles = {
+    orange: { bg: 'bg-[#F5821F]', accent: 'bg-[#EF4B67]', text: 'text-[#F5821F]', selected: 'border-[#F5821F] bg-[#F5821F]/5 ring-[#F5821F]', hover: 'hover:border-[#F5821F]', btn: 'bg-[#F5821F] text-white' },
+    purple: { bg: 'bg-[#7E22CE]', accent: 'bg-[#EC4899]', text: 'text-[#7E22CE]', selected: 'border-[#7E22CE] bg-[#7E22CE]/5 ring-[#7E22CE]', hover: 'hover:border-[#7E22CE]', btn: 'bg-[#7E22CE] text-white' },
+    blue:   { bg: 'bg-[#1D4ED8]', accent: 'bg-[#06B6D4]', text: 'text-[#1D4ED8]', selected: 'border-[#1D4ED8] bg-[#1D4ED8]/5 ring-[#1D4ED8]', hover: 'hover:border-[#1D4ED8]', btn: 'bg-[#1D4ED8] text-white' },
+    green:  { bg: 'bg-[#15803D]', accent: 'bg-[#EAB308]', text: 'text-[#15803D]', selected: 'border-[#15803D] bg-[#15803D]/5 ring-[#15803D]', hover: 'hover:border-[#15803D]', btn: 'bg-[#15803D] text-white' },
+  };
+  const currentTheme = themeStyles[(event?.theme_color as keyof typeof themeStyles)] || themeStyles.orange;
+
+  // ═══════════════════════════════════════════════════════
+  // MODO FORMULÁRIO DIRETO — rota /e/:slug/inscricao
+  // ═══════════════════════════════════════════════════════
+  if (isDirectForm) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        {isPreview && (
+          <div className="fixed inset-x-0 top-0 z-[60] h-8 flex items-center justify-center bg-amber-400 text-sm font-bold text-black">
+            Modo Preview (Não Publicado)
+          </div>
+        )}
+
+        <header className={cn(
+          'fixed inset-x-0 z-50 border-b border-white/10 bg-black/50 backdrop-blur-xl supports-[backdrop-filter]:bg-black/50',
+          isPreview ? 'top-8' : 'top-0'
+        )}>
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
+            <span className="flex min-w-0 items-center font-semibold text-white">
+              {event.display_organizer_logo ? (
+                <img src={event.display_organizer_logo} alt={`Logo de ${event.display_organizer_name}`} className="mr-2 h-8 w-8 rounded-full object-cover" />
+              ) : (
+                <Building2 className="mr-2 h-5 w-5 shrink-0 text-zinc-200" />
+              )}
+              <span className="truncate">{event.display_organizer_name}</span>
+            </span>
+            <Link to={`/e/${slug}`} className="text-xs tracking-widest text-zinc-200 transition-colors hover:text-white">
+              VER EVENTO
+            </Link>
+          </div>
+        </header>
+
+        <main className={cn('pt-20', isPreview && 'pt-28')}>
+          <div className="mx-auto max-w-2xl px-4 py-8 text-center">
+            <h1 className="text-2xl font-bold text-foreground">{displayTitle}</h1>
+          </div>
+
+          {blocked ? (
+            <div className="mx-auto max-w-2xl px-4 py-8 text-center">
+              <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
+                <p className="text-muted-foreground">
+                  {blockReason === 'trial_expired'
+                    ? 'As inscrições online estão temporariamente indisponíveis devido à expiração do período de trial.'
+                    : blockReason === 'inactive'
+                    ? 'As inscrições online estão temporariamente indisponíveis.'
+                    : 'As inscrições online atingiram o limite do plano gratuito.'}
+                </p>
+              </div>
+            </div>
+          ) : event.is_custom && formFields.length === 0 ? (
+            <div className="mx-auto max-w-2xl px-4 py-8 text-center">
+              <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
+                <p className="text-muted-foreground">
+                  Inscrições temporariamente indisponíveis. Entre em contato com a organização do evento.
+                </p>
+              </div>
+            </div>
+          ) : !canRegister ? (
+            <div className="mx-auto max-w-2xl px-4 py-8 text-center">
+              <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
+                <p className="text-muted-foreground">Inscrições não disponíveis no momento</p>
+              </div>
+            </div>
+          ) : (
+            <section className="bg-[#2A2A2A] px-6 py-12 text-white">
+              <div className="mx-auto max-w-2xl">
+                {!showForm ? (
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold text-white">Selecione o lote de inscrição</h2>
+                    <Card
+                      className={`cursor-pointer transition-all bg-[#383838] ring-white/20 text-white ${
+                        selectedLot === null ? `${currentTheme.selected} ring-2` : `${currentTheme.hover}`
+                      }`}
+                      onClick={() => setSelectedLot(null)}
+                    >
+                      <CardContent className="flex items-start justify-between p-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-medium text-muted-foreground">Inscrição Normal</span>
+                            {selectedLot === null && <CheckCircle className={`size-5 ${currentTheme.text}`} />}
+                          </div>
+                          <p className="text-xs text-zinc-400">Preço padrão do evento, sem lote específico</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-white">
+                            {event.price > 0 ? `R$ ${event.price.toFixed(2)}` : 'Grátis'}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    {lots.map(renderLotCard)}
+                    <button
+                      disabled={!canRegister}
+                      onClick={() => setShowForm(true)}
+                      className={`w-full rounded-lg ${currentTheme.bg} text-white h-12 px-4 py-2 text-lg font-extrabold uppercase tracking-wide transition-opacity hover:opacity-90`}
+                    >
+                      Faça sua Inscrição
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    {selectedLot ? (
+                      <div className="mb-4 flex items-center justify-between rounded-lg border border-white/20 bg-[#383838] p-3">
+                        <div>
+                          <span className="text-sm font-medium text-white">{selectedLot.name}</span>
+                          {selectedLot.description && (
+                            <span className="ml-2 text-xs text-zinc-400">— {selectedLot.description}</span>
+                          )}
+                        </div>
+                        <span className="font-bold text-white">
+                          {selectedLot.price > 0 ? `R$ ${selectedLot.price.toFixed(2)}` : 'Grátis'}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mb-4 flex items-center justify-between rounded-lg border border-white/20 bg-[#383838] p-3">
+                        <span className="text-sm font-medium text-white">Inscrição Normal</span>
+                        <span className="font-bold text-white">
+                          {event.price > 0 ? `R$ ${event.price.toFixed(2)}` : 'Grátis'}
+                        </span>
+                      </div>
+                    )}
+                    <RegistrationForm
+                      onSubmit={handleSubmit}
+                      isLoading={isSubmitting}
+                      lotId={selectedLot?.id}
+                      lotPrice={selectedLot?.price ?? event.price ?? 0}
+                      paymentLink={event.payment_link}
+                      allowedPaymentMethods={event.allowed_payment_methods}
+                      errorMessage={formError}
+                      onClearError={clearFormError}
+                      errorActionLabel={isDuplicateEmail ? 'Corrigir e-mail' : undefined}
+                      eventId={event.id}
+                      fields={formFields}
+                      customMode={event.is_custom}
+                      termsText={event.terms_text}
+                      disabledSteps={disabledSteps}
+                    />
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+        </main>
+
+        <footer className="w-full bg-[#000000] border-t border-white/10 py-8 px-4 text-center">
+          <div className="max-w-4xl mx-auto flex flex-col items-center justify-center space-y-3 font-sans">
+            <a href="https://usekairosevents.vercel.app" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900 transition-all group cursor-pointer shadow-sm">
+              <div className="flex items-center gap-1.5 border-r border-zinc-700 pr-3">
+                <img src="/screenshots/Icone.png" alt="Icone Kairós" className="h-5 w-auto object-contain" />
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-black tracking-tight text-white">KAIRÓS</span>
+                  <span className="text-sm font-black tracking-tight text-[#F5821F]">EVENTS</span>
+                </div>
+              </div>
+              <span className="text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors flex items-center gap-1.5">
+                Crie seu evento <ExternalLink className="size-3 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+              </span>
+            </a>
+            <p className="text-[10px] text-zinc-600 uppercase tracking-widest pt-1">
+              © {new Date().getFullYear()} Kairós Events. Todos os direitos reservados.
+            </p>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // MODO HOTSITE — rota /e/:slug
+  // ═══════════════════════════════════════════════════════
   if (event && !event.is_published && !authLoading && !user) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-8">
@@ -556,14 +748,6 @@ export default function EventRegistration() {
       </div>
     );
   }
-
-  const themeStyles = {
-    orange: { bg: 'bg-[#F5821F]', accent: 'bg-[#EF4B67]', text: 'text-[#F5821F]', selected: 'border-[#F5821F] bg-[#F5821F]/5 ring-[#F5821F]', hover: 'hover:border-[#F5821F]', btn: 'bg-[#F5821F] text-white' },
-    purple: { bg: 'bg-[#7E22CE]', accent: 'bg-[#EC4899]', text: 'text-[#7E22CE]', selected: 'border-[#7E22CE] bg-[#7E22CE]/5 ring-[#7E22CE]', hover: 'hover:border-[#7E22CE]', btn: 'bg-[#7E22CE] text-white' },
-    blue:   { bg: 'bg-[#1D4ED8]', accent: 'bg-[#06B6D4]', text: 'text-[#1D4ED8]', selected: 'border-[#1D4ED8] bg-[#1D4ED8]/5 ring-[#1D4ED8]', hover: 'hover:border-[#1D4ED8]', btn: 'bg-[#1D4ED8] text-white' },
-    green:  { bg: 'bg-[#15803D]', accent: 'bg-[#EAB308]', text: 'text-[#15803D]', selected: 'border-[#15803D] bg-[#15803D]/5 ring-[#15803D]', hover: 'hover:border-[#15803D]', btn: 'bg-[#15803D] text-white' },
-  };
-  const currentTheme = themeStyles[(event?.theme_color as keyof typeof themeStyles)] || themeStyles.orange;
 
   function renderLotCard(lot: EventLot) {
     const count = lotCounts[lot.id] || 0;
