@@ -470,7 +470,7 @@ export default function EventRegistration({ directForm }: EventRegistrationProps
   // ═══════════════════════════════════════════════════════
   if (isDirectForm) {
     return (
-      <div className="flex min-h-screen flex-col bg-slate-50">
+      <div className="flex min-h-screen flex-col bg-[#2A2A2A]">
         {isPreview && (
           <div className="fixed inset-x-0 top-0 z-[60] h-8 flex items-center justify-center bg-amber-400 text-sm font-bold text-black">
             Modo Preview (Não Publicado)
@@ -496,9 +496,9 @@ export default function EventRegistration({ directForm }: EventRegistrationProps
           </div>
         </header>
 
-        <main className={cn('flex flex-1 flex-col pt-20', isPreview && 'pt-28')}>
-          <div className="mx-auto max-w-2xl px-4 py-8 text-center">
-            <h1 className="text-2xl font-bold text-foreground">{displayTitle}</h1>
+        <main className={cn('flex flex-1 flex-col pt-16', isPreview && 'pt-24')}>
+          <div className="mx-auto max-w-2xl px-4 py-6 text-center">
+            <h1 className="text-2xl font-bold text-white">{displayTitle}</h1>
           </div>
 
           {blocked ? (
@@ -528,7 +528,7 @@ export default function EventRegistration({ directForm }: EventRegistrationProps
               </div>
             </div>
           ) : (
-            <section className="flex-1 bg-[#2A2A2A] px-6 py-12 text-white">
+            <section className="flex-1 px-6 py-6 text-white">
               <div className="mx-auto max-w-2xl">
                 {!showForm ? (
                   <div className="space-y-4">
