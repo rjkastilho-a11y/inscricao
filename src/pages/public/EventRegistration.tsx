@@ -490,9 +490,6 @@ export default function EventRegistration({ directForm }: EventRegistrationProps
               )}
               <span className="truncate">{event.display_organizer_name}</span>
             </span>
-            <Link to={`/e/${slug}`} className="text-xs tracking-widest text-zinc-200 transition-colors hover:text-white">
-              VER EVENTO
-            </Link>
           </div>
         </header>
 
