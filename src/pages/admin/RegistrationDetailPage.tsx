@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDate, paymentStatusLabels, paymentMethodLabels } from '@/lib/utils';
-import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer, Link2, Globe, ShieldCheck } from 'lucide-react';
+import { Pencil, ArrowLeft, Trash2, CheckCircle, Loader2, Check, Copy, MessageCircle, Printer, Link2, Globe, ShieldCheck, Monitor } from 'lucide-react';
 import { RegistrationComprovante } from '@/components/registration/RegistrationComprovante';
 import { buildCheckinUrl, ensureCheckinToken } from '@/lib/checkin';
 import { Input } from '@/components/ui/input';
@@ -569,6 +569,14 @@ export default function RegistrationDetailPage() {
                   ? `Enviado para: ${reg.event_invites.recipient_name}`
                   : 'Nome do destinatário não preenchido no convite.'}
               </p>
+            </div>
+          </div>
+        ) : reg.origin === 'public' && reg.extra_data?.source === 'hotsite' ? (
+          <div className="flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200">
+            <Monitor className="h-4 w-4 mt-0.5 shrink-0 text-indigo-500 dark:text-indigo-400" />
+            <div>
+              <p className="font-medium">Inscrição Hotsite</p>
+              <p className="mt-0.5 text-indigo-600/80 dark:text-indigo-400/80">Acessou a página do evento via hotsite</p>
             </div>
           </div>
         ) : (

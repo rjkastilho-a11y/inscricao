@@ -283,6 +283,7 @@ export default function EventRegistration({ directForm }: EventRegistrationProps
         invite_id: inviteId,
         origin: inviteId ? 'invite' : 'public',
         extra_fields: Object.keys(extra).length > 0 ? extra : null,
+        extra_data: { source: isDirectForm ? 'direct' : 'hotsite' },
       };
       console.log('[DIAGNÓSTICO] Payload final de inscrição:', payload);
 

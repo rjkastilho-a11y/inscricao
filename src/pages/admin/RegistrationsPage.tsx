@@ -54,6 +54,7 @@ interface Registration {
   events: { title: string; price: number } | null;
   event_lots: { name: string; price: number } | null;
   extra_fields: Record<string, unknown> | null;
+  extra_data?: Record<string, any> | null;
   paid_amount?: number | null;
   refunded_amount?: number | null;
 }
@@ -228,8 +229,10 @@ export default function RegistrationsPage() {
     }
     if (originFilter === 'invite') {
       query = query.not('invite_id', 'is', null);
+    } else if (originFilter === 'hotsite') {
+      query = query.eq('origin', 'public').eq('extra_data->>source', 'hotsite');
     } else if (originFilter === 'public') {
-      query = query.is('invite_id', null);
+      query = query.eq('origin', 'public').or('extra_data->>source.is.null,extra_data->>source.eq.direct');
     }
     if (dateFrom) {
       query = query.gte('created_at::date', dateFrom);
@@ -1088,7 +1091,8 @@ export default function RegistrationsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Todas as Origens</SelectItem>
-              <SelectItem value="public">Link Público</SelectItem>
+              <SelectItem value="public">Link Direto</SelectItem>
+              <SelectItem value="hotsite">Hotsite</SelectItem>
               <SelectItem value="invite">Link de Convite</SelectItem>
             </SelectContent>
           </Select>
@@ -1174,7 +1178,7 @@ export default function RegistrationsPage() {
           )}
           {originFilter && (
             <Badge variant="secondary" className="gap-1">
-              Origem: {originFilter === 'invite' ? 'Link de Convite' : 'Link Público'}
+              Origem: {originFilter === 'invite' ? 'Link de Convite' : originFilter === 'hotsite' ? 'Hotsite' : 'Link Direto'}
               <X className="h-3 w-3 cursor-pointer" onClick={() => { setOriginFilter(''); setPage(0); }} />
             </Badge>
           )}
