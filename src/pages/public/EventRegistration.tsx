@@ -109,7 +109,8 @@ export default function EventRegistration({ directForm }: EventRegistrationProps
   const [blocked, setBlocked] = useState(false);
   const [blockReason, setBlockReason] = useState<'trial_expired' | 'trial_limit' | 'inactive' | null>(null);
   const [tokenValid, setTokenValid] = useState<boolean | null>(inviteToken ? null : true);
-  const [showForm, setShowForm] = useState(hasToken);
+  // O formulário sempre inicia fechado para forçar a passagem pela seleção de lotes
+  const [showForm, setShowForm] = useState(false);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [disabledSteps, setDisabledSteps] = useState<FormStep[]>([]);
   const [submittedData, setSubmittedData] = useState<Record<string, any> | null>(null);
