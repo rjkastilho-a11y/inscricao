@@ -233,6 +233,29 @@ export default function RegistrationDetailPage() {
 
     await refreshRegistration();
 
+    const { data: freshReg } = await supabase
+      .from('registrations')
+      .select('paid_amount, payment_status')
+      .eq('id', id)
+      .single();
+
+    if (freshReg) {
+      const price = reg?.event_lots?.price ?? reg?.events?.price ?? 0;
+      const newPaidAmount = Number(freshReg.paid_amount) || 0;
+      if (price > 0 && newPaidAmount >= price && freshReg.payment_status !== 'paid') {
+        const { error: statusError } = await supabase
+          .from('registrations')
+          .update({ payment_status: 'paid' })
+          .eq('id', id);
+        if (!statusError) {
+          setReg(prev => prev ? { ...prev, payment_status: 'paid' } : prev);
+          toast.success('Inscrição marcada como paga!');
+        }
+      } else {
+        setReg(prev => prev && freshReg ? { ...prev, paid_amount: freshReg.paid_amount, payment_status: freshReg.payment_status } : prev);
+      }
+    }
+
     setPaymentSuccess({
       amount,
       receipt: formatReceipt(reg!.full_name, reg!.events?.title || 'Evento', amount),
@@ -256,7 +279,7 @@ export default function RegistrationDetailPage() {
     const price = reg?.event_lots?.price ?? 0;
     const currentPaid = Number((reg as any).paid_amount) || 0;
 
-    if (price > 0 && currentPaid + amount >= price) {
+    if (price > 0 && currentPaid + amount > price) {
       setPayDialogOpen(false);
       setOverpaymentData({ amount, currentPaid, price });
       setOverpaymentOpen(true);
@@ -282,6 +305,7 @@ export default function RegistrationDetailPage() {
     if (!id) return;
     const updated = await fetchPayments(id);
     setPayments(updated);
+    await refreshRegistration();
   };
 
   const CUSTOM_FIELD_KEY_TO_DB_COLUMN: Record<string, string> = {

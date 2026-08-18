@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { PaymentRecord } from '@/lib/payments';
 import { deletePayment } from '@/lib/payments';
+import { supabase } from '@/lib/supabase';
 import { paymentMethodLabels } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +45,31 @@ export function PaymentHistory({ payments, registrationId, onRefresh, paidAmount
       return;
     }
 
-    toast.success('Pagamento excluído.');
+    let toastMessage = 'Pagamento excluído com sucesso.';
+
+    const { data: freshReg } = await supabase
+      .from('registrations')
+      .select('paid_amount, payment_status, event_lots!lot_id(price), events(price)')
+      .eq('id', registrationId)
+      .single();
+
+    if (freshReg) {
+      const price = (freshReg as any).event_lots?.price ?? (freshReg as any).events?.price ?? 0;
+      const newPaid = Number(freshReg.paid_amount) || 0;
+
+      if (price > 0 && newPaid < price && freshReg.payment_status === 'paid') {
+        const { error: statusError } = await supabase
+          .from('registrations')
+          .update({ payment_status: 'pending' })
+          .eq('id', registrationId);
+
+        if (!statusError) {
+          toastMessage = 'Pagamento excluído. Status revertido para pendente.';
+        }
+      }
+    }
+
+    toast.success(toastMessage);
     setDeletingId(null);
     setConfirmDelete(null);
     onRefresh();

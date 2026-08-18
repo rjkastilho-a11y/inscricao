@@ -103,6 +103,18 @@ export default function RegistrationEditPage() {
     if (!id) return;
     const updated = await fetchPayments(id);
     setPayments(updated);
+    const { data } = await supabase
+      .from('registrations')
+      .select('paid_amount, payment_status')
+      .eq('id', id)
+      .single();
+    if (data) {
+      setDefaultValues(prev => ({
+        ...prev,
+        paid_amount: data.paid_amount,
+        payment_status: data.payment_status,
+      }));
+    }
   };
 
   useEffect(() => {
@@ -133,6 +145,18 @@ export default function RegistrationEditPage() {
       .eq('id', id)
       .single();
     if (updatedReg) {
+      const price = selectedLot?.price ?? 0;
+      const newPaidAmount = Number(updatedReg.paid_amount) || 0;
+      if (price > 0 && newPaidAmount >= price && updatedReg.payment_status !== 'paid') {
+        const { error: statusError } = await supabase
+          .from('registrations')
+          .update({ payment_status: 'paid' })
+          .eq('id', id);
+        if (!statusError) {
+          updatedReg.payment_status = 'paid';
+          toast.success('Inscrição marcada como paga!');
+        }
+      }
       setDefaultValues((prev) => ({
         ...prev,
         payment_status: updatedReg.payment_status,
@@ -155,7 +179,7 @@ export default function RegistrationEditPage() {
     const price = selectedLot?.price ?? 0;
     const currentPaid = Number(defaultValues.paid_amount) || 0;
 
-    if (price > 0 && currentPaid + amount >= price) {
+    if (price > 0 && currentPaid + amount > price) {
       setPayDialogOpen(false);
       setOverpaymentData({ amount, currentPaid, price });
       setOverpaymentOpen(true);

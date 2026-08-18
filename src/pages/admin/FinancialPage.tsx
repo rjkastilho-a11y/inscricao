@@ -544,31 +544,31 @@ export default function FinancialPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
-          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Previsto</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-blue-400">{formatCurrency(totalExpected)}</p></CardContent>
+      <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-6 mb-6">
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Previsto</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-blue-400">{formatCurrency(totalExpected)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
-          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Real</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-emerald-400">{formatCurrency(netActual)}</p></CardContent>
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Real</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-emerald-400">{formatCurrency(netActual)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
-          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Entradas (Ofertas)</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-emerald-400">{formatCurrency(totalOfferings)}</p></CardContent>
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Entradas (Ofertas)</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-emerald-400">{formatCurrency(totalOfferings)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
-          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Saídas</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-red-400">{formatCurrency(totalExpenses)}</p></CardContent>
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Saídas</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-red-400">{formatCurrency(totalExpenses)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
-          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Total Entradas</CardTitle></CardHeader>
-          <CardContent><p className="font-serif text-xl md:text-3xl font-bold truncate text-foreground">{formatCurrency(netActual + totalOfferings)}</p></CardContent>
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Total Entradas</CardTitle></CardHeader>
+          <CardContent><p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-foreground">{formatCurrency(netActual + totalOfferings)}</p></CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0">
-          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground">Saldo</CardTitle></CardHeader>
+        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
+          <CardHeader className="pb-1 md:pb-2"><CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Saldo</CardTitle></CardHeader>
           <CardContent>
-            <p className={`font-serif text-xl md:text-3xl font-bold truncate ${netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className={`font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 ${netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {formatCurrency(netBalance)}
             </p>
           </CardContent>
