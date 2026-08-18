@@ -695,7 +695,7 @@ export default function DashboardPage() {
             <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-foreground">{formatCurrency(netActual + finStats.offerings)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
+        <Card className="col-span-2 sm:col-span-1 bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
           <CardHeader className="pb-1 md:pb-2">
             <CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Saldo Líquido</CardTitle>
           </CardHeader>
