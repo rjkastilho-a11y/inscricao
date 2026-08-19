@@ -170,6 +170,12 @@ export function RegistrationForm({ isAdmin = false, defaultValues, onSubmit, isL
   }, [lotId, form]);
 
   useEffect(() => {
+    if (defaultValues?.payment_status) {
+      form.setValue('payment_status', defaultValues.payment_status);
+    }
+  }, [defaultValues?.payment_status, form]);
+
+  useEffect(() => {
     if (step === 0) {
       setTimeout(() => {
         const firstInput = document.querySelector<HTMLElement>('input, select, textarea');

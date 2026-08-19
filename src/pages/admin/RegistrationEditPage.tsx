@@ -84,6 +84,7 @@ export default function RegistrationEditPage() {
 
   const [lots, setLots] = useState<EventLot[]>([]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
+  const [eventPrice, setEventPrice] = useState<number>(0);
   const [isCustom, setIsCustom] = useState(false);
   const [termsText, setTermsText] = useState<string | null>(null);
   const [disabledSteps, setDisabledSteps] = useState<FormStep[]>([]);
@@ -141,22 +142,28 @@ export default function RegistrationEditPage() {
 
     const { data: updatedReg } = await supabase
       .from('registrations')
-      .select('payment_status, paid_amount')
+      .select('payment_status, paid_amount, event_lots!lot_id(price), events(price)')
       .eq('id', id)
       .single();
     if (updatedReg) {
-      const price = selectedLot?.price ?? 0;
+      const price = selectedLot?.price ?? (updatedReg as any)?.event_lots?.price ?? (updatedReg as any)?.events?.price ?? 0;
       const newPaidAmount = Number(updatedReg.paid_amount) || 0;
-      if (price > 0 && newPaidAmount >= price && updatedReg.payment_status !== 'paid') {
+
+      const totalPaid = Math.round(newPaidAmount * 100) / 100;
+      const roundedPrice = Math.round(price * 100) / 100;
+
+      if (roundedPrice > 0 && totalPaid >= roundedPrice && updatedReg.payment_status !== 'paid') {
         const { error: statusError } = await supabase
           .from('registrations')
           .update({ payment_status: 'paid' })
           .eq('id', id);
+
         if (!statusError) {
           updatedReg.payment_status = 'paid';
-          toast.success('Inscrição marcada como paga!');
+          toast.success('Valor atingido! Inscrição marcada como Paga.');
         }
       }
+
       setDefaultValues((prev) => ({
         ...prev,
         payment_status: updatedReg.payment_status,
@@ -176,7 +183,7 @@ export default function RegistrationEditPage() {
       return;
     }
 
-    const price = selectedLot?.price ?? 0;
+    const price = selectedLot?.price ?? eventPrice ?? 0;
     const currentPaid = Number(defaultValues.paid_amount) || 0;
 
     if (price > 0 && currentPaid + amount > price) {
@@ -210,7 +217,7 @@ export default function RegistrationEditPage() {
           .select('id, name, price, description')
           .eq('event_id', eventId)
           .order('start_date', { ascending: true }),
-        supabase.from('events').select('is_custom, terms_text, step_personal, step_christian_life, step_health, step_emergency, step_other').eq('id', eventId).single(),
+        supabase.from('events').select('is_custom, terms_text, price, step_personal, step_christian_life, step_health, step_emergency, step_other').eq('id', eventId).single(),
       ]);
 
       if (lotsData.data) {
@@ -223,6 +230,7 @@ export default function RegistrationEditPage() {
         custom = eventRes.data.is_custom ?? false;
         setIsCustom(custom);
         setTermsText(eventRes.data.terms_text ?? null);
+        setEventPrice((eventRes.data as any)?.price ?? 0);
         const disabledSteps: FormStep[] = [];
         if (eventRes.data.step_personal === false) disabledSteps.push('personal');
         if (eventRes.data.step_christian_life === false) disabledSteps.push('christian_life');
