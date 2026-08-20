@@ -2,13 +2,14 @@ import { useTrial } from '@/components/layout/ChurchGuard';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sparkles, AlertTriangle, Clock } from 'lucide-react';
+import { TRIAL_REG_LIMIT } from '@/hooks/useFeatureGate';
 
 export function TrialBanner() {
   const trial = useTrial();
 
   if (!trial) return null;
 
-  const isUrgent = (trial.daysRemaining !== null && trial.daysRemaining <= 3) || trial.regs >= 14;
+  const isUrgent = (trial.daysRemaining !== null && trial.daysRemaining <= 3) || trial.regs >= (TRIAL_REG_LIMIT - 1);
   const isWarning = trial.daysRemaining !== null && trial.daysRemaining <= 7;
 
   return (
@@ -26,7 +27,7 @@ export function TrialBanner() {
             : <Sparkles className="size-4 shrink-0" />
         }
         <span>
-          Plano Gratuito:{' '}
+          {trial.status === 'trial' ? 'Período de Teste:' : 'Plano Gratuito:'}{' '}
           <strong>{trial.regs}</strong> de <strong>{trial.limit}</strong> inscrições
           {trial.daysRemaining !== null && (
             <> · <strong>{trial.daysRemaining}</strong> {trial.daysRemaining === 1 ? 'dia' : 'dias'} restante{trial.daysRemaining !== 1 ? 's' : ''}</>

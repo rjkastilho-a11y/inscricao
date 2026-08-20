@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, ChevronRight, Mail, Lock, Eye, EyeOff, User, Church, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { TRIAL_REG_LIMIT } from '@/hooks/useFeatureGate';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -151,7 +152,7 @@ export default function RegisterPage() {
               </div>
               <CardTitle className="text-2xl font-bold text-white">Criar Conta</CardTitle>
               <CardDescription className="text-slate-400">
-                Comece seu teste grátis — 15 inscrições incluídas
+                Comece seu teste grátis — {TRIAL_REG_LIMIT} inscrições incluídas
               </CardDescription>
             </CardHeader>
             <CardContent>

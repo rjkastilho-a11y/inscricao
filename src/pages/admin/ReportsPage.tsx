@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, paymentStatusLabels, formatDate } from '@/lib/utils';
 import { BarChart3, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { PremiumGate } from '@/components/shared/PremiumGate';
 
 export default function ReportsPage() {
   const [eventStats, setEventStats] = useState<any[]>([]);
@@ -42,90 +43,92 @@ export default function ReportsPage() {
   return (
     <div>
       <PageHeader title="Relatórios" />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
+      <PremiumGate feature="cross_event_reports" featureName="Relatórios Avançados" mode="blur">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Total Inscrições</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><p className="text-2xl font-bold">{totalRegs}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Pagos</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><p className="text-2xl font-bold text-green-600">{totalPaid}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Confirmados</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><p className="text-2xl font-bold text-violet-600">{totalConfirmed}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Receita</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Taxa Conversão</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">
+                {totalRegs > 0 ? Math.round((totalPaid / totalRegs) * 100) : 0}%
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Total Inscrições</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">{totalRegs}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Pagos</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold text-green-600">{totalPaid}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Confirmados</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold text-violet-600">{totalConfirmed}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Receita</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Taxa Conversão</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle className="text-lg">Por Evento</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {totalRegs > 0 ? Math.round((totalPaid / totalRegs) * 100) : 0}%
-            </p>
+            <div className="rounded-lg border border-border overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted">
+                    <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Evento</th>
+                    <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Inscrições</th>
+                    <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Pagos</th>
+                    <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Confirmados</th>
+                    <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Pendentes</th>
+                    <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Receita</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventStats.map((ev) => (
+                    <tr key={ev.title} className="border-b hover:bg-muted/50">
+                      <td className="p-4 text-sm font-medium">{ev.title}</td>
+                      <td className="p-4 text-sm">{ev.total}</td>
+                      <td className="p-4 text-sm">
+                        <Badge variant="default">{ev.paid}</Badge>
+                      </td>
+                      <td className="p-4 text-sm">
+                        <Badge variant="default" className="bg-violet-100 text-violet-700">{ev.confirmed}</Badge>
+                      </td>
+                      <td className="p-4 text-sm">
+                        <Badge variant="secondary">{ev.pending}</Badge>
+                      </td>
+                      <td className="p-4 text-sm">{formatCurrency(ev.revenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {eventStats.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">Nenhum dado disponível.</div>
+              )}
+            </div>
           </CardContent>
         </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Por Evento</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border border-border overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted">
-                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Evento</th>
-                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Inscrições</th>
-                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Pagos</th>
-                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Confirmados</th>
-                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Pendentes</th>
-                  <th className="whitespace-nowrap text-left p-4 text-sm font-medium">Receita</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventStats.map((ev) => (
-                  <tr key={ev.title} className="border-b hover:bg-muted/50">
-                    <td className="p-4 text-sm font-medium">{ev.title}</td>
-                    <td className="p-4 text-sm">{ev.total}</td>
-                    <td className="p-4 text-sm">
-                      <Badge variant="default">{ev.paid}</Badge>
-                    </td>
-                    <td className="p-4 text-sm">
-                      <Badge variant="default" className="bg-violet-100 text-violet-700">{ev.confirmed}</Badge>
-                    </td>
-                    <td className="p-4 text-sm">
-                      <Badge variant="secondary">{ev.pending}</Badge>
-                    </td>
-                    <td className="p-4 text-sm">{formatCurrency(ev.revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {eventStats.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">Nenhum dado disponível.</div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      </PremiumGate>
     </div>
   );
 }

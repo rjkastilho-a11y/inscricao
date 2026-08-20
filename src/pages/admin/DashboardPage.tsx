@@ -17,6 +17,7 @@ import { Building2, Lock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { UpgradeModal } from '@/components/shared/UpgradeModal';
+import { PremiumGate } from '@/components/shared/PremiumGate';
 import { useDashboardKpis, useDashboardPerEvent } from '@/hooks/use-dashboard';
 import { fetchFormFields } from '@/lib/form-fields';
 import type { FormStep } from '@/lib/form-fields';
@@ -417,33 +418,58 @@ export default function DashboardPage() {
     );
   };
 
-  const renderSlotSelector = (slot: 1 | 2 | 3, current: MetricKey, onChange: (k: MetricKey) => void) => (
-    <Select
-      value={current}
-      onValueChange={(v) => {
-        if (PREMIUM_METRICS.has(v as MetricKey) && !hasAccess) { setUpgradeOpen(true); return; }
-        onChange(v as MetricKey);
-      }}
-    >
-      <SelectTrigger className="text-sm font-medium w-fit gap-1">
-        <SelectValue>{METRICS[current]?.label || current}</SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {Object.entries(METRICS)
-          .filter(([key, cfg]) => cfg.slot === slot && activeMetricKeys.has(key as MetricKey))
-          .map(([key, cfg]) => (
-            <SelectItem key={key} value={key}>
-              <div className="flex items-center gap-2">
-                <span>{cfg.label}</span>
-                {PREMIUM_METRICS.has(key as MetricKey) && !hasAccess && (
-                  <Lock className="size-3.5 text-amber-500" />
-                )}
-              </div>
-            </SelectItem>
-          ))}
-      </SelectContent>
-    </Select>
-  );
+  const renderSlotSelector = (slot: 1 | 2 | 3, current: MetricKey, onChange: (k: MetricKey) => void) => {
+    const isCurrentPremium = PREMIUM_METRICS.has(current) && !hasAccess;
+
+    if (isCurrentPremium) {
+      return (
+        <PremiumGate feature="advanced_analytics" featureName="Métricas Avançadas" mode="lock">
+          <Select value={current} onValueChange={(v) => onChange(v as MetricKey)}>
+            <SelectTrigger className="text-sm font-medium w-fit gap-1">
+              <SelectValue>{METRICS[current]?.label || current}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(METRICS)
+                .filter(([key, cfg]) => cfg.slot === slot && activeMetricKeys.has(key as MetricKey))
+                .map(([key, cfg]) => (
+                  <SelectItem key={key} value={key}>
+                    <span>{cfg.label}</span>
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </PremiumGate>
+      );
+    }
+
+    return (
+      <Select
+        value={current}
+        onValueChange={(v) => {
+          if (PREMIUM_METRICS.has(v as MetricKey) && !hasAccess) { setUpgradeOpen(true); return; }
+          onChange(v as MetricKey);
+        }}
+      >
+        <SelectTrigger className="text-sm font-medium w-fit gap-1">
+          <SelectValue>{METRICS[current]?.label || current}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(METRICS)
+            .filter(([key, cfg]) => cfg.slot === slot && activeMetricKeys.has(key as MetricKey))
+            .map(([key, cfg]) => (
+              <SelectItem key={key} value={key}>
+                <div className="flex items-center gap-2">
+                  <span>{cfg.label}</span>
+                  {PREMIUM_METRICS.has(key as MetricKey) && !hasAccess && (
+                    <Lock className="size-3.5 text-amber-500" />
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+    );
+  };
 
   const renderEmptyMetric = () => (
     <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">

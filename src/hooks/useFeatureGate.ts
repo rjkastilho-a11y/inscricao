@@ -3,10 +3,39 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import type { Church, PlanType } from '@/types/database';
 
-export function useFeatureGate() {
+export type FeatureName =
+  | 'advanced_analytics'
+  | 'custom_forms'
+  | 'bulk_import'
+  | 'date_range_filters'
+  | 'finance_export'
+  | 'cross_event_reports'
+  | 'custom_groups'
+  | 'labels_badges'
+  | 'bulk_delete'
+  | 'group_pdf'
+  | 'attendance_sheets';
+
+const PREMIUM_FEATURES = new Set<FeatureName>([
+  'advanced_analytics',
+  'custom_forms',
+  'bulk_import',
+  'date_range_filters',
+  'finance_export',
+  'cross_event_reports',
+  'custom_groups',
+  'labels_badges',
+  'bulk_delete',
+  'group_pdf',
+  'attendance_sheets',
+]);
+
+export const TRIAL_REG_LIMIT = 50;
+
+export function useFeatureGate(feature?: FeatureName) {
   const { user, isSuperAdmin, churchId } = useAuth();
 
-  const { data: church, isLoading } = useQuery<Church | null>({
+  const { data: church, isLoading: churchLoading } = useQuery<Church | null>({
     queryKey: ['church', churchId],
     queryFn: async () => {
       if (!churchId) return null;
@@ -22,24 +51,57 @@ export function useFeatureGate() {
       }
       return (data as Church) || null;
     },
-    // CORREÇÃO CRÍTICA 2: Removido o 'isAdmin' para permitir que operadores herdem o plano da igreja
     enabled: !!churchId && !!user && !isSuperAdmin,
     staleTime: 60_000,
   });
 
-  // CORREÇÃO CRÍTICA 1: O plano precisa ser VIP/Anual E a igreja precisa estar com status ativo
+  const isPotentialTrial =
+    church?.status === 'trial' &&
+    church?.is_active &&
+    church?.is_vip !== true &&
+    church?.plan_type !== 'annual';
+
+  const { data: trialRegCount, isLoading: trialCountLoading } = useQuery<number>({
+    queryKey: ['trialRegCount', churchId],
+    queryFn: async () => {
+      if (!churchId) return 0;
+      const { count } = await supabase
+        .from('registrations')
+        .select('*', { count: 'exact', head: true })
+        .eq('church_id', churchId)
+        .is('deleted_at', null);
+      return count ?? 0;
+    },
+    enabled: !!churchId && !!isPotentialTrial && !isSuperAdmin,
+    staleTime: 60_000,
+  });
+
   const isActive = church?.is_active ?? (church?.status === 'active');
   const planUnlocked = (church?.is_vip === true || church?.plan_type === 'annual') && isActive;
 
-  // Fonte Única da Verdade (SSOT) consolidada
-  const hasAccess = isSuperAdmin || planUnlocked;
+  let isTrialActive = false;
+  if (isPotentialTrial && !planUnlocked) {
+    const daysRemaining = church?.trial_ends_at
+      ? Math.max(0, Math.ceil((new Date(church.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : null;
+
+    const withinTimeLimit = daysRemaining === null || daysRemaining > 0;
+    const withinRegLimit = (trialRegCount ?? 0) < TRIAL_REG_LIMIT;
+    isTrialActive = withinTimeLimit && withinRegLimit;
+  }
+
+  const baseAccess = isSuperAdmin || planUnlocked || isTrialActive;
+  const hasAccess = feature ? (PREMIUM_FEATURES.has(feature) ? baseAccess : true) : baseAccess;
+
+  console.log('[useFeatureGate]', { isTrialActive, baseAccess, hasAccess, planUnlocked, isSuperAdmin });
 
   return {
     isVip: church?.is_vip ?? false,
     planType: (church?.plan_type ?? 'monthly') as PlanType,
     status: church?.status ?? null,
-    isLoading,
+    isLoading: churchLoading || (isPotentialTrial && trialCountLoading),
     planUnlocked,
+    isTrialActive,
     hasAccess,
   };
 }

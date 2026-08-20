@@ -346,7 +346,7 @@ export default function EventRegistration({ directForm }: EventRegistrationProps
 
         if (insertError.message.includes('Limite de 5 inscrições')) {
           setFormError('Limite de inscrições atingido para este e-mail. Tente novamente em alguns minutos.');
-        } else if (insertError.message.includes('Limite de 15 inscrições')) {
+        } else if (insertError.message.includes('Limite de')) {
           setFormError('As inscrições online para este evento estão temporariamente pausadas. Por favor, procure a organização ou a liderança da igreja para mais informações.');
         } else if (insertError.message.includes('Período de trial expirado')) {
           setFormError('As inscrições online estão temporariamente indisponíveis devido à expiração do período de trial. Procure a liderança da igreja.');

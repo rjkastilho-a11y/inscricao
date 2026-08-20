@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Lock, X } from 'lucide-react';
+import { TRIAL_REG_LIMIT } from '@/hooks/useFeatureGate';
 
 interface TrialData {
   regs: number;
@@ -71,11 +72,11 @@ export function ChurchGuard({ children }: { children: ReactNode }) {
 
         setTrialData({
           regs: count ?? 0,
-          limit: 15,
+          limit: TRIAL_REG_LIMIT,
           daysRemaining,
           trialEndsAt: church.trial_ends_at,
           status: church.status,
-          isTrialExceeded: (count ?? 0) >= 15 || (daysRemaining !== null && daysRemaining <= 0),
+          isTrialExceeded: (count ?? 0) >= TRIAL_REG_LIMIT || (daysRemaining !== null && daysRemaining <= 0),
         });
       } else {
         setTrialData(null);

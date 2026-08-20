@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
+import { TRIAL_REG_LIMIT } from '@/hooks/useFeatureGate';
 
 export default function TermsOfUsePage() {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export default function TermsOfUsePage() {
             </h2>
             <p className="mt-3 leading-relaxed text-slate-400">
               Ao criar sua conta no Kairós Events, você recebe acesso a um período de teste gratuito
-              que inclui o limite de <strong className="text-white">15 inscrições gratuitas</strong>.
+              que inclui o limite de <strong className="text-white">{TRIAL_REG_LIMIT} inscrições gratuitas</strong>.
               Durante esse período, todas as funcionalidades da plataforma estão disponíveis sem
               qualquer custo e sem necessidade de cadastro de cartão de crédito.
             </p>
@@ -46,7 +47,7 @@ export default function TermsOfUsePage() {
               2. Exclusão de Dados
             </h2>
             <p className="mt-3 leading-relaxed text-slate-400">
-              Após atingir o limite de 15 inscrições, sua conta será pausada automaticamente.
+              Após atingir o limite de {TRIAL_REG_LIMIT} inscrições, sua conta será pausada automaticamente.
               Você terá um prazo de <strong className="text-white">14 dias corridos</strong> para
               realizar a assinatura de um dos planos disponíveis e dar continuidade ao uso da
               plataforma.

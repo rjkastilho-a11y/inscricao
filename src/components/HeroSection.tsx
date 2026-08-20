@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Shield, Lock, Database, ChevronDown } from 'lucide-react';
+import { TRIAL_REG_LIMIT } from '@/hooks/useFeatureGate';
 
 const TRUST_ITEMS = [
   { icon: Shield, label: 'LGPD' },
@@ -92,7 +93,7 @@ export default function HeroSection() {
 
           {/* 5. MICRO-COPY */}
           <p className="mt-2 mb-6 text-sm text-slate-500">
-            Grátis nas primeiras 15 inscrições · Sem cartão de crédito
+            Grátis nas primeiras {TRIAL_REG_LIMIT} inscrições · Sem cartão de crédito
           </p>
 
           {/* 6. TRUSTMARKS */}
