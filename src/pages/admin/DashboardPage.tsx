@@ -17,36 +17,9 @@ import { Building2, Lock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { UpgradeModal } from '@/components/shared/UpgradeModal';
+import { useDashboardKpis, useDashboardPerEvent } from '@/hooks/use-dashboard';
 import { fetchFormFields } from '@/lib/form-fields';
 import type { FormStep } from '@/lib/form-fields';
-
-interface EventStat {
-  eventId: string;
-  title: string;
-  is_open: boolean;
-  start_date: string | null;
-  total: number;
-  paid: number;
-  confirmed: number;
-  pending: number;
-  refunded: number;
-  expectedRevenue: number;
-  actualRevenue: number;
-}
-
-interface EventRow {
-  id: string;
-  title: string;
-  is_open: boolean;
-  start_date: string | null;
-}
-
-interface FinEntry {
-  type: string | null;
-  amount: number | null;
-  category: string | null;
-  event_id: string | null;
-}
 
 interface Registration {
   id?: string;
@@ -117,17 +90,17 @@ export default function DashboardPage() {
   const { hasAccess } = useFeatureGate();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
-  const [stats, setStats] = useState({ events: 0, registrations: 0 });
-  const [eventStats, setEventStats] = useState<EventStat[]>([]);
-  const [finStats, setFinStats] = useState({ offerings: 0, expenses: 0 });
+  const { data: kpis, isLoading: kpisLoading } = useDashboardKpis(eventId);
+  const { data: dashboardPerEvent, isLoading: perEventLoading } = useDashboardPerEvent(eventId);
+
   const [showCharts, setShowCharts] = useState(false);
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isMobile, setIsMobile] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [metric1, setMetric1] = useState<MetricKey>('gender');
   const [metric2, setMetric2] = useState<MetricKey>('age');
   const [metric3, setMetric3] = useState<MetricKey>('church');
   const [activeMetricKeys, setActiveMetricKeys] = useState<Set<string>>(new Set());
+
+  const [eventRegistrations, setEventRegistrations] = useState<Registration[]>([]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -137,96 +110,27 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const fetch = async () => {
-      const [eventsCountResult, eventsDataResult, regsDataResult] = await Promise.all([
-        supabase.from('events').select('*', { count: 'exact', head: true }),
-        supabase.from('events').select('*'),
-        supabase.from('registrations').select('*, events(price), event_lots!lot_id(price)').neq('payment_status', 'canceled'),
-      ]);
+    const fetchRegs = async () => {
+      let query = supabase
+        .from('registrations')
+        .select('id, full_name, created_at, gender, birth_date, church, perfil_fe, marital_status, is_baptized, church_role, payment_status, payment_method, city, paid_amount, event_id, event_lots!lot_id(price), events(price)')
+        .neq('payment_status', 'canceled')
+        .order('created_at', { ascending: false });
 
-      const totalEvents = eventsCountResult.count;
-      const eventsData = eventsDataResult.data;
-      const regsData = regsDataResult.data;
-
-      const regs = (regsData || []) as unknown as Registration[];
-      setRegistrations(regs);
-
-      let filteredRegs = regs;
       if (eventId) {
-        filteredRegs = regs.filter((r) => r.event_id === eventId);
+        query = query.eq('event_id', eventId);
+      } else {
+        query = query.limit(300);
       }
 
-      setStats({
-        events: totalEvents || 0,
-        registrations: filteredRegs.length,
-      });
-
-      let fins: FinEntry[] = [];
-      try {
-        let finQuery = supabase.from('financial_entries').select('type, amount, category, event_id');
-        if (eventId) {
-          finQuery = finQuery.eq('event_id', eventId);
-        }
-        const { data, error: finErr } = await finQuery;
-        if (!finErr && data) fins = data as FinEntry[];
-      } catch (e) {
-        console.warn('financial_entries table may not exist yet:', e);
+      const { data, error } = await query;
+      if (error) {
+        console.error('[SUPABASE QUERY ERROR registrations]:', error.message, error.details, error.hint);
+      } else if (data) {
+        setEventRegistrations(data as unknown as Registration[]);
       }
-
-      if (eventsData && regsData) {
-        const filteredEvents = eventId
-          ? eventsData.filter((ev: EventRow) => ev.id === eventId)
-          : eventsData;
-
-        const perEvent = filteredEvents.map((ev: EventRow) => {
-          const evRegs = regs.filter((r) => r.event_id === ev.id);
-          const paid = evRegs.filter((r) => r.payment_status === 'paid');
-          const confirmed = evRegs.filter((r) =>
-            r.payment_status === 'paid' || r.payment_status === 'cortesia'
-          ).length;
-          const pending = evRegs.filter((r) =>
-            r.payment_status === 'pending'
-          );
-          const refundedCount = evRegs.filter((r) => r.payment_status === 'refunded').length;
-          const expectedRevenue = evRegs
-            .filter((r) => r.payment_status === 'paid' || r.payment_status === 'pending')
-            .reduce((acc, r) => acc + Number(r.event_lots?.price ?? r.events?.price ?? 0), 0);
-          const actualRevenue = paid
-            .reduce((acc: number, r: Registration) => {
-              const paidAmt = r.paid_amount != null ? Number(r.paid_amount) : 0;
-              if (paidAmt > 0) return acc + paidAmt;
-              const lotPrice = r.event_lots?.price;
-              const eventPrice = r.events?.price;
-              return acc + Number(lotPrice ?? eventPrice ?? 0);
-            }, 0);
-          return {
-            eventId: ev.id,
-            title: ev.title,
-            is_open: ev.is_open,
-            start_date: ev.start_date,
-            total: evRegs.length,
-            paid: paid.length,
-            confirmed,
-            pending: pending.length,
-            refunded: refundedCount,
-            expectedRevenue,
-            actualRevenue,
-          };
-        });
-        setEventStats(perEvent);
-      }
-
-      setFinStats({
-        offerings: fins
-          .filter((f: FinEntry) => f.type === 'income' && f.category !== 'registration')
-          .reduce((s: number, f: FinEntry) => s + Number(f.amount), 0),
-        expenses: fins
-          .filter((f: FinEntry) => f.type === 'expense')
-          .reduce((s: number, f: FinEntry) => s + Number(f.amount), 0),
-      });
-      setInitialLoading(false);
     };
-    fetch();
+    fetchRegs();
   }, [eventId]);
 
   useEffect(() => {
@@ -243,18 +147,31 @@ export default function DashboardPage() {
     });
   }, [eventId, event?.is_custom, event?.step_personal, event?.step_christian_life, event?.step_health, event?.step_emergency, event?.step_other]);
 
-  const totalPaid = eventStats.reduce((a, b) => a + b.paid, 0);
-  const totalConfirmed = eventStats.reduce((a, b) => a + b.confirmed, 0);
-  const totalExpected = eventStats.reduce((a, b) => a + b.expectedRevenue, 0);
-  const totalActual = eventStats.reduce((a, b) => a + b.actualRevenue, 0);
+  const totalPaid = kpis?.paid_registrations ?? 0;
+  const totalConfirmed = eventRegistrations.filter(
+    (r) => r.payment_status === 'paid' || r.payment_status === 'cortesia'
+  ).length;
+  const totalRefunded = eventRegistrations.filter(
+    (r) => r.payment_status === 'refunded'
+  ).length;
+  const totalExpected = useMemo(() => {
+    return eventRegistrations
+      .filter((r) => r.payment_status !== 'cortesia' && r.payment_status !== 'canceled')
+      .reduce((sum, r) => {
+        const amount = Number(r.event_lots?.price ?? r.events?.price ?? 0);
+        return sum + amount;
+      }, 0);
+  }, [eventRegistrations]);
+  const totalActual = kpis?.total_revenue ?? 0;
   const netActual = totalActual;
-  const netIncome = netActual + finStats.offerings - finStats.expenses;
+  const finOfferings = kpis?.total_offerings ?? 0;
+  const finExpenses = kpis?.total_expenses ?? 0;
+  const totalIncome = kpis?.total_income ?? (netActual + finOfferings);
+  const netIncome = kpis?.balance ?? (totalIncome - finExpenses);
 
   const filteredRegistrations = useMemo(
-    () => eventId
-      ? registrations.filter((r) => r.event_id === eventId)
-      : registrations,
-    [registrations, eventId]
+    () => eventRegistrations,
+    [eventRegistrations]
   );
 
   const recentRegistrations = useMemo(() => {
@@ -561,7 +478,7 @@ export default function DashboardPage() {
 
   const totalInscritos = filteredRegistrations.length;
 
-  if (initialLoading) {
+  if (kpisLoading || perEventLoading) {
     return (
       <div>
         <PageHeader title="Dashboard" badge={event?.title} />
@@ -617,7 +534,7 @@ export default function DashboardPage() {
             <CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Inscrições</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-foreground">{stats.registrations}</p>
+            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-foreground">{kpis?.total_registrations ?? 0}</p>
           </CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
@@ -641,7 +558,7 @@ export default function DashboardPage() {
             <CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Pendentes</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-muted-foreground">{eventStats.reduce((a, b) => a + b.pending, 0)}</p>
+            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-muted-foreground">{kpis?.pending_registrations ?? 0}</p>
           </CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
@@ -649,7 +566,7 @@ export default function DashboardPage() {
             <CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Reembolsados</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-orange-400">{eventStats.reduce((a, b) => a + b.refunded, 0)}</p>
+            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-orange-400">{totalRefunded}</p>
           </CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
@@ -676,7 +593,7 @@ export default function DashboardPage() {
             <CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Ofertas</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-emerald-400">{formatCurrency(finStats.offerings)}</p>
+            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-emerald-400">{formatCurrency(finOfferings)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
@@ -684,7 +601,7 @@ export default function DashboardPage() {
             <CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Despesas</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-red-400">{formatCurrency(finStats.expenses)}</p>
+            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-red-400">{formatCurrency(finExpenses)}</p>
           </CardContent>
         </Card>
         <Card className="bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">
@@ -692,7 +609,7 @@ export default function DashboardPage() {
             <CardTitle className="text-xs md:text-sm text-muted-foreground truncate min-w-0">Total Entradas</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-foreground">{formatCurrency(netActual + finStats.offerings)}</p>
+            <p className="font-serif text-lg sm:text-xl lg:text-2xl 2xl:text-3xl font-bold truncate min-w-0 text-foreground">{formatCurrency(totalIncome)}</p>
           </CardContent>
         </Card>
         <Card className="col-span-2 sm:col-span-1 bg-card backdrop-blur-md border-border shadow-lg min-w-0 min-h-[100px]">

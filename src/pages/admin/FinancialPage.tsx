@@ -1,6 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonStatCard, SkeletonTable } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,30 +16,9 @@ import { useEvent } from '@/contexts/useEvent';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { UpgradeModal } from '@/components/shared/UpgradeModal';
-
-interface RegistrationPayment {
-  id: string;
-  full_name: string;
-  event_title: string;
-  amount: number;
-  lotName: string | null;
-  paid_amount: number | null;
-  refunded_amount: number | null;
-  method: string;
-  status: string;
-  created_at: string;
-}
-
-interface FinEntry {
-  id: string;
-  event_id: string;
-  type: 'income' | 'expense';
-  category: string;
-  description: string;
-  amount: number;
-  entry_date: string;
-  created_at: string;
-}
+import { useDebounce } from '@/hooks/use-debounce';
+import { useFinancialSummaryData, useRegistrationPayments, useFinancialEntries, useSaveFinEntry, useDeleteFinEntry } from '@/hooks/use-financial-data';
+import type { FinEntry } from '@/hooks/use-financial-data';
 
 const INCOME_CATEGORIES = ['oferta', 'doação', 'outros'];
 const incomeCategoryLabels: Record<string, string> = { 'oferta': 'Oferta', 'doação': 'Doação', 'outros': 'Outros' };
@@ -56,14 +34,10 @@ export default function FinancialPage() {
   const { eventId, event } = useEvent();
   const { hasAccess } = useFeatureGate();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [regPayments, setRegPayments] = useState<RegistrationPayment[]>([]);
-  const [finEntries, setFinEntries] = useState<FinEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState<'income' | 'expense'>('income');
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ event_id: '', category: '', description: '', amount: '', entry_date: '' });
-  const [saving, setSaving] = useState(false);
 
   const [regStatusFilter, setRegStatusFilter] = useState('');
   const [regMethodFilter, setRegMethodFilter] = useState('');
@@ -89,77 +63,55 @@ export default function FinancialPage() {
   const [collapseIncome, setCollapseIncome] = useState(() => window.innerWidth < 768);
   const [collapseExpense, setCollapseExpense] = useState(() => window.innerWidth < 768);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const debouncedSearch = useDebounce(regSearch, 300);
 
-    let regQuery = supabase
-      .from('registrations')
-      .select('id, full_name, payment_method, payment_status, paid_amount, refunded_amount, created_at, events(title, price), event_lots!lot_id(name, price)')
-      .neq('payment_status', 'canceled');
+  const regFilters = useMemo(() => ({
+    search: debouncedSearch,
+    status: regStatusFilter,
+    method: regMethodFilter,
+    dateFrom: regDateFrom,
+    dateTo: regDateTo,
+  }), [debouncedSearch, regStatusFilter, regMethodFilter, regDateFrom, regDateTo]);
 
-    if (eventId) {
-      regQuery = regQuery.eq('event_id', eventId);
-    }
+  const incomeFilters = useMemo(() => ({
+    category: incomeCategoryFilter,
+    dateFrom: incomeDateFrom,
+    dateTo: incomeDateTo,
+  }), [incomeCategoryFilter, incomeDateFrom, incomeDateTo]);
 
-    const { data: regs } = await regQuery;
-    if (regs) {
-      setRegPayments(
-        regs.map((r: any) => ({
-          id: r.id,
-          full_name: r.full_name,
-          event_title: r.events?.title || '',
-          amount: Number(r.event_lots?.price ?? r.events?.price ?? 0),
-          lotName: r.event_lots?.name ?? null,
-          paid_amount: r.paid_amount != null ? Number(r.paid_amount) : null,
-          refunded_amount: r.refunded_amount != null ? Number(r.refunded_amount) : null,
-          method: r.payment_method,
-          status: r.payment_status,
-          created_at: r.created_at,
-        }))
-      );
-    }
+  const expenseFilters = useMemo(() => ({
+    category: expenseCategoryFilter,
+    dateFrom: expenseDateFrom,
+    dateTo: expenseDateTo,
+  }), [expenseCategoryFilter, expenseDateFrom, expenseDateTo]);
 
-    let finQuery = supabase.from('financial_entries').select('*').order('entry_date', { ascending: false });
-    if (eventId) {
-      finQuery = finQuery.eq('event_id', eventId);
-    }
-    const { data: fins, error: finErr } = await finQuery;
-    if (finErr) {
-      console.warn('financial_entries query:', finErr.message);
-    }
-    setFinEntries((fins || []) as FinEntry[]);
+  const { data: summaryData, isLoading: summaryLoading } = useFinancialSummaryData(eventId);
+  const { data: regData, isLoading: regLoading } = useRegistrationPayments(eventId ?? null, regFilters);
+  const { data: incomeData, isLoading: incomeLoading } = useFinancialEntries(eventId ?? null, 'income', incomeFilters);
+  const { data: expenseData, isLoading: expenseLoading } = useFinancialEntries(eventId ?? null, 'expense', expenseFilters);
+  const saveMutation = useSaveFinEntry();
+  const deleteMutation = useDeleteFinEntry();
 
-    setLoading(false);
-  }, [eventId]);
+  const loading = summaryLoading || regLoading || incomeLoading || expenseLoading;
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const totalExpected = summaryData?.expected_revenue ?? 0;
+  const totalOfferings = summaryData?.income_offerings ?? 0;
+  const totalExpenses = summaryData?.total_expenses ?? 0;
 
-  const incomeEntries = finEntries.filter((e) => e.type === 'income');
-  const expenseEntries = finEntries.filter((e) => e.type === 'expense');
-  const totalExpected = regPayments
-    .filter((r) => r.status !== 'cortesia')
-    .reduce((sum, r) => sum + r.amount, 0);
-  const paidRegAmount = regPayments
-    .filter((r) => r.status === 'paid' || (r.paid_amount != null && r.paid_amount > 0))
-    .reduce((sum, r) => {
-      if (r.paid_amount != null && r.paid_amount > 0) return sum + r.paid_amount;
-      return sum + r.amount;
-    }, 0);
-  const totalActual = paidRegAmount;
-  const totalOfferings = incomeEntries.filter((e) => e.category !== 'registration').reduce((sum, e) => sum + e.amount, 0);
-  const totalExpenses = expenseEntries.reduce((sum, e) => sum + e.amount, 0);
+  const totalActual = useMemo(() => {
+    return (regData ?? [])
+      .filter((r) => r.status === 'paid' || (r.paid_amount != null && r.paid_amount > 0))
+      .reduce((sum, r) => {
+        if (r.paid_amount != null && r.paid_amount > 0) return sum + r.paid_amount;
+        return sum + r.amount;
+      }, 0);
+  }, [regData]);
+
   const netActual = totalActual;
   const netBalance = netActual + totalOfferings - totalExpenses;
 
   const filteredRegPayments = useMemo(() => {
-    let result = regPayments.filter((r) => {
-      if (regStatusFilter && r.status !== regStatusFilter) return false;
-      if (regMethodFilter && r.method !== regMethodFilter) return false;
-      if (regSearch && !r.full_name.toLowerCase().includes(regSearch.toLowerCase())) return false;
-      if (regDateFrom && r.created_at < regDateFrom) return false;
-      if (regDateTo && r.created_at > regDateTo + 'T23:59:59') return false;
+    let result = (regData ?? []).filter((r) => {
       if (regPercentFilter) {
         if (r.amount > 0 && r.paid_amount != null) {
           const pct = Math.min(100, Math.round((r.paid_amount / r.amount) * 100));
@@ -189,14 +141,10 @@ export default function FinancialPage() {
     });
 
     return result;
-  }, [regPayments, regStatusFilter, regMethodFilter, regPercentFilter, regSearch, regDateFrom, regDateTo, regSortField, regSortDirection]);
+  }, [regData, regPercentFilter, regSortField, regSortDirection]);
 
   const filteredIncome = useMemo(() => {
-    let result = finEntries.filter((e) => e.type === 'income' && e.category !== 'registration');
-
-    if (incomeCategoryFilter) result = result.filter((e) => e.category === incomeCategoryFilter);
-    if (incomeDateFrom) result = result.filter((e) => e.entry_date >= incomeDateFrom);
-    if (incomeDateTo) result = result.filter((e) => e.entry_date <= incomeDateTo);
+    let result = (incomeData ?? []).filter((e) => e.category !== 'registration');
 
     result.sort((a, b) => {
       let valA: any, valB: any;
@@ -211,14 +159,10 @@ export default function FinancialPage() {
     });
 
     return result;
-  }, [finEntries, incomeCategoryFilter, incomeDateFrom, incomeDateTo, incomeSortField, incomeSortDirection]);
+  }, [incomeData, incomeSortField, incomeSortDirection]);
 
   const filteredExpenses = useMemo(() => {
-    let result = finEntries.filter((e) => e.type === 'expense');
-
-    if (expenseCategoryFilter) result = result.filter((e) => e.category === expenseCategoryFilter);
-    if (expenseDateFrom) result = result.filter((e) => e.entry_date >= expenseDateFrom);
-    if (expenseDateTo) result = result.filter((e) => e.entry_date <= expenseDateTo);
+    const result = [...(expenseData ?? [])];
 
     result.sort((a, b) => {
       let valA: any, valB: any;
@@ -233,7 +177,7 @@ export default function FinancialPage() {
     });
 
     return result;
-  }, [finEntries, expenseCategoryFilter, expenseDateFrom, expenseDateTo, expenseSortField, expenseSortDirection]);
+  }, [expenseData, expenseSortField, expenseSortDirection]);
 
   const openAdd = (type: 'income' | 'expense') => {
     setDialogType(type);
@@ -319,12 +263,11 @@ export default function FinancialPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.event_id || !form.amount || !form.entry_date) {
       toast.error('Selecione um evento, preencha o valor e a data.');
       return;
     }
-    setSaving(true);
     const payload = {
       event_id: form.event_id,
       type: dialogType,
@@ -333,27 +276,22 @@ export default function FinancialPage() {
       amount: parseFloat(form.amount),
       entry_date: form.entry_date,
     };
-
-    const { error } = editId
-      ? await supabase.from('financial_entries').update(payload).eq('id', editId)
-      : await supabase.from('financial_entries').insert(payload);
-
-    setSaving(false);
-    if (error) {
-      toast.error('Erro ao salvar: ' + error.message);
-      return;
-    }
-    setDialogOpen(false);
-    fetchData();
+    saveMutation.mutate({ editId, payload }, {
+      onError: (error: Error) => {
+        toast.error('Erro ao salvar: ' + error.message);
+      },
+      onSuccess: () => {
+        setDialogOpen(false);
+      },
+    });
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('financial_entries').delete().eq('id', id);
-    if (error) {
-      toast.error('Erro ao excluir: ' + error.message);
-      return;
-    }
-    fetchData();
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id, {
+      onError: (error: Error) => {
+        toast.error('Erro ao excluir: ' + error.message);
+      },
+    });
   };
 
   const eventTitle = event?.title ?? '-';
@@ -1063,7 +1001,7 @@ export default function FinancialPage() {
                 <div key={e.id} className="rounded-lg border border-border bg-muted p-4 space-y-2">
                   <div className="flex items-start justify-between gap-1">
                     <p className="font-medium text-sm capitalize text-foreground">{e.category}</p>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11 md:h-10 md:w-10 -mt-1 -mr-1 text-foreground hover:bg-accent" onClick={() => handleDelete(e.id)}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 max-md:h-11 max-md:w-11 -mt-1 -mr-1 text-foreground hover:bg-accent" onClick={() => handleDelete(e.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -1173,7 +1111,7 @@ export default function FinancialPage() {
           </div>
           <DialogFooter>
             <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={handleSave} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Button>
+            <Button className="bg-card backdrop-blur-md border-border hover:bg-accent text-foreground" onClick={handleSave} disabled={saveMutation.isPending}>{saveMutation.isPending ? 'Salvando...' : 'Salvar'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

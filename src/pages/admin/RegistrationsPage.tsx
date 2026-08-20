@@ -1,7 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useEvent } from '@/contexts/useEvent';
+import { useDebounce } from '@/hooks/use-debounce';
+import { useRegistrationList, useRegistrationChurches, useDeleteRegistration, useToggleCheckIn, useBulkDeleteRegistrations } from '@/hooks/use-registrations';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SkeletonTable, SkeletonMobileCard } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -23,41 +25,7 @@ import { useFeatureGate } from '@/hooks/useFeatureGate';
 import { UpgradeModal } from '@/components/shared/UpgradeModal';
 import { fetchFormFields } from '@/lib/form-fields';
 import type { FormField, FieldType, FormStep } from '@/lib/form-fields';
-
-interface Registration {
-  id: string;
-  full_name: string;
-  email: string;
-  whatsapp: string;
-  birth_date: string | null;
-  gender: string | null;
-  is_christian: boolean;
-  perfil_fe: string;
-  is_baptized: boolean | null;
-  church: string | null;
-  pastor: string | null;
-  church_role: string | null;
-  church_role_other: string | null;
-  godparent: string | null;
-  godparent_contact: string | null;
-  pastoral_authorization: boolean;
-  health_info: string | null;
-  emergency_contact: string | null;
-  emergency_phone: string | null;
-  payment_method: string;
-  payment_status: string;
-  private_notes: string | null;
-  checked_in: boolean;
-  created_at: string;
-  event_id: string;
-  invite_id?: string | null;
-  events: { title: string; price: number } | null;
-  event_lots: { name: string; price: number } | null;
-  extra_fields: Record<string, unknown> | null;
-  extra_data?: Record<string, any> | null;
-  paid_amount?: number | null;
-  refunded_amount?: number | null;
-}
+import type { Registration } from '@/hooks/use-registrations';
 
 interface WorksheetWithDataValidations {
   dataValidations: {
@@ -129,9 +97,6 @@ export default function RegistrationsPage() {
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const churchCollected = formFields.some((f) => f.field_key === 'church');
 
-  const [data, setData] = useState<Registration[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('payment_status') || '');
   const [originFilter, setOriginFilter] = useState(searchParams.get('origin') || '');
@@ -144,7 +109,6 @@ export default function RegistrationsPage() {
   const [page, setPage] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<Record<string, string>[] | null>(null);
@@ -154,8 +118,6 @@ export default function RegistrationsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
-
-  const [churches, setChurches] = useState<string[]>([]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -173,21 +135,6 @@ export default function RegistrationsPage() {
 
   useEffect(() => {
     if (!eventId) return;
-    supabase.from('registrations')
-      .select('church')
-      .eq('event_id', eventId)
-      .not('church', 'is', null)
-      .neq('church', '')
-      .neq('payment_status', 'canceled')
-      .order('church')
-      .then(({ data }) => {
-        const unique = [...new Set((data || []).map(r => r.church).filter(Boolean) as string[])];
-        setChurches(unique);
-      });
-  }, [eventId]);
-
-  useEffect(() => {
-    if (!eventId) return;
     const disabled: FormStep[] = [];
     if (event?.step_personal === false) disabled.push('personal');
     if (event?.step_christian_life === false) disabled.push('christian_life');
@@ -199,112 +146,50 @@ export default function RegistrationsPage() {
 
   const pageSize = 20;
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const debouncedSearch = useDebounce(search, 300);
 
-    let query = supabase
-      .from('registrations')
-      .select('*, events(title, price), event_lots!lot_id(name, price)', { count: 'exact' });
+  const filters = useMemo(() => ({
+    search: debouncedSearch,
+    statusFilter,
+    originFilter,
+    churchFilter,
+    checkinFilter,
+    dateFrom,
+    dateTo,
+    churchCollected,
+  }), [debouncedSearch, statusFilter, originFilter, churchFilter, checkinFilter, dateFrom, dateTo, churchCollected]);
 
-    if (statusFilter) {
-      query = query.eq('payment_status', statusFilter);
-    } else {
-      query = query.neq('payment_status', 'canceled');
-    }
-    if (eventId) {
-      query = query.eq('event_id', eventId);
-    }
-    if (search) {
-      query = query.or(
-        `full_name.ilike.%${search}%,email.ilike.%${search}%,whatsapp.ilike.%${search}%`
-      );
-    }
-    if (churchFilter && churchCollected) {
-      query = query.eq('church', churchFilter);
-    }
-    if (checkinFilter === 'checked') {
-      query = query.eq('checked_in', true);
-    } else if (checkinFilter === 'pending') {
-      query = query.eq('checked_in', false);
-    }
-    if (originFilter === 'invite') {
-      query = query.not('invite_id', 'is', null);
-    } else if (originFilter === 'hotsite') {
-      query = query.eq('origin', 'public').eq('extra_data->>source', 'hotsite');
-    } else if (originFilter === 'public') {
-      query = query.eq('origin', 'public').or('extra_data->>source.is.null,extra_data->>source.eq.direct');
-    }
-    if (dateFrom) {
-      query = query.gte('created_at::date', dateFrom);
-    }
-    if (dateTo) {
-      query = query.lte('created_at::date', dateTo);
-    }
+  const sort = useMemo(() => ({ field: sortField, direction: sortDirection }), [sortField, sortDirection]);
 
-    const ascending = sortDirection === 'asc';
-    const sortableFields = ['full_name', 'church', 'payment_status', 'checked_in', 'created_at', 'paid_amount'];
-    const orderField = sortableFields.includes(sortField) ? sortField : 'created_at';
-    query = query.order(orderField, { ascending, nullsFirst: false });
+  const { data: queryResult, isLoading, isError, error: queryError, refetch } = useRegistrationList(
+    eventId ?? null, filters, sort, page
+  );
 
-    const from = page * pageSize;
-    const to = from + pageSize - 1;
+  const data = queryResult?.data ?? [];
+  const totalCount = queryResult?.totalCount ?? 0;
+  const loading = isLoading;
+  const fetchError = isError ? (queryError?.message ?? 'Erro ao carregar inscrições') : null;
 
-    const { data: result, count, error: fetchErr } = await query.range(from, to);
+  const { data: churches = [] } = useRegistrationChurches(eventId ?? null);
+  const deleteMutation = useDeleteRegistration();
+  const toggleCheckInMutation = useToggleCheckIn();
+  const bulkDeleteMutation = useBulkDeleteRegistrations();
 
-    if (fetchErr) {
-      setFetchError(fetchErr.message);
-      setData([]);
-      setTotalCount(0);
-    } else {
-      setFetchError(null);
-      let rows = (result || []) as unknown as Registration[];
-
-      if (sortField === 'price') {
-        rows = [...rows].sort((a, b) => {
-          const priceA = a.event_lots?.price ?? a.events?.price ?? 0;
-          const priceB = b.event_lots?.price ?? b.events?.price ?? 0;
-          return ascending ? priceA - priceB : priceB - priceA;
-        });
-      } else if (sortField === 'percent_paid') {
-        rows = [...rows].sort((a, b) => {
-          const priceA = a.event_lots?.price ?? a.events?.price ?? 0;
-          const priceB = b.event_lots?.price ?? b.events?.price ?? 0;
-          const pctA = priceA ? Math.min(100, Math.round((a.paid_amount || 0) / priceA * 100)) : 0;
-          const pctB = priceB ? Math.min(100, Math.round((b.paid_amount || 0) / priceB * 100)) : 0;
-          return ascending ? pctA - pctB : pctB - pctA;
-        });
-      }
-
-      setData(rows);
-      setTotalCount(count || 0);
-    }
-    setLoading(false);
-  }, [search, eventId, statusFilter, originFilter, page, sortField, sortDirection, churchFilter, checkinFilter, dateFrom, dateTo, churchCollected]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => fetchData(), 300);
-    return () => clearTimeout(timer);
-  }, [fetchData]);
+  const fetchData = refetch;
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await supabase.from('registrations').delete().eq('id', deleteId);
-    setDeleteId(null);
-    fetchData();
+    deleteMutation.mutate(deleteId, {
+      onSuccess: () => { setDeleteId(null); },
+    });
   };
 
   const handleToggleCheckIn = async (regId: string, currentStatus: boolean) => {
     setCheckingId(regId);
-    const { error } = await supabase
-      .from('registrations')
-      .update({ checked_in: !currentStatus })
-      .eq('id', regId);
-    if (!error) {
-      setData((prev) =>
-        prev.map((r) => (r.id === regId ? { ...r, checked_in: !currentStatus } : r))
-      );
-    }
-    setCheckingId(null);
+    toggleCheckInMutation.mutate(
+      { id: regId, currentStatus },
+      { onSettled: () => setCheckingId(null) }
+    );
   };
 
   const handleSelect = (id: string) => {
@@ -329,21 +214,19 @@ export default function RegistrationsPage() {
     setBulkDeleting(true);
 
     const ids = Array.from(selectedIds);
-    const { error } = await supabase
-      .from('registrations')
-      .delete()
-      .in('id', ids);
-
-    if (error) {
-      toast.error(`Erro ao excluir: ${error.message}`);
-    } else {
-      toast.success(`${ids.length} inscrição(ões) excluída(s) com sucesso`);
-      setSelectedIds(new Set());
-      fetchData();
-    }
-
-    setBulkDeleting(false);
-    setBulkDeleteOpen(false);
+    bulkDeleteMutation.mutate(ids, {
+      onSuccess: () => {
+        toast.success(`${ids.length} inscrição(ões) excluída(s) com sucesso`);
+        setSelectedIds(new Set());
+      },
+      onError: (error) => {
+        toast.error(`Erro ao excluir: ${error.message}`);
+      },
+      onSettled: () => {
+        setBulkDeleting(false);
+        setBulkDeleteOpen(false);
+      },
+    });
   };
 
   const clearSelection = () => setSelectedIds(new Set());
