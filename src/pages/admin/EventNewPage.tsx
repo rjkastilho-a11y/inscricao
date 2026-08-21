@@ -13,7 +13,9 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Trash2, Loader2, LayoutDashboard, Globe, CreditCard } from 'lucide-react';
+import { Plus, Trash2, Loader2, LayoutDashboard, Globe, CreditCard, Lock } from 'lucide-react';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
+import { UpgradeModal } from '@/components/shared/UpgradeModal';
 import { useState, useRef, useEffect } from 'react';
 import { useTrial } from '@/components/layout/ChurchGuard';
 import { copyDefaultFields } from '@/lib/form-fields';
@@ -59,6 +61,8 @@ Fica eleito o Foro da Comarca indicada pelo organizador para dirimir quaisquer d
 export default function EventNewPage() {
   const navigate = useNavigate();
   const trial = useTrial();
+  const { hasAccess } = useFeatureGate();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [lots, setLots] = useState<LotFormData[]>([]);
   const [formType, setFormType] = useState<'default' | 'custom'>('default');
@@ -76,6 +80,7 @@ export default function EventNewPage() {
     defaultValues: {
       is_open: false,
       price: 0,
+      theme_color: 'orange',
       hero_layout: 'contained',
       location_name: '',
       show_location: true,
@@ -243,18 +248,34 @@ export default function EventNewPage() {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="slug" className="text-foreground">Slug *</Label>
-                      <div className="relative">
-                        <Input
-                          id="slug"
-                          placeholder="meu-evento"
-                          {...form.register('slug', {
-                            onChange: () => setSlugManuallyEdited(true),
-                          })}
-                        />
-                        {slugChecking && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                        )}
+                      <Label className="flex items-center gap-1.5" htmlFor="slug">
+                        Link do Evento (URL)
+                        {!hasAccess && <Lock className="size-3.5 text-amber-500 drop-shadow-sm" />}
+                      </Label>
+                      <div
+                        onClickCapture={(e) => {
+                          if (!hasAccess) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setUpgradeOpen(true);
+                          }
+                        }}
+                        className={!hasAccess ? 'cursor-pointer' : ''}
+                      >
+                        <div className={!hasAccess ? 'pointer-events-none opacity-60' : ''}>
+                          <div className="relative">
+                            <Input
+                              id="slug"
+                              placeholder="meu-evento"
+                              {...form.register('slug', {
+                                onChange: () => setSlugManuallyEdited(true),
+                              })}
+                            />
+                            {slugChecking && (
+                              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
                       </div>
                       {slugError && (
                         <p className="text-sm text-destructive mt-1">{slugError}</p>
@@ -264,15 +285,7 @@ export default function EventNewPage() {
                       )}
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="subtitle" className="text-foreground">Subtítulo</Label>
-                    <Input id="subtitle" placeholder="Ex: Um fim de semana inesquecível para despertar seu propósito." {...form.register('subtitle')} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-foreground">Descrição</Label>
-                    <Textarea id="description" rows={3} {...form.register('description')} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="start_date" className="text-foreground">Data de início</Label>
                       <Input id="start_date" type="date" {...form.register('start_date')} />
@@ -281,78 +294,30 @@ export default function EventNewPage() {
                       <Label htmlFor="end_date" className="text-foreground">Data de fim</Label>
                       <Input id="end_date" type="date" {...form.register('end_date')} />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="location_name" className="text-foreground">Nome do Local</Label>
-                        <Input id="location_name" placeholder="Ex: Igreja Matriz" {...form.register('location_name')} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="location" className="text-foreground">Endereço Completo</Label>
-                        <Input id="location" placeholder="Ex: Av. Principal, 100, Centro – SP" {...form.register('location')} />
-                        <p className="text-xs text-muted-foreground mt-1">Alimenta o mapa no hotsite.</p>
-                      </div>
-                    </div>
-                    <div>
-                      {form.watch('show_location') !== false ? (
-                        <MapPreview address={form.watch('location') || ''} className="h-full min-h-[240px] w-full" />
-                      ) : (
-                        <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                          Localização oculta no hotsite.
-                        </p>
-                      )}
+                    <div className="space-y-2">
+                      <Label htmlFor="max_capacity" className="text-foreground">Vagas</Label>
+                      <Input id="max_capacity" type="number" {...form.register('max_capacity')} />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="max_capacity" className="text-foreground">Vagas</Label>
-                    <Input id="max_capacity" type="number" {...form.register('max_capacity')} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <div className="space-y-2">
+                      <Label htmlFor="location_name" className="text-foreground">Nome do Local</Label>
+                      <Input id="location_name" placeholder="Ex: Igreja Matriz" {...form.register('location_name')} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="location" className="text-foreground">Endereço Completo</Label>
+                      <Input id="location" placeholder="Ex: Av. Principal, 100, Centro – SP" {...form.register('location')} />
+                      <p className="text-xs text-muted-foreground mt-1">Alimenta o mapa no hotsite.</p>
+                    </div>
                   </div>
-                   <div className="rounded-lg border border-border">
-                     <CardHeader className="p-4 pb-4 border-b">
-                       <CardTitle className="text-base font-semibold">Exibição no Hotsite</CardTitle>
-                       <CardDescription className="text-xs">Controle quais seções aparecem na página pública.</CardDescription>
-                     </CardHeader>
-                     <CardContent className="px-4 pt-4 pb-4 space-y-4">
-                       <div className="flex items-center justify-between gap-4">
-                         <div className="space-y-1">
-                           <Label htmlFor="show_location" className="text-foreground">Exibir localização e mapa</Label>
-                           <p className="text-sm text-muted-foreground">
-                             Quando desativado, o endereço e o mapa ficam ocultos na página pública.
-                           </p>
-                         </div>
-                         <Switch
-                           checked={form.watch('show_location') ?? true}
-                           onCheckedChange={(v) => form.setValue('show_location', !!v, { shouldDirty: true })}
-                         />
-                       </div>
-                       <div className="flex items-center justify-between gap-4">
-                         <div className="space-y-1">
-                           <Label htmlFor="show_about" className="text-foreground">Exibir seção "Sobre o Evento"</Label>
-                           <p className="text-sm text-muted-foreground">
-                             Quando desativado, a seção de apresentação fica oculta.
-                           </p>
-                         </div>
-                         <Switch
-                           checked={form.watch('show_about') ?? true}
-                           onCheckedChange={(v) => form.setValue('show_about', !!v, { shouldDirty: true })}
-                         />
-                       </div>
-                       <div className="flex items-center justify-between gap-4">
-                         <div className="space-y-1">
-                           <Label htmlFor="show_registration" className="text-foreground">Exibir seção de "Inscrições"</Label>
-                           <p className="text-sm text-muted-foreground">
-                             Quando desativado, a seção de inscrição e o botão do herói ficam ocultos.
-                           </p>
-                         </div>
-                         <Switch
-                           checked={form.watch('show_registration') ?? true}
-                           onCheckedChange={(v) => form.setValue('show_registration', !!v, { shouldDirty: true })}
-                         />
-                       </div>
-                     </CardContent>
-                   </div>
-            </CardContent>
+                  {form.watch('show_location') !== false ? (
+                    <MapPreview address={form.watch('location') || ''} className="min-h-[240px] w-full" />
+                  ) : (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Localização oculta no hotsite.
+                    </p>
+                  )}
+             </CardContent>
           </Card>
             </TabsContent>
 
@@ -364,6 +329,14 @@ export default function EventNewPage() {
                     <Label htmlFor="hotsite_title" className="text-foreground">Nome do Hotsite (Opcional)</Label>
                     <Input id="hotsite_title" placeholder="Ex: Encontro de Jovens 2026" {...form.register('hotsite_title')} />
                     <p className="text-xs text-muted-foreground mt-1">Se deixado em branco, usaremos o título principal do evento.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="subtitle" className="text-foreground">Subtítulo</Label>
+                    <Input id="subtitle" placeholder="Ex: Um fim de semana inesquecível para despertar seu propósito." {...form.register('subtitle')} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description" className="text-foreground">Descrição</Label>
+                    <Textarea id="description" rows={3} {...form.register('description')} />
                   </div>
                   <div className="space-y-2">
                     <Label>Imagem de Capa do Hotsite</Label>
@@ -383,9 +356,18 @@ export default function EventNewPage() {
                         <label
                           key={opt.value}
                           className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary"
+                          onClick={(e) => {
+                            if (opt.value === 'full' && !hasAccess) {
+                              e.preventDefault();
+                              setUpgradeOpen(true);
+                            }
+                          }}
                         >
                           <input type="radio" value={opt.value} className="hidden" {...form.register('hero_layout')} />
                           <span className="text-sm text-foreground cursor-pointer">{opt.label}</span>
+                          {opt.value === 'full' && !hasAccess && (
+                            <Lock className="size-4 shrink-0 text-amber-500 drop-shadow-sm" />
+                          )}
                         </label>
                       ))}
                     </div>
@@ -398,6 +380,39 @@ export default function EventNewPage() {
                           ? "💡 Tamanho ideal: 1920x1080px. A imagem cobrirá todo o fundo. Mantenha os elementos importantes no centro, pois as laterais serão cortadas em celulares."
                           : "💡 Tamanho ideal: 1920x1080px (16:9). A imagem será exibida por inteiro, centralizada e sem cortes."}
                       </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-foreground font-semibold">Cor do Hotsite</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Escolha a cor de destaque da seção "Sobre" e dos acentos visuais da página pública.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { value: 'orange', label: 'Laranja', color: '#F5821F' },
+                        { value: 'purple', label: 'Púrpura', color: '#7E22CE' },
+                        { value: 'blue', label: 'Azul', color: '#1D4ED8' },
+                        { value: 'green', label: 'Verde', color: '#15803D' },
+                      ].map((theme) => (
+                        <label
+                          key={theme.value}
+                          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary"
+                          onClick={(e) => {
+                            if (theme.value !== 'orange' && !hasAccess) {
+                              e.preventDefault();
+                              setUpgradeOpen(true);
+                            }
+                          }}
+                        >
+                          <input type="radio" value={theme.value} className="hidden" {...form.register('theme_color')} />
+                          <span className="relative flex size-4 shrink-0 items-center justify-center rounded-full border border-black/10" style={{ backgroundColor: theme.color }}>
+                            {theme.value !== 'orange' && !hasAccess && (
+                              <Lock className="absolute inset-0 m-auto size-4 text-amber-500 drop-shadow-md" />
+                            )}
+                          </span>
+                          <span className="text-sm text-foreground cursor-pointer">{theme.label}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -415,28 +430,104 @@ export default function EventNewPage() {
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="organizer_name" className="text-foreground">Nome do Organizador / Ministério (Opcional)</Label>
-                      <Input
-                        id="organizer_name"
-                        placeholder="Ex: Ministério de Jovens"
-                        {...form.register('organizer_name')}
-                      />
+                      <Label className="flex items-center gap-1.5" htmlFor="organizer_name">
+                        Nome do Organizador / Ministério (Opcional)
+                        {!hasAccess && <Lock className="size-3.5 text-amber-500 drop-shadow-sm" />}
+                      </Label>
+                      <div
+                        onClickCapture={(e) => {
+                          if (!hasAccess) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setUpgradeOpen(true);
+                          }
+                        }}
+                        className={!hasAccess ? 'cursor-pointer' : ''}
+                      >
+                        <div className={!hasAccess ? 'pointer-events-none opacity-60' : ''}>
+                          <Input
+                            id="organizer_name"
+                            placeholder="Ex: Ministério de Jovens"
+                            {...form.register('organizer_name')}
+                          />
+                        </div>
+                      </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         Se vazio, o hotsite exibe o nome global da igreja.
                       </p>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-foreground">Logo do Evento / Ministério (Opcional)</Label>
-                    <ImageUpload
-                      value={form.watch('organizer_logo_url') || ''}
-                      onChange={(url) => form.setValue('organizer_logo_url', url, { shouldDirty: true, shouldValidate: true })}
-                    />
+                    <Label className="flex items-center gap-1.5">
+                      Logo do Evento / Ministério (Opcional)
+                      {!hasAccess && <Lock className="size-3.5 text-amber-500 drop-shadow-sm" />}
+                    </Label>
+                    <div
+                      onClickCapture={(e) => {
+                        if (!hasAccess) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setUpgradeOpen(true);
+                        }
+                      }}
+                      className={!hasAccess ? 'cursor-pointer' : ''}
+                    >
+                      <div className={!hasAccess ? 'pointer-events-none opacity-60' : ''}>
+                        <ImageUpload
+                          value={form.watch('organizer_logo_url') || ''}
+                          onChange={(url) => form.setValue('organizer_logo_url', url, { shouldDirty: true, shouldValidate: true })}
+                        />
+                      </div>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Se vazio, o hotsite exibe a logo global da igreja.
                     </p>
-              </div>
-            </CardContent>
+                  </div>
+                  <div className="rounded-lg border border-border">
+                    <CardHeader className="p-4 pb-4 border-b">
+                      <CardTitle className="text-base font-semibold">Exibição no Hotsite</CardTitle>
+                      <CardDescription className="text-xs">Controle quais seções aparecem na página pública.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-4 pt-4 pb-4 space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="show_location" className="text-foreground">Exibir localização e mapa</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Quando desativado, o endereço e o mapa ficam ocultos na página pública.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={form.watch('show_location') ?? true}
+                          onCheckedChange={(v) => form.setValue('show_location', !!v, { shouldDirty: true })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="show_about" className="text-foreground">Exibir seção "Sobre o Evento"</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Quando desativado, a seção de apresentação fica oculta.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={form.watch('show_about') ?? true}
+                          onCheckedChange={(v) => form.setValue('show_about', !!v, { shouldDirty: true })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="show_registration" className="text-foreground">Exibir seção de "Inscrições"</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Quando desativado, a seção de inscrição e o botão do herói ficam ocultos.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={form.watch('show_registration') ?? true}
+                          onCheckedChange={(v) => form.setValue('show_registration', !!v, { shouldDirty: true })}
+                        />
+                      </div>
+                    </CardContent>
+                  </div>
+             </CardContent>
           </Card>
             </TabsContent>
 
@@ -685,6 +776,7 @@ export default function EventNewPage() {
           </div>
         </form>
       </div>
+      <UpgradeModal isOpen={upgradeOpen} onClose={() => setUpgradeOpen(false)} featureName="Cores e Identidade Premium" />
     </div>
   );
 }
