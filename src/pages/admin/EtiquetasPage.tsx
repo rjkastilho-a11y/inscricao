@@ -26,6 +26,8 @@ interface LabelConfig {
   margemLateral: number;
   larguraEtiqueta: number;
   alturaEtiqueta: number;
+  passoHorizontal?: number;
+  passoVertical?: number;
   colunas: number;
   linhas: number;
 }
@@ -46,6 +48,8 @@ const PIMACO_CONFIGS: Record<string, LabelConfig> = {
     margemLateral: 0.40,
     larguraEtiqueta: 10.16,
     alturaEtiqueta: 3.39,
+    passoHorizontal: 10.68,
+    passoVertical: 3.39,
     colunas: 2,
     linhas: 7,
   },
@@ -55,6 +59,8 @@ const PIMACO_CONFIGS: Record<string, LabelConfig> = {
     margemLateral: 1.45,
     larguraEtiqueta: 4.44,
     alturaEtiqueta: 1.27,
+    passoHorizontal: 4.75,
+    passoVertical: 1.27,
     colunas: 4,
     linhas: 20,
   },
@@ -64,6 +70,8 @@ const PIMACO_CONFIGS: Record<string, LabelConfig> = {
     margemLateral: 1.45,
     larguraEtiqueta: 4.44,
     alturaEtiqueta: 1.69,
+    passoHorizontal: 4.75,
+    passoVertical: 1.69,
     colunas: 4,
     linhas: 15,
   },
@@ -73,6 +81,8 @@ const PIMACO_CONFIGS: Record<string, LabelConfig> = {
     margemLateral: 0.45,
     larguraEtiqueta: 3.82,
     alturaEtiqueta: 2.12,
+    passoHorizontal: 4.07,
+    passoVertical: 2.12,
     colunas: 5,
     linhas: 13,
   },
@@ -82,6 +92,8 @@ const PIMACO_CONFIGS: Record<string, LabelConfig> = {
     margemLateral: 0.47,
     larguraEtiqueta: 9.90,
     alturaEtiqueta: 3.39,
+    passoHorizontal: 10.16,
+    passoVertical: 3.39,
     colunas: 2,
     linhas: 8,
   },
@@ -91,6 +103,8 @@ const PIMACO_CONFIGS: Record<string, LabelConfig> = {
     margemLateral: 0.47,
     larguraEtiqueta: 9.90,
     alturaEtiqueta: 3.81,
+    passoHorizontal: 10.16,
+    passoVertical: 3.81,
     colunas: 2,
     linhas: 7,
   },
@@ -201,10 +215,13 @@ export default function EtiquetasPage() {
   const selectedLabels = labels.filter((_, i) => selectedIndices.has(i));
   const printSheets = Math.max(1, Math.ceil(selectedLabels.length / totalLabels));
 
+  const passoHorizontal = config.passoHorizontal ?? config.larguraEtiqueta;
+  const passoVertical = config.passoVertical ?? config.alturaEtiqueta;
+
   const gridStyle = {
     display: 'grid',
-    gridTemplateColumns: `repeat(${config.colunas}, ${cm(config.larguraEtiqueta)})`,
-    gridTemplateRows: `repeat(${config.linhas}, ${cm(config.alturaEtiqueta)})`,
+    gridTemplateColumns: `repeat(${config.colunas}, ${cm(passoHorizontal)})`,
+    gridTemplateRows: `repeat(${config.linhas}, ${cm(passoVertical)})`,
   };
 
   const fontLabel = FONT_FAMILIES.find((f) => f.value === fontFamily)?.label ?? fontFamily;
