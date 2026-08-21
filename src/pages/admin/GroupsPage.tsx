@@ -13,7 +13,7 @@ import {
   DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Loader2, Printer, RefreshCw, Plus, FileText, Grid3X3, Lock, MoreVertical } from 'lucide-react';
+import { Loader2, Printer, RefreshCw, Plus, FileText, Grid3X3, Lock, MoreVertical, UsersRound } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
@@ -33,7 +33,9 @@ export default function GroupsPage() {
   const [grupos, setGrupos] = useState<GrupoRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
-  const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [configMode, setConfigMode] = useState<'sync' | 'recreate'>('sync');
+  const [groupSize, setGroupSize] = useState<number>(6);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -161,7 +163,7 @@ export default function GroupsPage() {
 
     /* Gera via RPC e persiste */
     const { data: rpcData, error: rpcError } = await supabase
-      .rpc('gerar_grupos_evento', { p_event_id: eventId });
+      .rpc('gerar_grupos_evento', { p_event_id: eventId, p_tamanho_grupo: groupSize });
 
     if (rpcError) {
       setError(rpcError.message);
@@ -173,7 +175,7 @@ export default function GroupsPage() {
     const normalizados = await persistRpcResult(eventId, rpcData);
     setGrupos(normalizados);
     setLoading(false);
-  }, [loadGroupsFromDb, persistRpcResult]);
+  }, [loadGroupsFromDb, persistRpcResult, groupSize]);
 
   useEffect(() => {
     fetchGrupos(eventId);
@@ -293,10 +295,36 @@ export default function GroupsPage() {
     setDeletingGroup(false);
   };
 
+  /* ── Sincronizar novos inscritos (incremental) ── */
+  const handleSync = async () => {
+    if (!eventId) return;
+    setConfigDialogOpen(false);
+    const size = Math.min(20, Math.max(2, groupSize || 6)); // Clamp UI mantido para UX
+
+    setRegenerating(true);
+    setError(null);
+
+    const { error } = await supabase.rpc('sincronizar_grupos_evento', {
+      p_event_id: eventId,
+      p_tamanho_grupo: size,
+    });
+
+    if (error) {
+      // Exibe a mensagem real que o banco cuspiu (ex: "Acesso negado...")
+      setError(error.message || 'Erro ao sincronizar grupos');
+      setRegenerating(false);
+      return;
+    }
+
+    await fetchGrupos(eventId);
+    toast.success('Sincronização concluída');
+    setRegenerating(false);
+  };
+
   /* ── Regenerar grupos ── */
   const handleRegenerate = async () => {
     if (!eventId) return;
-    setRegenerateConfirmOpen(false);
+    setConfigDialogOpen(false);
 
     setRegenerating(true);
     setError(null);
@@ -648,6 +676,14 @@ export default function GroupsPage() {
             {/* DESKTOP: Ações Secundárias em Linha */}
             <div className="hidden sm:flex items-center gap-3">
               <button
+                onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => { setConfigMode('sync'); setConfigDialogOpen(true); }}
+                disabled={regenerating}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                {regenerating ? <Loader2 className="size-4 animate-spin" /> : <UsersRound className="size-4" />}
+                Sincronizar
+              </button>
+              <button
                 onClick={() => { setPrintMode('single'); setPrintOrientation('portrait'); setPrintDialogOpen(true); }}
                 className="inline-flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
               >
@@ -655,7 +691,7 @@ export default function GroupsPage() {
                 Imprimir PDF
               </button>
               <button
-                onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => setRegenerateConfirmOpen(true)}
+                onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => { setConfigMode('recreate'); setConfigDialogOpen(true); }}
                 disabled={regenerating}
                 className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 bg-transparent px-4 py-2 text-sm font-medium text-destructive shadow-sm transition-colors hover:bg-destructive/10 disabled:opacity-50"
               >
@@ -675,6 +711,14 @@ export default function GroupsPage() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     className="cursor-pointer"
+                    disabled={regenerating}
+                    onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => { setConfigMode('sync'); setConfigDialogOpen(true); }}
+                  >
+                    {regenerating ? <Loader2 className="mr-2 size-4 animate-spin" /> : <UsersRound className="mr-2 size-4" />}
+                    Sincronizar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
                     onClick={() => { setPrintMode('single'); setPrintOrientation('portrait'); setPrintDialogOpen(true); }}
                   >
                     <Printer className="mr-2 size-4" />
@@ -684,7 +728,7 @@ export default function GroupsPage() {
                     variant="destructive"
                     className="cursor-pointer"
                     disabled={regenerating}
-                    onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => setRegenerateConfirmOpen(true)}
+                    onClick={trial?.isTrialExceeded ? () => trial.openUpgrade() : () => { setConfigMode('recreate'); setConfigDialogOpen(true); }}
                   >
                     {regenerating ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
                     Recriar
@@ -929,20 +973,39 @@ export default function GroupsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={regenerateConfirmOpen} onOpenChange={setRegenerateConfirmOpen}>
+      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Recriar Grupos</DialogTitle>
+            <DialogTitle>
+              {configMode === 'sync' ? 'Sincronizar Novos Inscritos' : 'Recriar Todos os Grupos'}
+            </DialogTitle>
             <DialogDescription>
-              Todas as alterações manuais, grupos avulsos e monitores serão perdidos. Tem certeza que deseja continuar?
+              {configMode === 'sync'
+                ? 'Iremos organizar apenas as inscrições recentes que estão sem grupo, alocando-as em grupos com vagas ou criando novos.'
+                : 'Atenção: Todos os grupos manuais e monitores serão deletados e dividiremos todos os inscritos do zero.'}
             </DialogDescription>
           </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label htmlFor="group-size">Máximo de pessoas por grupo</Label>
+            <Input
+              id="group-size"
+              type="number"
+              min={2}
+              max={20}
+              value={groupSize}
+              onChange={(e) => setGroupSize(Number(e.target.value))}
+            />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRegenerateConfirmOpen(false)} disabled={regenerating}>
+            <Button variant="outline" onClick={() => setConfigDialogOpen(false)} disabled={regenerating}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleRegenerate} disabled={regenerating}>
-              {regenerating ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Recriando...</> : 'Recriar'}
+            <Button
+              variant={configMode === 'recreate' ? 'destructive' : 'default'}
+              onClick={() => (configMode === 'sync' ? handleSync() : handleRegenerate())}
+              disabled={regenerating}
+            >
+              {regenerating ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Aguarde...</> : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>
