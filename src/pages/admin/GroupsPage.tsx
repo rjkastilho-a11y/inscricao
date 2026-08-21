@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle,
@@ -629,6 +630,18 @@ export default function GroupsPage() {
     );
   }
 
+  /* ── Resumo por gênero (derivado) ── */
+  const totalGrupos = grupos.length;
+  const qtdMasculino = grupos.filter((g) => {
+    const v = g.genero_saida?.trim().toLowerCase();
+    return v === 'm' || v === 'masculino';
+  }).length;
+  const qtdFeminino = grupos.filter((g) => {
+    const v = g.genero_saida?.trim().toLowerCase();
+    return v === 'f' || v === 'feminino';
+  }).length;
+  const qtdGeral = totalGrupos - qtdMasculino - qtdFeminino;
+
   return (
     <div>
       <PageHeader
@@ -736,6 +749,14 @@ export default function GroupsPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-foreground">Resumo:</span>
+            <Badge variant="secondary">{totalGrupos} Grupos totais</Badge>
+            {qtdFeminino > 0 && <Badge variant="outline">{qtdFeminino} Femininos</Badge>}
+            {qtdMasculino > 0 && <Badge variant="outline">{qtdMasculino} Masculinos</Badge>}
+            {qtdGeral > 0 && <Badge variant="outline">{qtdGeral} Mistos/Geral</Badge>}
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
